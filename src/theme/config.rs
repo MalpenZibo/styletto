@@ -201,8 +201,14 @@ fn wallpaper_seed(_: &str) -> Option<guido::prelude::Color> {
     None
 }
 
-/// Sets `colors` over `scheme`, by name.
+/// Sets `colors` over `scheme`, by name. A colour set is used as given; the
+/// text it leaves to the source is made to read again, on a background set
+/// as on the source's.
 fn set(scheme: &mut Scheme, colors: &Colors, side: &str) {
+    if colors.is_empty() {
+        return;
+    }
+    let mut kept = [false; 3];
     for (name, hex) in colors {
         let name = name.trim().to_lowercase().replace('_', " ");
         if !scheme.named().iter().any(|(known, _)| *known == name) {
@@ -210,10 +216,16 @@ fn set(scheme: &mut Scheme, colors: &Colors, side: &str) {
             continue;
         }
         match parse_hex(hex) {
-            Some(color) => *scheme = scheme.with(&name, Some(color)),
+            Some(color) => {
+                *scheme = scheme.with(&name, Some(color));
+                if let Some(ink) = ["text", "sub", "dim"].iter().position(|ink| *ink == name) {
+                    kept[ink] = true;
+                }
+            }
             None => log::warn!("appearance.{side}.{name}: {hex:?} is not #rrggbb or #rrggbbaa"),
         }
     }
+    *scheme = scheme.readable_but(kept);
 }
 
 fn same(name: &str, asked: &str) -> bool {
@@ -257,6 +269,20 @@ mod tests {
         assert_eq!(dark.accent.color, Color::rgb(0.2, 0.2, 0.2));
         assert_eq!(dark.accent.on, Some(Color::WHITE));
         assert_eq!(light, UiConfig::default().scheme(true));
+    }
+
+    #[test]
+    fn a_background_set_keeps_the_text_left_to_the_theme_reading() {
+        let c = config("[dark]\nbackground = \"#5a5a6a\"\ndim = \"#606070\"");
+        let dark = c.scheme(false);
+        // dim was set, so it stays as given even where it doesn't read.
+        assert_eq!(dark.dim, Color::from_hex(0x606070));
+        let palette = Scheme {
+            dim: dark.text,
+            ..dark
+        }
+        .palette();
+        assert_eq!(palette.unreadable(palette.island), None);
     }
 
     #[test]

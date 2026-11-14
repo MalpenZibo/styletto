@@ -70,7 +70,7 @@ moves the scales rather than setting numbers:
 |---|---|---|
 | `Density` | `Compact`, `Default`, `Comfortable` | moves type, controls, icons, tiles and space up to `S8` one step |
 | `Shape` | `Square`, `Soft`, `Round` | moves every radius one step; a pill stays a pill |
-| `Material` | `Solid`, `Translucent`, `Glass` | the island's opacity (1, 0.86, 0.6; 0.75 for a light glass) and blur (0, 24, 48); on a light island the text darkens as far as it must to read with black behind |
+| `Material` | `Solid`, `Translucent`, `Glass` | the island's opacity (1, 0.86, 0.75) and blur (0, 24, 48); the text on it darkens or lightens as far as it must to read with the island's opposite behind |
 | `Motion` | `Full`, `Reduced`, `None` | springs, fades only, or instant changes |
 | `Fonts` | `sans`, `mono` | the families, the system's by default |
 
@@ -144,12 +144,14 @@ labels): both reach 4.5:1 on the island and on `surface` and `surface2`.
 its borders or overlays; where none reads well enough, `Scheme::readable`
 mixes the nearest toward `text` until it does, and does the same for a theme
 from a seed. Colours set in `[appearance.dark]` and `[appearance.light]` are
-used as given.
+used as given, and the text they leave to the source is made to read again
+on a `background` set there.
 
-On a see-through light island the text is darkened again: `Ui::colors`
-holds it as dark as it must be to read with black showing through, the worst
-such an island can have behind it, and a colour set below its floor keeps
-the contrast it was set with. Paint text with `ui().colors`, not with a
+On a see-through island the text is adjusted again: `Ui::colors` holds it
+as dark or as light as it must be to read with the island's opposite showing
+through, black behind a light island or white behind a dark one. Where not
+even black or white would read, the island is drawn denser. A colour set
+below its floor keeps the contrast it was set with. Paint text with `ui().colors`, not with a
 `Scheme`'s or a theme's own colours, or it won't follow.
 
 The preset themes, in `presets::THEMES`, each with dark and light flavours
