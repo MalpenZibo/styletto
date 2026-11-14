@@ -1,0 +1,30 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 400 400" role="img">
+  <title>styletto</title>
+  <rect width="400" height="400" rx="96" fill="#e8edf3"/>
+  <svg x="50" y="44" width="300" height="300" viewBox="0 0 100 100">
+  <path d="M50 88.6 L48.5 88.6 L50 97.1 Z" fill="#dce3ec"/>
+  <path d="M50 88.6 L51.5 88.6 L50 97.1 Z" fill="#9eabbd"/>
+<path d="M23 76 L50 86 L50 89.6 L23 79.6 Z" fill="#3fa395" stroke="#3fa395" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M50 86 L77 76 L77 79.6 L50 89.6 Z" fill="#338a7e" stroke="#338a7e" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M23 76 L50 66 L77 76 L50 86 Z" fill="#5cc2b3" stroke="#5cc2b3" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M23 68 L50 78 L50 81.6 L23 71.6 Z" fill="#d99a2e" stroke="#d99a2e" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M50 78 L77 68 L77 71.6 L50 81.6 Z" fill="#bf8424" stroke="#bf8424" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M23 68 L50 58 L77 68 L50 78 Z" fill="#f2b84b" stroke="#f2b84b" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M23 60 L50 70 L50 73.6 L23 63.6 Z" fill="#d26e50" stroke="#d26e50" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M50 70 L77 60 L77 63.6 L50 73.6 Z" fill="#b85a40" stroke="#b85a40" stroke-width="2.6" stroke-linejoin="round"/>
+<path d="M23 60 L50 50 L77 60 L50 70 Z" fill="#ef8a6a" stroke="#ef8a6a" stroke-width="2.6" stroke-linejoin="round"/>
+  <ellipse cx="50" cy="60" rx="3.3" ry="1.2" fill="#00000033"/>
+  <circle cx="50" cy="7.5" r="4.6" fill="#9eabbd"/>
+  <path d="M50 2.9 A4.6 4.6 0 0 0 50 12.1 Z" fill="#dce3ec"/>
+  <rect x="46.5" y="11.5" width="7" height="13.5" rx="2.2" fill="#9a6b45"/>
+  <path d="M46.5 15.3 L53.5 14.1 M46.5 18.9 L53.5 17.7 M46.5 22.5 L53.5 21.3" stroke="#7a5236" stroke-width="1.4" stroke-linecap="round"/>
+  <rect x="38" y="24.5" width="24" height="3.8" rx="1.9" fill="#9eabbd"/>
+  <rect x="38" y="24.5" width="24" height="1.9" rx="0.95" fill="#dce3ec"/>
+  <circle cx="38" cy="26.4" r="2.7" fill="#9eabbd"/>
+  <circle cx="62" cy="26.4" r="2.7" fill="#9eabbd"/>
+  <path d="M38 23.7 A2.7 2.7 0 0 0 38 29.1 Z" fill="#dce3ec"/>
+  <path d="M62 23.7 A2.7 2.7 0 0 0 62 29.1 Z" fill="#dce3ec"/>
+  <path d="M50 28.3 L46.9 28.3 L48.1 60 L50 60 Z" fill="#dce3ec"/>
+  <path d="M50 28.3 L53.1 28.3 L51.9 60 L50 60 Z" fill="#9eabbd"/>
+  </svg>
+</svg>

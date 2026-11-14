@@ -1,0 +1,17 @@
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100" role="img">
+  <title>styletto</title>
+  <path d="M47.8 89.6 L50 97.1 L52.2 89.6 Z" fill="#1b1f2a"/>
+  <path d="M23 76 L50 66 L77 76 L77 79.6 L50 89.6 L23 79.6 Z" fill="#f5f1ea" stroke="#1b1f2a" stroke-width="3.2" stroke-linejoin="round"/>
+  <path d="M23 76 L50 86 L77 76 M50 86 L50 89.6" fill="none" stroke="#1b1f2a" stroke-width="2.4000000000000004" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M23 68 L50 58 L77 68 L77 71.6 L50 81.6 L23 71.6 Z" fill="#f5f1ea" stroke="#1b1f2a" stroke-width="3.2" stroke-linejoin="round"/>
+  <path d="M23 68 L50 78 L77 68 M50 78 L50 81.6" fill="none" stroke="#1b1f2a" stroke-width="2.4000000000000004" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M23 60 L50 50 L77 60 L77 63.6 L50 73.6 L23 63.6 Z" fill="#f5f1ea" stroke="#1b1f2a" stroke-width="3.2" stroke-linejoin="round"/>
+  <path d="M23 60 L50 70 L77 60 M50 70 L50 73.6" fill="none" stroke="#1b1f2a" stroke-width="2.4000000000000004" stroke-linejoin="round" stroke-linecap="round"/>
+  <path d="M46.9 28.3 L48.1 60 L51.9 60 L53.1 28.3 Z" fill="#f5f1ea" stroke="#1b1f2a" stroke-width="2.5600000000000005" stroke-linejoin="round"/>
+  <circle cx="38" cy="26.4" r="2.7" fill="#1b1f2a"/>
+  <circle cx="62" cy="26.4" r="2.7" fill="#1b1f2a"/>
+  <rect x="38" y="24.5" width="24" height="3.8" rx="1.9" fill="#f5f1ea" stroke="#1b1f2a" stroke-width="2.5600000000000005"/>
+  <rect x="46.5" y="11.5" width="7" height="13.0" rx="2.2" fill="#f5f1ea" stroke="#1b1f2a" stroke-width="2.5600000000000005"/>
+  <path d="M46.5 17.1 L53.5 15.9 M46.5 20.7 L53.5 19.5" stroke="#1b1f2a" stroke-width="2.0480000000000005" stroke-linecap="round"/>
+  <circle cx="50" cy="7.5" r="3.9999999999999996" fill="#f5f1ea" stroke="#1b1f2a" stroke-width="2.5600000000000005"/>
+</svg>

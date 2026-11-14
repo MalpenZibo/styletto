@@ -1,0 +1,68 @@
+use super::{Flavor, Theme, accent};
+
+/// Rosé Pine has no green; pine stands for success, as its guide pairs them.
+pub const ROSE_PINE: Theme = Theme {
+    name: "Rosé Pine",
+    flavors: &[
+        Flavor {
+            name: "Main",
+            light: false,
+            island: 0x191724,
+            text: 0xe0def4,
+            sub: 0x908caa,
+            dim: 0x6e6a86,
+            success: 0x31748f,
+            warning: 0xf6c177,
+            danger: 0xeb6f92,
+            accents: &[
+                accent("Iris", 0xc4a7e7),
+                accent("Foam", 0x9ccfd8),
+                accent("Pine", 0x31748f),
+                accent("Rose", 0xebbcba),
+                accent("Gold", 0xf6c177),
+                accent("Love", 0xeb6f92),
+            ],
+            accent: 0,
+        },
+        Flavor {
+            name: "Moon",
+            light: false,
+            island: 0x232136,
+            text: 0xe0def4,
+            sub: 0x908caa,
+            dim: 0x6e6a86,
+            success: 0x3e8fb0,
+            warning: 0xf6c177,
+            danger: 0xeb6f92,
+            accents: &[
+                accent("Iris", 0xc4a7e7),
+                accent("Foam", 0x9ccfd8),
+                accent("Pine", 0x3e8fb0),
+                accent("Rose", 0xea9a97),
+                accent("Gold", 0xf6c177),
+                accent("Love", 0xeb6f92),
+            ],
+            accent: 0,
+        },
+        Flavor {
+            name: "Dawn",
+            light: true,
+            island: 0xfaf4ed,
+            text: 0x575279,
+            sub: 0x797593,
+            dim: 0x9893a5,
+            success: 0x286983,
+            warning: 0xea9d34,
+            danger: 0xb4637a,
+            accents: &[
+                accent("Iris", 0x907aa9),
+                accent("Foam", 0x56949f),
+                accent("Pine", 0x286983),
+                accent("Rose", 0xd7827e),
+                accent("Gold", 0xea9d34),
+                accent("Love", 0xb4637a),
+            ],
+            accent: 0,
+        },
+    ],
+};

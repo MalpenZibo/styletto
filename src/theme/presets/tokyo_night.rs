@@ -1,0 +1,95 @@
+use super::{Accent, Flavor, Theme, accent};
+
+const TOKYO_ACCENTS: &[Accent] = &[
+    accent("Blue", 0x7aa2f7),
+    accent("Cyan", 0x7dcfff),
+    accent("Teal", 0x1abc9c),
+    accent("Green", 0x9ece6a),
+    accent("Yellow", 0xe0af68),
+    accent("Orange", 0xff9e64),
+    accent("Red", 0xf7768e),
+    accent("Magenta", 0xbb9af7),
+    accent("Purple", 0x9d7cd8),
+];
+
+const TOKYO_MOON_ACCENTS: &[Accent] = &[
+    accent("Blue", 0x82aaff),
+    accent("Cyan", 0x86e1fc),
+    accent("Teal", 0x4fd6be),
+    accent("Green", 0xc3e88d),
+    accent("Yellow", 0xffc777),
+    accent("Orange", 0xff966c),
+    accent("Red", 0xff757f),
+    accent("Magenta", 0xc099ff),
+    accent("Purple", 0xfca7ea),
+];
+
+const TOKYO_DAY_ACCENTS: &[Accent] = &[
+    accent("Blue", 0x2e7de9),
+    accent("Cyan", 0x007197),
+    accent("Teal", 0x118c74),
+    accent("Green", 0x587539),
+    accent("Yellow", 0x8c6c3e),
+    accent("Orange", 0xb15c00),
+    accent("Red", 0xf52a65),
+    accent("Magenta", 0x9854f1),
+    accent("Purple", 0x7847bd),
+];
+
+pub const TOKYO_NIGHT: Theme = Theme {
+    name: "Tokyo Night",
+    flavors: &[
+        Flavor {
+            name: "Night",
+            light: false,
+            island: 0x16161e,
+            text: 0xc0caf5,
+            sub: 0xa9b1d6,
+            dim: 0x565f89,
+            success: 0x9ece6a,
+            warning: 0xe0af68,
+            danger: 0xf7768e,
+            accents: TOKYO_ACCENTS,
+            accent: 0,
+        },
+        Flavor {
+            name: "Storm",
+            light: false,
+            island: 0x1f2335,
+            text: 0xc0caf5,
+            sub: 0xa9b1d6,
+            dim: 0x565f89,
+            success: 0x9ece6a,
+            warning: 0xe0af68,
+            danger: 0xf7768e,
+            accents: TOKYO_ACCENTS,
+            accent: 0,
+        },
+        Flavor {
+            name: "Moon",
+            light: false,
+            island: 0x1e2030,
+            text: 0xc8d3f5,
+            sub: 0x828bb8,
+            dim: 0x636da6,
+            success: 0xc3e88d,
+            warning: 0xffc777,
+            danger: 0xff757f,
+            accents: TOKYO_MOON_ACCENTS,
+            accent: 0,
+        },
+        Flavor {
+            name: "Day",
+            light: true,
+            island: 0xe1e2e7,
+            text: 0x3760bf,
+            sub: 0x6172b0,
+            dim: 0x848cb5,
+            success: 0x587539,
+            warning: 0x8c6c3e,
+            danger: 0xf52a65,
+            accents: TOKYO_DAY_ACCENTS,
+            accent: 0,
+        },
+    ],
+};

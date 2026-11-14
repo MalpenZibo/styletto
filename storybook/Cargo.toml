@@ -1,0 +1,25 @@
+[package]
+name = "styletto-storybook"
+description = "Interactive gallery of the styletto components"
+version = "0.1.0"
+edition.workspace = true
+rust-version.workspace = true
+license.workspace = true
+authors.workspace = true
+repository.workspace = true
+publish = false
+
+[dependencies]
+anyhow = "1.0.104"
+fontdb = "0.24.0"
+futures = "0.3.34"
+guido.workspace = true
+log.workspace = true
+styletto = { path = "..", features = ["wallpaper"] }
+tokio = { version = "1.54.1", default-features = false, features = ["rt-multi-thread", "macros"] }
+ttf-parser = "0.25.1"
+url = "2.5.8"
+zbus = { version = "6.3.0", default-features = false, features = ["tokio", "proxy"] }
+
+[dev-dependencies]
+guido = { workspace = true, features = ["testing"] }
