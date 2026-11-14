@@ -68,8 +68,7 @@ differ (0 means none). It needs a GPU adapter; the first run builds in release.
 
 ## Git
 
-- `main` changes only through pull requests with green CI; never push to it. The repo's
-  pre-push hook refuses it once enabled: `git config core.hooksPath .githooks`.
+- `main` changes only through pull requests with green CI; never push to it.
 - Branches are `<issue>-<short-slug>`. Commits and PRs are in English; a commit subject says
   what changed, the body explains why. No trailers (no `Co-Authored-By`), no "Generated with"
   footers.
