@@ -34,7 +34,7 @@ pub const NORD: Theme = Theme {
             island: 0xeceff4,
             text: 0x2e3440,
             sub: 0x4c566a,
-            dim: 0x7b88a1,
+            dim: 0x616e88,
             success: 0xa3be8c,
             warning: 0xebcb8b,
             danger: 0xbf616a,

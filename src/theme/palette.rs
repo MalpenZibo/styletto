@@ -19,15 +19,24 @@ impl Fill {
     }
 }
 
+/// The contrast a text keeps on everything it can sit on: WCAG's AA for
+/// body text.
+pub(crate) const TEXT_CONTRAST: f32 = 4.5;
+/// The contrast `dim` keeps: WCAG's floor for large text and for what is not
+/// text, which is all `dim` carries.
+const DIM_CONTRAST: f32 = 3.0;
+/// What `text`, `sub` and `dim` reach, in that order.
+const FLOORS: [f32; 3] = [TEXT_CONTRAST, TEXT_CONTRAST, DIM_CONTRAST];
+
 /// What a theme sets; the rest is derived.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Scheme {
     /// The island's fill: darkest in a dark scheme, lightest in a light one.
     pub background: Color,
     pub text: Color,
-    /// Secondary text and icons.
+    /// Secondary text: captions, placeholders, small labels.
     pub sub: Color,
-    /// Hints and labels.
+    /// Icons, dividers and large text; never small text.
     pub dim: Color,
     pub accent: Fill,
     pub success: Fill,
@@ -97,6 +106,108 @@ impl Palette {
             ("Danger", self.danger, self.on_danger),
         ]
     }
+
+    /// Whether its island is light.
+    pub(crate) fn is_light(&self) -> bool {
+        luminance(self.island) > 0.5
+    }
+
+    /// What a text can sit on: the island, as it shows over `backdrop`, and
+    /// a control's fills over it.
+    fn grounds(&self, backdrop: Color) -> [Color; 3] {
+        let island = over(self.island, backdrop);
+        [
+            island,
+            over(self.surface, island),
+            over(self.surface2, island),
+        ]
+    }
+
+    /// The palette with the island at `opacity`, its text darkened as far
+    /// as keeps the contrast it has on the opaque island, up to the floors,
+    /// with black showing through: the worst a light island can have behind
+    /// it, which turns it grey. Text lighter than its island is left as it
+    /// is, since black behind only darkens what is under it.
+    pub(crate) fn see_through(&self, opacity: f32) -> Palette {
+        let island = self.island.scale_alpha(opacity);
+        if luminance(self.text) > luminance(self.island) {
+            return Palette { island, ..*self };
+        }
+        let solid = self.grounds(self.island);
+        let inks = [self.text, self.sub, self.dim];
+        // A colour set below its floor keeps the contrast it was set with.
+        let floors = [0, 1, 2].map(|i| FLOORS[i].min(lowest(inks[i], solid)));
+        let [text, sub, dim] = lifted(
+            inks,
+            Palette { island, ..*self }.grounds(Color::BLACK),
+            floors,
+        );
+        Palette {
+            island,
+            text,
+            sub,
+            dim,
+            ..*self
+        }
+    }
+}
+
+#[cfg(test)]
+impl Palette {
+    /// The first of `text`, `sub` and `dim` short of its floor on the
+    /// island over `backdrop`, with the contrast it has.
+    pub(crate) fn unreadable(&self, backdrop: Color) -> Option<(&'static str, f32)> {
+        let grounds = self.grounds(backdrop);
+        [("text", self.text), ("sub", self.sub), ("dim", self.dim)]
+            .into_iter()
+            .zip(FLOORS)
+            .map(|((role, ink), floor)| (role, lowest(ink, grounds), floor))
+            .find(|&(_, ratio, floor)| ratio < floor)
+            .map(|(role, ratio, _)| (role, ratio))
+    }
+}
+
+/// How finely a colour is searched for.
+const STEPS: u16 = 100;
+
+/// `top` painted over the opaque `below`, the channels mixed as they are
+/// stored, as the renderer blends them.
+fn over(top: Color, below: Color) -> Color {
+    below.mix(top.with_alpha(1.0), top.a)
+}
+
+/// `text`, `sub` and `dim` reaching their `floors` on all of `grounds`:
+/// `text` mixed toward black or white, the others toward `text`, each as
+/// little as gets it there.
+fn lifted([text, sub, dim]: [Color; 3], grounds: [Color; 3], floors: [f32; 3]) -> [Color; 3] {
+    let extreme = if luminance(text) < luminance(grounds[0]) {
+        Color::BLACK
+    } else {
+        Color::WHITE
+    };
+    let text = lift(text, extreme, grounds, floors[0]);
+    [
+        text,
+        lift(sub, text, grounds, floors[1]),
+        lift(dim, text, grounds, floors[2]),
+    ]
+}
+
+/// `ink` mixed toward `toward` as little as makes it reach `floor` on all of
+/// `grounds`; `toward` itself when nothing short of it does.
+fn lift(ink: Color, toward: Color, grounds: [Color; 3], floor: f32) -> Color {
+    (0..=STEPS)
+        .map(|step| ink.mix(toward, step as f32 / STEPS as f32))
+        .find(|&mixed| lowest(mixed, grounds) >= floor)
+        .unwrap_or(toward)
+}
+
+/// The lowest contrast `ink` has on any of `grounds`.
+fn lowest(ink: Color, grounds: [Color; 3]) -> f32 {
+    grounds
+        .map(|ground| contrast(ink, ground))
+        .into_iter()
+        .fold(f32::MAX, f32::min)
 }
 
 /// WCAG's relative luminance.
@@ -141,7 +252,7 @@ impl Scheme {
         };
         fill.on.unwrap_or_else(|| {
             let own = best(&[self.background, self.text]);
-            if contrast(fill.color, own) >= 4.5 {
+            if contrast(fill.color, own) >= TEXT_CONTRAST {
                 own
             } else {
                 best(&[self.background, self.text, Color::BLACK, Color::WHITE])
@@ -149,11 +260,30 @@ impl Scheme {
         })
     }
 
+    /// The scheme with `text` and `sub` reaching 4.5:1 and `dim` 3:1 on the
+    /// island and a control's fills. A colour short of it is mixed toward
+    /// `text`, and `text` toward black or white, as little as gets it there.
+    /// A theme's own colours are kept where they already read.
+    pub fn readable(self) -> Self {
+        let palette = self.palette();
+        let [text, sub, dim] = lifted(
+            [self.text, self.sub, self.dim],
+            palette.grounds(palette.island),
+            FLOORS,
+        );
+        Self {
+            text,
+            sub,
+            dim,
+            ..self
+        }
+    }
+
     pub fn palette(&self) -> Palette {
         // Surfaces, line and ripple: white over a dark background, black over a
         // light one.
         let light = self.is_light();
-        let over = |alpha: f32| {
+        let tint = |alpha: f32| {
             if light {
                 Color::rgba(0.0, 0.0, 0.0, alpha * 0.8)
             } else {
@@ -162,9 +292,9 @@ impl Scheme {
         };
         Palette {
             island: self.background,
-            surface: over(0.065),
-            surface2: over(0.11),
-            line: over(0.08),
+            surface: tint(0.065),
+            surface2: tint(0.11),
+            line: tint(0.08),
             text: self.text,
             sub: self.sub,
             dim: self.dim,
@@ -176,7 +306,7 @@ impl Scheme {
             on_warning: self.on(self.warning),
             danger: self.danger.color,
             on_danger: self.on(self.danger),
-            ripple: over(0.16),
+            ripple: tint(0.16),
         }
     }
 

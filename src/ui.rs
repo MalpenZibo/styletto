@@ -83,11 +83,22 @@ pub enum Material {
 }
 
 impl Material {
+    /// The island's opacity on a dark side.
     pub fn opacity(self) -> f32 {
         match self {
             Material::Solid => 1.0,
             Material::Translucent => 0.86,
             Material::Glass => 0.6,
+        }
+    }
+
+    /// The island's opacity on a light side, denser for glass: a light
+    /// island over a dark backdrop turns grey, and the text on it has to
+    /// darken that much more to read.
+    pub fn light_opacity(self) -> f32 {
+        match self {
+            Material::Glass => 0.75,
+            material => material.opacity(),
         }
     }
 
@@ -119,7 +130,8 @@ pub enum Motion {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ui {
-    /// The palette, with the island's alpha set by the material.
+    /// The palette, with the island's alpha set by the material and the
+    /// text adjusted to read on it: what components paint with.
     pub colors: Palette,
     palette: Palette,
     pub density: Density,
@@ -169,12 +181,15 @@ impl Ui {
         Self { motion, ..self }
     }
 
+    /// The island at the material's opacity, and its text as much darker as
+    /// keeps it reading whatever shows through.
     fn settled(mut self) -> Self {
-        let island = self.palette.island;
-        self.colors = Palette {
-            island: island.with_alpha(island.a * self.material.opacity()),
-            ..self.palette
+        let opacity = if self.palette.is_light() {
+            self.material.light_opacity()
+        } else {
+            self.material.opacity()
         };
+        self.colors = self.palette.see_through(opacity);
         self
     }
 }
@@ -233,4 +248,65 @@ pub(crate) fn flip(
 /// Tabular figures, so a number keeps its width.
 pub fn tabular() -> FontFeatures {
     FontFeatures::new().enable(b"tnum")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::presets::{THEMES, ThemeChoice};
+
+    #[test]
+    fn text_reads_on_every_material_over_black() {
+        for theme in THEMES {
+            for flavor in theme.flavors {
+                let palette = flavor.scheme(flavor.accent).palette();
+                for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                    let colors = Ui::new(palette).with_material(material).colors;
+                    assert_eq!(
+                        colors.unreadable(Color::BLACK),
+                        None,
+                        "{} {} {material:?}",
+                        theme.name,
+                        flavor.name
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn a_dark_island_keeps_its_material_and_its_text() {
+        let palette = THEMES[0].flavors[0].scheme(0).palette();
+        assert!(!palette.is_light());
+        let glass = Ui::new(palette).with_material(Material::Glass).colors;
+        assert_eq!(glass.island.a, Material::Glass.opacity());
+        assert_eq!(
+            (glass.text, glass.sub, glass.dim),
+            (palette.text, palette.sub, palette.dim)
+        );
+    }
+
+    #[test]
+    fn a_light_glass_is_denser_and_its_text_darker() {
+        let palette = ThemeChoice::default().palette_of(true);
+        assert!(palette.is_light());
+        let glass = Ui::new(palette).with_material(Material::Glass).colors;
+        assert_eq!(glass.island.a, Material::Glass.light_opacity());
+        assert!(glass.text.luminance() < palette.text.luminance());
+    }
+
+    #[test]
+    fn a_colour_set_keeps_its_contrast() {
+        // A dim set paler than its floor stays as set on a solid island,
+        // and on glass darkens only as far as it read when solid.
+        let mut palette = ThemeChoice::default().palette_of(true);
+        palette.dim = Color::from_hex(0xa0a0a0);
+        assert_eq!(Ui::new(palette).colors, palette);
+        let glass = Ui::new(palette).with_material(Material::Glass).colors;
+        assert!(glass.dim.luminance() < palette.dim.luminance());
+        assert_eq!(
+            glass.unreadable(Color::BLACK).map(|(role, _)| role),
+            Some("dim")
+        );
+    }
 }

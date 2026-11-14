@@ -109,7 +109,7 @@ pub fn empty(#[prop(required)] icon: Icon, #[prop(required)] message: String) ->
         .child(
             text(message)
                 .typeset(LABEL_MEDIUM)
-                .color(t.colors.dim)
+                .color(t.colors.sub)
                 .nowrap(),
         )
 }

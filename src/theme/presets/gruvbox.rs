@@ -30,7 +30,7 @@ pub const GRUVBOX: Theme = Theme {
             island: 0xf9f5d7,
             text: 0x3c3836,
             sub: 0x665c54,
-            dim: 0x928374,
+            dim: 0x7c6f64,
             success: 0x79740e,
             warning: 0xb57614,
             danger: 0x9d0006,

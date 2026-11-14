@@ -3,9 +3,9 @@
 
 use guido::prelude::*;
 
-#[cfg(test)]
-use super::palette::contrast;
 use super::palette::{Fill, Palette, Scheme};
+#[cfg(test)]
+use super::palette::{TEXT_CONTRAST, contrast};
 
 mod catppuccin;
 mod dracula;
@@ -38,7 +38,10 @@ const fn accent(name: &'static str, hex: u32) -> Accent {
     }
 }
 
-/// One flavour of a theme: neutrals, state colours and accents.
+/// One flavour of a theme: neutrals, state colours and accents. `sub` and
+/// `dim` are colours the theme itself gives text (labels, comments, subtle
+/// text), not its borders or overlays; where none reads well enough,
+/// [`Scheme::readable`] works one out from the nearest.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Flavor {
     pub name: &'static str,
@@ -73,6 +76,7 @@ impl Flavor {
             warning: fill(self.warning),
             danger: fill(self.danger),
         }
+        .readable()
     }
 }
 
@@ -250,6 +254,37 @@ mod tests {
                 }
             }
         }
-        assert!(worst.0 >= 4.5, "{} reads at {:.2}", worst.1, worst.0);
+        assert!(
+            worst.0 >= TEXT_CONTRAST,
+            "{} reads at {:.2}",
+            worst.1,
+            worst.0
+        );
+    }
+
+    #[test]
+    fn every_text_reads() {
+        for theme in THEMES {
+            for flavor in theme.flavors {
+                let palette = flavor.scheme(flavor.accent).palette();
+                assert_eq!(
+                    palette.unreadable(palette.island),
+                    None,
+                    "{} {}",
+                    theme.name,
+                    flavor.name
+                );
+            }
+        }
+    }
+
+    #[test]
+    fn a_theme_keeps_the_colours_that_read() {
+        // Catppuccin Mocha's own text colours all read: none is worked out.
+        let mocha = CATPPUCCIN.flavors[0];
+        let scheme = mocha.scheme(mocha.accent);
+        assert_eq!(scheme.text, Color::from_hex(mocha.text));
+        assert_eq!(scheme.sub, Color::from_hex(mocha.sub));
+        assert_eq!(scheme.dim, Color::from_hex(mocha.dim));
     }
 }

@@ -9,7 +9,7 @@ pub const EVERFOREST: Theme = Theme {
             island: 0x232a2e,
             text: 0xd3c6aa,
             sub: 0x9da9a0,
-            dim: 0x7a8478,
+            dim: 0x859289,
             success: 0xa7c080,
             warning: 0xdbbc7f,
             danger: 0xe67e80,

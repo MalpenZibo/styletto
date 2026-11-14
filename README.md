@@ -70,7 +70,7 @@ moves the scales rather than setting numbers:
 |---|---|---|
 | `Density` | `Compact`, `Default`, `Comfortable` | moves type, controls, icons, tiles and space up to `S8` one step |
 | `Shape` | `Square`, `Soft`, `Round` | moves every radius one step; a pill stays a pill |
-| `Material` | `Solid`, `Translucent`, `Glass` | the island's opacity (1, 0.86, 0.6) and blur (0, 24, 48) |
+| `Material` | `Solid`, `Translucent`, `Glass` | the island's opacity (1, 0.86, 0.6; 0.75 for a light glass) and blur (0, 24, 48); on a light island the text darkens as far as it must to read with black behind |
 | `Motion` | `Full`, `Reduced`, `None` | springs, fades only, or instant changes |
 | `Fonts` | `sans`, `mono` | the families, the system's by default |
 
@@ -136,6 +136,21 @@ on it. An on-colour left unset is worked out to reach a 4.5:1 contrast.
 Components read the `Palette` derived from it: `island`, `surface`,
 `surface2`, `line`, `text`, `sub`, `dim`, each fill with its `on_*`, and
 `ripple`.
+
+`text` is body text and `sub` secondary text (captions, placeholders, small
+labels): both reach 4.5:1 on the island and on `surface` and `surface2`.
+`dim` is for icons, dividers and large text, never small text, and reaches
+3:1. A preset takes these from the theme's own colours for text, not from
+its borders or overlays; where none reads well enough, `Scheme::readable`
+mixes the nearest toward `text` until it does, and does the same for a theme
+from a seed. Colours set in `[appearance.dark]` and `[appearance.light]` are
+used as given.
+
+On a see-through light island the text is darkened again: `Ui::colors`
+holds it as dark as it must be to read with black showing through, the worst
+such an island can have behind it, and a colour set below its floor keeps
+the contrast it was set with. Paint text with `ui().colors`, not with a
+`Scheme`'s or a theme's own colours, or it won't follow.
 
 The preset themes, in `presets::THEMES`, each with dark and light flavours
 and its own accents: Tokyo Night, Catppuccin, Nord, Gruvbox, Dracula, Rosé

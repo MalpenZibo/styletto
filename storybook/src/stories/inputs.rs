@@ -64,7 +64,7 @@ pub fn field(ctx: &Ctx) -> Container {
                         .typeset(ty::TITLE_XSMALL)
                         .color(t.colors.text)
                         .placeholder("Search apps".to_string())
-                        .placeholder_color(t.colors.dim)
+                        .placeholder_color(t.colors.sub)
                         .cursor_color(t.colors.accent)
                         .on_submit(move |value| submitted(value.to_string())),
                 ),
@@ -103,7 +103,7 @@ pub fn password_field(ctx: &Ctx) -> Container {
                         .typeset(ty::LABEL_MEDIUM)
                         .color(t.colors.text)
                         .placeholder("Password".to_string())
-                        .placeholder_color(t.colors.dim)
+                        .placeholder_color(t.colors.sub)
                         .cursor_color(t.colors.accent)
                         .readonly(held)
                         .on_submit(submitted.clone()),

@@ -31,7 +31,7 @@ pub fn heading<M>(content: impl IntoSignal<String, M>) -> Text {
 
 /// A small uppercase label over a group.
 pub fn overline<M>(content: impl IntoSignal<String, M>) -> Text {
-    typed(content, MICRO_XSMALL.em()).color(ui().colors.dim)
+    typed(content, MICRO_XSMALL.em()).color(ui().colors.sub)
 }
 
 /// A number that keeps its width while its digits change.

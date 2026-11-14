@@ -479,7 +479,7 @@ fn font_field(
                                 .typeset(ty::LABEL_SMALL)
                                 .color(t.colors.text)
                                 .placeholder("Search the installed fonts".to_string())
-                                .placeholder_color(t.colors.dim)
+                                .placeholder_color(t.colors.sub)
                                 .autofocus(),
                         ),
                 )
@@ -645,7 +645,7 @@ fn picture_field(a: Appearance) -> Container {
         .typeset(ty::MONO_SMALL)
         .color(ui().colors.text)
         .placeholder("~/Pictures/wallpaper.jpg".to_string())
-        .placeholder_color(ui().colors.dim)
+        .placeholder_color(ui().colors.sub)
         .on_submit(move |path: &str| a.read_picture(path));
     container()
         .width(fill())
@@ -886,7 +886,7 @@ fn palette_fields(a: Appearance, light: bool, generation: RwSignal<u32>) -> Vec<
                                 .typeset(ty::MONO_SMALL)
                                 .color(t.colors.text)
                                 .placeholder("auto".to_string())
-                                .placeholder_color(t.colors.dim),
+                                .placeholder_color(t.colors.sub),
                         ),
                 )
         })
@@ -1014,7 +1014,8 @@ fn panel(c: Controls) -> Container {
         )
 }
 
-/// The three levels of text, on the island and on a surface.
+/// The two levels of text and the dim of an icon, on the island and on a
+/// surface.
 fn texts() -> Container {
     let t = ui();
     let levels = || {
@@ -1022,7 +1023,7 @@ fn texts() -> Container {
             .layout(Flex::column().spacing(space::S1.px()))
             .child(typed("Text", ty::LABEL_MEDIUM.em()).color(t.colors.text))
             .child(typed("Sub", ty::LABEL_SMALL).color(t.colors.sub))
-            .child(typed("Dim", ty::LABEL_SMALL).color(t.colors.dim))
+            .child(icon(Icon::ChevronRight, icon_box::SMALL.px(), t.colors.dim))
     };
     container()
         .width(fill())
