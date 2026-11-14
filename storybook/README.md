@@ -19,6 +19,23 @@ system's light or dark preference and choosing a wallpaper with the
 system's file chooser go through `xdg-desktop-portal`; without it the
 storybook still runs, dark and with a path to type.
 
+## Shots
+
+`shot` draws one story without a compositor, no window opened, and writes
+it to a PNG; `tools/shot.sh` runs it from a release build:
+
+```bash
+tools/shot.sh --list
+tools/shot.sh "Buttons/Button" button.png --scale 2 \
+    mode=light density=compact shape=round theme=nord --set Enabled=false
+```
+
+`key=value` are the keys of the `[appearance]` table, dark unless `mode`
+says otherwise; `--set` sets one of the story's controls by its label, and
+`--size WxH` the canvas (960x720 by default). The same arguments draw the
+same pixels, so a shot taken before a change can be compared with one taken
+after. It needs a GPU adapter.
+
 ## What is in it
 
 - **Theme**, at the top of the sidebar: where the colours come from (a

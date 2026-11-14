@@ -270,7 +270,7 @@ fn toolbar(selected: RwSignal<usize>, theming: RwSignal<bool>, window: Window) -
 
 /// The story on the island's fill, over a wallpaper that shows through a
 /// translucent island and blurs behind a glass one.
-fn canvas(backdrop: Memo<Option<PathBuf>>, rendered: Container) -> Container {
+pub fn canvas(backdrop: Memo<Option<PathBuf>>, rendered: Container) -> Container {
     wallpaper(backdrop, island(space::S4.px()).child(rendered))
 }
 

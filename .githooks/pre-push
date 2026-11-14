@@ -1,0 +1,11 @@
+#!/bin/sh
+# main changes through pull requests with green CI (see .github/workflows/ci.yml): refuse a
+# direct push to it. Enable with `git config core.hooksPath .githooks`; for a one-off
+# exception, ALLOW_MAIN_PUSH=1 git push ...
+while read -r local_ref local_sha remote_ref remote_sha; do
+    if [ "$remote_ref" = "refs/heads/main" ] && [ "${ALLOW_MAIN_PUSH:-}" != 1 ]; then
+        echo "pre-push: main changes through a pull request (ALLOW_MAIN_PUSH=1 to force)" >&2
+        exit 1
+    fi
+done
+exit 0

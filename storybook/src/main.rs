@@ -1,4 +1,5 @@
 mod chrome;
+mod shot;
 mod stories;
 mod system;
 
@@ -10,6 +11,14 @@ use chrome::shell;
 // only timers.
 #[tokio::main]
 async fn main() {
+    let args: Vec<String> = std::env::args().skip(1).collect();
+    if args.first().is_some_and(|a| a == "shot") {
+        if let Err(err) = shot::run(&args[1..]) {
+            eprintln!("shot: {err}");
+            std::process::exit(1);
+        }
+        return;
+    }
     App::new().run(|app| {
         app.add_surface(
             SurfaceConfig::new()
