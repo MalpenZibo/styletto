@@ -43,7 +43,7 @@ pub fn notification(
         .child(
             text(time)
                 .typeset(LABEL_XSMALL)
-                .color(t.colors.dim)
+                .color(t.colors.sub)
                 .nowrap(),
         );
     let close = container()

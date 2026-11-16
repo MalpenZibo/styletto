@@ -53,7 +53,7 @@ pub const KANAGAWA: Theme = Theme {
             light: true,
             island: 0xf2ecbc,
             text: 0x545464,
-            sub: 0x716e61,
+            sub: 0x8a8980,
             dim: 0x8a8980,
             success: 0x6f894e,
             warning: 0x77713f,

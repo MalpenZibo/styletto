@@ -83,11 +83,14 @@ pub enum Material {
 }
 
 impl Material {
+    /// The island's opacity. Glass stops at 0.75: past it, an island over a
+    /// backdrop of its opposite turns so grey that its text can't keep its
+    /// levels apart and still read.
     pub fn opacity(self) -> f32 {
         match self {
             Material::Solid => 1.0,
             Material::Translucent => 0.86,
-            Material::Glass => 0.6,
+            Material::Glass => 0.75,
         }
     }
 
@@ -119,7 +122,8 @@ pub enum Motion {
 
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Ui {
-    /// The palette, with the island's alpha set by the material.
+    /// The palette, with the island's alpha set by the material and the
+    /// text adjusted to read on it: what components paint with.
     pub colors: Palette,
     palette: Palette,
     pub density: Density,
@@ -169,12 +173,11 @@ impl Ui {
         Self { motion, ..self }
     }
 
+    /// The island at the material's opacity, and its text as much darker or
+    /// lighter as keeps it reading whatever shows through.
     fn settled(mut self) -> Self {
-        let island = self.palette.island;
-        self.colors = Palette {
-            island: island.with_alpha(island.a * self.material.opacity()),
-            ..self.palette
-        };
+        let opacity = self.material.opacity();
+        self.colors = self.palette.see_through(opacity);
         self
     }
 }
@@ -233,4 +236,54 @@ pub(crate) fn flip(
 /// Tabular figures, so a number keeps its width.
 pub fn tabular() -> FontFeatures {
     FontFeatures::new().enable(b"tnum")
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::theme::presets::{THEMES, ThemeChoice};
+
+    #[test]
+    fn text_reads_on_every_material_over_the_worst_backdrop() {
+        for theme in THEMES {
+            for flavor in theme.flavors {
+                let palette = flavor.scheme(flavor.accent).palette();
+                for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                    let colors = Ui::new(palette).with_material(material).colors;
+                    assert_eq!(
+                        colors.unreadable(palette.worst_backdrop()),
+                        None,
+                        "{} {} {material:?}",
+                        theme.name,
+                        flavor.name
+                    );
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn on_glass_the_text_moves_away_from_the_backdrop() {
+        let choice = ThemeChoice::default();
+        let (dark, light) = (choice.palette_of(false), choice.palette_of(true));
+        let glass = |palette| Ui::new(palette).with_material(Material::Glass).colors;
+        assert_eq!(glass(dark).island.a, Material::Glass.opacity());
+        assert!(glass(dark).sub.luminance() > dark.sub.luminance());
+        assert!(glass(light).text.luminance() < light.text.luminance());
+    }
+
+    #[test]
+    fn a_colour_set_keeps_its_contrast() {
+        // A dim set paler than its floor stays as set on a solid island,
+        // and on glass darkens only as far as it read when solid.
+        let mut palette = ThemeChoice::default().palette_of(true);
+        palette.dim = Color::from_hex(0xa0a0a0);
+        assert_eq!(Ui::new(palette).colors, palette);
+        let glass = Ui::new(palette).with_material(Material::Glass).colors;
+        assert!(glass.dim.luminance() < palette.dim.luminance());
+        assert_eq!(
+            glass.unreadable(Color::BLACK).map(|(role, _)| role),
+            Some("dim")
+        );
+    }
 }

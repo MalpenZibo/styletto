@@ -105,7 +105,7 @@ pub fn typography(ctx: &Ctx) -> Container {
             .children(CATEGORIES.iter().zip(SCALE).map(move |(category, kinds)| {
                 container()
                     .layout(Flex::column().spacing(size::S2.px()))
-                    .child(typed(*category, ty::MICRO_XSMALL.em()).color(t.colors.dim))
+                    .child(typed(*category, ty::MICRO_XSMALL.em()).color(t.colors.sub))
                     .children(SIZES.into_iter().zip(kinds).map(move |(name, kind)| {
                         let kind = if emphasised { kind.em() } else { kind };
                         container()

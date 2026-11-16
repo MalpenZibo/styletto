@@ -48,7 +48,7 @@ pub const ROSE_PINE: Theme = Theme {
             name: "Dawn",
             light: true,
             island: 0xfaf4ed,
-            text: 0x575279,
+            text: 0x464261,
             sub: 0x797593,
             dim: 0x9893a5,
             success: 0x286983,

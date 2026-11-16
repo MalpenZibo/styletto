@@ -190,14 +190,19 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
         })
     });
     h.configure(id, shot.size.0, shot.size.1, shot.scale);
-    h.step();
+    // Every frame at a moment of simulated time, from the first: a frame at
+    // the real time would give the first step of an animation however long
+    // building the story took, and a spring would come to rest a fraction
+    // of a pixel elsewhere from one run to the next.
+    let start = Instant::now();
+    h.step_at(start);
 
     let ctx = drawn.borrow().clone().ok_or("the story was not drawn")?;
     let controls = ctx.controls();
     for (name, value) in &shot.controls {
         set(&controls, name, value)?;
     }
-    settle(&mut h);
+    settle(&mut h, start);
 
     let (width, height) = h.physical_size(id);
     let frame = h.read_frame(id);
@@ -215,13 +220,12 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
 
 /// Steps through simulated time until nothing asks for another frame, or for
 /// as long as the longest animation takes: a spinner never stops asking.
-fn settle(h: &mut Headless) {
-    let start = Instant::now();
-    let mut at = start;
+fn settle(h: &mut Headless, start: Instant) {
+    let mut at = start + FRAME;
     while at - start < SETTLE {
         h.wait_for_image_decodes();
         h.step_at(at);
-        if at > start && h.next_wait().is_none() {
+        if h.next_wait().is_none() {
             break;
         }
         at += FRAME;

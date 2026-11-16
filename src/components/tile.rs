@@ -109,7 +109,9 @@ pub fn tile(
         .child(
             text(subtitle)
                 .typeset(LABEL_SMALL)
-                .color(move || ink().with_alpha(0.75))
+                // On a fill the on-colour is the only one that reads; off it,
+                // the secondary text.
+                .color(move || if on.get() { ink() } else { t.colors.sub })
                 .nowrap()
                 .overflow(TextOverflow::Ellipsis),
         );

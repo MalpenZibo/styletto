@@ -109,6 +109,7 @@ fn scheme(seed: Rgb, variant: Variant, contrast: Contrast, light: bool) -> Schem
         warning: custom(WARNING),
         danger: paired(m.error(), m.on_error()),
     }
+    .readable()
 }
 
 /// The colours that would make a theme of the image at `path`, best first.
@@ -160,6 +161,7 @@ fn color_of(rgb: Rgb) -> Color {
 #[cfg(all(test, feature = "material"))]
 mod tests {
     use super::*;
+    use crate::theme::palette::TEXT_CONTRAST;
 
     const VARIANTS: [Variant; 9] = [
         Variant::TonalSpot,
@@ -180,8 +182,17 @@ mod tests {
                 for scheme in schemes(Color::from_hex(0x6750a4), variant, contrast) {
                     for (fill, color, on) in scheme.palette().fills() {
                         let ratio = crate::theme::palette::contrast(color, on);
-                        assert!(ratio >= 4.5, "{variant:?} {contrast:?} {fill}: {ratio:.2}");
+                        assert!(
+                            ratio >= TEXT_CONTRAST,
+                            "{variant:?} {contrast:?} {fill}: {ratio:.2}"
+                        );
                     }
+                    let palette = scheme.palette();
+                    assert_eq!(
+                        palette.unreadable(palette.island),
+                        None,
+                        "{variant:?} {contrast:?}"
+                    );
                 }
             }
         }
