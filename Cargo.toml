@@ -21,7 +21,8 @@ edition = "2024"
 rust-version = "1.97"
 
 [workspace.dependencies]
-guido = "0.13.0"
+# Temporarily on main, for a change not yet released; back to a version once it is.
+guido = { git = "https://github.com/MalpenZibo/guido", branch = "main" }
 log = "0.4.35"
 
 [dependencies]
