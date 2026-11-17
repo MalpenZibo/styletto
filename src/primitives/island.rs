@@ -1,6 +1,15 @@
 //! The island: one shape that springs around whatever view it shows. A
 //! primitive, so the app adds where it sits and what it answers to, and can
 //! merge it with what splits off it.
+//!
+//! Its look comes in pieces, for the shapes that should match it: [`paint`]
+//! fills and blurs, [`border`] rims, [`shadow`] is what it casts, and
+//! [`edge`] is the border and the shadow together. Merging an island with
+//! what comes out of it, the holder takes the edge
+//! (`edge(holder.merge_children(reach))`), the shapes coming out take the
+//! paint, and the island leaves its shadow to the holder
+//! (`.shadow(Shadows::none())`): cast by the island, it would show through
+//! the translucent shapes beside it.
 
 use std::hash::Hash;
 
@@ -22,7 +31,7 @@ pub fn inner(size: Size) -> f32 {
 /// The island showing `content` of `view`, with `corners` for it. Each view
 /// keeps its own size and the two cross-fade while the shape springs between
 /// them: growing, it widens and then drops; shrinking, both go at once. It
-/// blurs as the material asks and casts [`shadow`] without a glow.
+/// is [`paint`]ed, with an [`edge`].
 pub fn island<K, W, M1, M2>(
     view: impl IntoSignal<K, M1>,
     content: impl Fn(K) -> W + 'static,
@@ -33,14 +42,13 @@ where
     W: Widget + 'static,
 {
     let (view, corners) = (view.into_signal(), corners.into_signal());
-    let t = ui();
     // Whether the next view is taller only the layout knows, so the height
     // chooses from the change itself.
     let (grow, shrink) = (
         motion::spring().delay(motion::HEIGHT_LAG_MS),
         motion::spring(),
     );
-    container()
+    edge(paint(container()))
         .width(at_least(0.0).transition(motion::spring()))
         .height(at_least(0.0).transition(move |s: Segment<f32>| {
             if s.to > s.from {
@@ -50,10 +58,6 @@ where
             }
         }))
         .corners((move || corners.get()).transition(motion::spring()))
-        .background(t.colors.island)
-        .border(BORDER, t.colors.line)
-        .backdrop_blur(BackdropBlur::new(t.material.blur()))
-        .shadow(shadow(Color::TRANSPARENT))
         .overflow(Overflow::Hidden)
         .layout(ZStack::new().align(Alignment::TOP_CENTER))
         .children(keyed(
@@ -61,6 +65,34 @@ where
             |view| view.clone(),
             move |view| arriving(content(view)).width(natural()).height(natural()),
         ))
+}
+
+/// `shape` filled like the island, and blurring what is behind it as the
+/// material asks. With no blur to ask for, the compositor is still told the
+/// shape is there: a compositor rule that blurs a surface declaring no blur
+/// (niri's `layer-rule` `blur`) blurs all of it, empty space included.
+pub fn paint(shape: Container) -> Container {
+    let t = ui();
+    let radius = t.material.blur();
+    let sources = if radius > 0.0 {
+        BackdropSources::all()
+    } else {
+        BackdropSources::COMPOSITOR
+    };
+    shape
+        .background(t.colors.island)
+        .backdrop_blur(BackdropBlur::new(radius).sources(sources))
+}
+
+/// `shape` rimmed like the island.
+pub fn border(shape: Container) -> Container {
+    shape.border(BORDER, ui().colors.line)
+}
+
+/// `shape` with the island's [`border`] and its [`shadow`], without a glow:
+/// for an island alone, or the holder an island merges in.
+pub fn edge(shape: Container) -> Container {
+    border(shape).shadow(shadow(Color::TRANSPARENT))
 }
 
 /// The shadow an island casts, with a ring and a halo of `glow` for a state

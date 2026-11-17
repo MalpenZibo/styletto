@@ -9,6 +9,7 @@ use styletto::components::toggle::toggle;
 use styletto::foundations::control::Size;
 use styletto::foundations::tokens;
 use styletto::foundations::tokens::{icon as icon_box, size as space, tile};
+use styletto::primitives::island;
 use styletto::{Icon, centered_row, icon, ui};
 
 use super::{CPU_LEVELS, PANEL, TEMP_LEVELS};
@@ -141,14 +142,13 @@ pub fn list_pages(ctx: &Ctx) -> Container {
     let t = ui();
     let push = move |page: Page| stack.update(|s| s.push(page));
 
-    container()
+    island::paint(container())
         .width(PANEL)
         .padding(space::S3.px())
         .corners(tokens::radius::shape(tokens::radius::around(
             tokens::radius::SMALL.px(),
             space::S3.px(),
         )))
-        .background(t.colors.island)
         .child(pages(stack, move |page| match page {
             Page::Main => container()
                 .width(fill())

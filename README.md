@@ -207,6 +207,21 @@ changes, `easing(ms)` and `springing(config)` custom ones. All follow the
 panel, `shake()` plays a refusal and `armed()` ignores presses just after a
 view appears.
 
+## The island
+
+`island::island` is one shape springing around whatever view it shows. Its
+look comes in pieces, for every shape that should match it: `paint` fills
+and blurs it as the material asks, `border` rims it, `shadow(glow)` is what
+it casts, and `edge` is the border and the shadow together. With a solid
+material `paint` still declares the shape to the compositor, so a
+compositor rule that blurs a surface with no blur of its own (niri's
+`layer-rule` `blur`) leaves the space around it alone. Merging an island
+with what comes out of it, the holder takes the edge,
+`edge(holder.merge_children(reach))`, what comes out takes the paint, and
+the island leaves its shadow to the holder with `.shadow(Shadows::none())`.
+A `satellite` is such a shape: it splits off the end of its host and merges
+back.
+
 ## Icons
 
 [Lucide](https://lucide.dev) icons, the unmodified SVG files of
