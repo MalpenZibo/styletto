@@ -68,11 +68,14 @@ pub fn color() -> Transition {
     easing(COLOR_MS)
 }
 
-/// How a view coming and going fades: in with `enter`, out with `leave`.
-fn fading(
+/// How a value of a view coming and going moves: in with `enter`, out with
+/// `leave`, and back with `enter` if the view returns while it leaves. For
+/// any animated value (opacity, blur, translate, a length), as
+/// `transition(fading(enter, leave))`.
+pub fn fading<T>(
     enter: Transition,
     leave: Transition,
-) -> impl Fn(Segment<f32>) -> Transition + Clone + 'static {
+) -> impl Fn(Segment<T>) -> Transition + Clone + 'static {
     move |s| {
         if s.is_exit() {
             leave.clone()
@@ -185,4 +188,24 @@ pub fn armed() -> Signal<bool> {
     let armed = create_signal(false);
     set_timeout(Duration::from_millis(ARM_MS), move || armed.set(true));
     armed.into()
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn fading_moves_any_value() {
+        // A function, not a closure: each property takes its own `T`.
+        fn fade<T>() -> impl Fn(Segment<T>) -> Transition + Clone + 'static {
+            fading(easing(COLOR_MS), easing(HOVER_MS))
+        }
+        container()
+            .opacity(1.0.transition(fade()).entering_from(0.0))
+            .translate(
+                Translate::NONE
+                    .transition(fade())
+                    .exiting_to(Translate::new(0.0, size::S2.px())),
+            );
+    }
 }
