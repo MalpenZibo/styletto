@@ -203,9 +203,10 @@ background = "#fdf6e3"
 `motion::spring()` is the island's spring for every fold and growth,
 `tactile()` the quicker one of a press, `hover()` and `color()` eased
 changes, `easing(ms)` and `springing(config)` custom ones. All follow the
-`Motion` of the `Ui`. `arriving` cross-fades a view in, `entering` opens a
-panel, `shake()` plays a refusal and `armed()` ignores presses just after a
-view appears.
+`Motion` of the `Ui`. `fading(enter, leave)` gives a value one transition
+for a view coming in and another for it going out. `arriving` cross-fades a
+view in, `entering` opens a panel, `shake()` plays a refusal and `armed()`
+ignores presses just after a view appears.
 
 ## Icons
 
