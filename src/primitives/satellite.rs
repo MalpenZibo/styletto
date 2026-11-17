@@ -5,7 +5,7 @@ use guido::prelude::*;
 
 use crate::foundations::motion;
 use crate::foundations::tokens::{radius, size};
-use crate::ui::ui;
+use crate::primitives::island::paint;
 
 /// Padding between the satellite's ends and its content.
 fn padding() -> f32 {
@@ -13,7 +13,7 @@ fn padding() -> f32 {
 }
 
 /// Out past its host's end, or shrunk into it. Placed after the host, it
-/// takes the pointer only while out and is painted like the island.
+/// takes the pointer only while out and is [`paint`]ed like the island.
 #[component]
 pub fn satellite(
     /// Its content's width.
@@ -22,21 +22,17 @@ pub fn satellite(
     /// Distance from the host while out.
     gap: f32,
     out: bool,
-    blur: f32,
     #[prop(callback)] on_hover: fn(bool),
     #[prop(callback)] on_click: (),
     #[prop(children)] children: (),
 ) -> impl Widget {
-    let t = ui();
     let outer = move || width.get() + 2.0 * padding();
     let height = height.get_untracked();
-    container()
+    paint(container())
         .width((move || Length::exact(outer())).transition(motion::spring()))
         .height(height)
         .corners(radius::pill(height))
         .padding([0.0, padding()])
-        .background(t.colors.island)
-        .backdrop_blur(move || BackdropBlur::new(blur.get()))
         .translate(
             (move || {
                 let x = if out.get() {

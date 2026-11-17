@@ -3,8 +3,8 @@
 use std::path::PathBuf;
 use styletto::components::button::{self, chip_button};
 use styletto::foundations::tokens::{radius, size as space, stroke};
+use styletto::primitives::island;
 use styletto::primitives::text::{label, overline};
-use styletto::ui;
 
 use guido::prelude::*;
 
@@ -98,12 +98,9 @@ pub fn section(title: &str) -> Container {
 /// The island's fill and material, its corners concentric with what sits
 /// `padding` inside it at MEDIUM.
 pub fn island(padding: f32) -> Container {
-    let t = ui();
-    container()
+    island::paint(container())
         .padding(padding)
         .corners(radius::shape(radius::around(radius::MEDIUM.px(), padding)))
-        .background(t.colors.island)
-        .backdrop_blur(t.material.blur())
 }
 
 /// Shapes of muted colour, lightly blurred, scattered over the dark

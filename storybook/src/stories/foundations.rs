@@ -9,6 +9,7 @@ use styletto::components::toggle::toggle;
 use styletto::foundations::control::Size;
 use styletto::foundations::tokens::{radius, size, stroke};
 use styletto::foundations::typography as ty;
+use styletto::primitives::island;
 use styletto::primitives::text::{caption, typed};
 use styletto::{Icon, centered_row, icon, provide_ui, ui};
 
@@ -319,16 +320,13 @@ pub fn matrix(_: &Ctx) -> Container {
 
 /// A header, a row, a slider and the controls a panel holds.
 fn sample() -> Container {
-    let t = ui();
-    container()
+    island::border(island::paint(container()))
         .width(size::S60.px())
         .padding(size::S2.px())
         .corners(radius::shape(radius::around(
             radius::MEDIUM.px(),
             size::S2.px(),
         )))
-        .background(t.colors.island)
-        .border(stroke::HAIRLINE, t.colors.line)
         .layout(Flex::column().spacing(size::S1.px()))
         .child(page_header("Wi-Fi").on_back(|| {}))
         .child(

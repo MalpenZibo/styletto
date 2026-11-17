@@ -20,6 +20,7 @@ use styletto::foundations::control::Size;
 use styletto::foundations::tokens::{icon as icon_box, radius, size as space, stroke};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
+use styletto::primitives::island as look;
 use styletto::primitives::text::{caption, typed};
 use styletto::theme::material::{self, Contrast};
 use styletto::theme::palette::{Palette, Scheme, parse_hex, to_hex};
@@ -937,9 +938,8 @@ fn preview(a: Appearance) -> Container {
         .padding(space::S3.px())
         .child(wallpaper(a.backdrop, move || {
             provide_ui(drawn.get());
-            island(space::S4.px())
+            look::border(island(space::S4.px()))
                 .width(space::S80.px())
-                .border(stroke::HAIRLINE, ui().colors.line)
                 .layout(Flex::column().spacing(space::S4.px()))
                 .child(panel(controls))
                 .child(texts())

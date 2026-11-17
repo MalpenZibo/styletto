@@ -4,7 +4,7 @@ use styletto::components::card::{Level, level_figure};
 use styletto::foundations::control::Size;
 use styletto::foundations::motion::{self, armed, arriving, shake as shake_frames};
 use styletto::foundations::tokens;
-use styletto::foundations::tokens::{icon as icon_box, size as space, stroke};
+use styletto::foundations::tokens::{icon as icon_box, size as space};
 use styletto::primitives::island::{self, island as island_shape};
 use styletto::primitives::satellite::{balance, satellite as satellite_shape};
 use styletto::primitives::text::{caption, heading};
@@ -16,7 +16,6 @@ use crate::stories::story::Ctx;
 pub fn cross_fade(ctx: &Ctx) -> Container {
     let which = create_signal(false);
     let swapped = ctx.action("swap");
-    let t = ui();
     // The views draw no background of their own: the island shape behind
     // them does, as in the shell, so the one arriving never covers the blur
     // of the one leaving.
@@ -36,12 +35,10 @@ pub fn cross_fade(ctx: &Ctx) -> Container {
                 .cross_alignment(CrossAlignment::Center),
         )
         .child(
-            container()
+            island::border(island::paint(container()))
                 .width(space::S60.px())
                 .height(space::S30.px())
                 .corners(tokens::radius::LARGE.corners())
-                .background(t.colors.island)
-                .border(stroke::HAIRLINE, t.colors.line)
                 .layout(ZStack::new().align(Alignment::CENTER))
                 .child(move || (!which.get()).then(|| view("Now playing", "Blurs out growing")))
                 .child(move || which.get().then(|| view("Wi-Fi", "Fades in from a blur"))),
@@ -63,7 +60,6 @@ pub fn shake(ctx: &Ctx) -> Container {
     let rejected = ctx.action("rejected");
     let accepted = ctx.action("accepted");
     let rebuilt = ctx.action("rebuilt");
-    let t = ui();
     container()
         .layout(
             Flex::column()
@@ -75,11 +71,9 @@ pub fn shake(ctx: &Ctx) -> Container {
             generation.get();
             let ready = armed();
             let (rejected, accepted) = (rejected.clone(), accepted.clone());
-            container()
+            island::border(island::paint(container()))
                 .padding([space::S3.px(), space::S4.px()])
                 .corners(tokens::radius::LARGE.corners())
-                .background(t.colors.island)
-                .border(stroke::HAIRLINE, t.colors.line)
                 .translate(Translate::NONE.timeline(shake_frames().played_by(shakes)))
                 .layout(
                     Flex::column()
@@ -144,7 +138,6 @@ pub fn satellite(ctx: &Ctx) -> Container {
     let gap = ctx.number("Gap", 0.0..=30.0, 8.0);
     let merge = ctx.number("Merge distance", 0.0..=40.0, 18.0);
     let clicked = ctx.action("open system info");
-    let t = ui();
 
     let hot = create_memo(move || {
         [
@@ -165,7 +158,7 @@ pub fn satellite(ctx: &Ctx) -> Container {
         (count * (FIGURE_WIDTH + FIGURE_SPACING) - FIGURE_SPACING).max(0.0)
     };
 
-    let island = container()
+    let island = island::paint(container())
         .width(
             (move || Length::exact(if open.get() { PANEL } else { width.get() }))
                 .transition(motion::spring()),
@@ -190,7 +183,6 @@ pub fn satellite(ctx: &Ctx) -> Container {
             })
             .transition(motion::spring()),
         )
-        .background(t.colors.island)
         .padding([0.0, space::S3.px()])
         .layout(centered_row(0.0).main_alignment(MainAlignment::SpaceBetween))
         .child(move || (!open.get()).then(|| caption("1  2  3   Firefox".to_string())))
@@ -235,15 +227,8 @@ pub fn satellite(ctx: &Ctx) -> Container {
                 .cross_alignment(CrossAlignment::Start),
         )
         .child(
-            container()
+            island::edge(container().merge_children(merge))
                 .layout(Flex::row().cross_alignment(CrossAlignment::Start))
-                .merge_children(merge)
-                .shadow(Shadow::new(
-                    (0.0, 8.0),
-                    24.0,
-                    0.0,
-                    Color::BLACK.with_alpha(0.35),
-                ))
                 .child(balance(bubble_width))
                 .child(island)
                 .child(bubble),
