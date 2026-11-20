@@ -673,7 +673,7 @@ dependencies = [
 [[package]]
 name = "guido"
 version = "0.13.0"
-source = "git+https://github.com/MalpenZibo/guido?branch=main#c48743fc4d7f55319dd077c25d5ecd04e13e2717"
+source = "git+https://github.com/MalpenZibo/guido?branch=main#9329e761994396c73fd1450dc09f48ae69339934"
 dependencies = [
  "bitflags",
  "bytemuck",
@@ -702,7 +702,7 @@ dependencies = [
 [[package]]
 name = "guido-macros"
 version = "0.13.0"
-source = "git+https://github.com/MalpenZibo/guido?branch=main#c48743fc4d7f55319dd077c25d5ecd04e13e2717"
+source = "git+https://github.com/MalpenZibo/guido?branch=main#9329e761994396c73fd1450dc09f48ae69339934"
 dependencies = [
  "proc-macro2",
  "quote",
