@@ -12,7 +12,7 @@ use crate::foundations::tokens::{opacity, stroke};
 use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::typed;
-use crate::ui::{on_fill, on_ink, ui};
+use crate::ui::{active_fill, active_ink, ui};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Variant {
@@ -98,7 +98,7 @@ pub fn icon_button(
     .enabled(enabled)
     .on_click(on_click)
     .layout(Flex::column().center())
-    .child(icons::icon(icon, size.icon(), on_ink(active)))
+    .child(icons::icon(icon, size.icon(), active_ink(active)))
 }
 
 /// Eases a fill turning on or off as a chip's, a hover as a button's: a
@@ -125,7 +125,7 @@ pub fn chip_button(
     #[prop(callback)] on_click: (),
 ) -> impl Widget {
     let size = Size::Sm;
-    let fill = on_fill(active);
+    let fill = active_fill(active);
     pressable(
         sized(container(), label, size)
             .background(fill.transition(motion::color()))
@@ -134,7 +134,7 @@ pub fn chip_button(
     )
     .on_click(on_click)
     .layout(centered_row(size.gap()).main_alignment(MainAlignment::Center))
-    .children(content(label, icon, on_ink(active), size))
+    .children(content(label, icon, active_ink(active), size))
 }
 
 /// A circle without a label, a padded pill with one.

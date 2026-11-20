@@ -203,12 +203,12 @@ fn wallpaper_seed(_: &str) -> Option<guido::prelude::Color> {
 
 /// Sets `colors` over `scheme`, by name. A colour set is used as given; the
 /// text it leaves to the source is made to read again, on a background set
-/// as on the source's.
+/// as on the source's, and a hue's text follows its fill.
 fn set(scheme: &mut Scheme, colors: &Colors, side: &str) {
     if colors.is_empty() {
         return;
     }
-    let mut kept = [false; 3];
+    let mut kept = Vec::new();
     for (name, hex) in colors {
         let name = name.trim().to_lowercase().replace('_', " ");
         if !scheme.named().iter().any(|(known, _)| *known == name) {
@@ -218,14 +218,12 @@ fn set(scheme: &mut Scheme, colors: &Colors, side: &str) {
         match parse_hex(hex) {
             Some(color) => {
                 *scheme = scheme.with(&name, Some(color));
-                if let Some(ink) = ["text", "sub", "dim"].iter().position(|ink| *ink == name) {
-                    kept[ink] = true;
-                }
+                kept.push(name);
             }
             None => log::warn!("appearance.{side}.{name}: {hex:?} is not #rrggbb or #rrggbbaa"),
         }
     }
-    *scheme = scheme.readable_but(kept);
+    *scheme = scheme.readable_but(|name| kept.iter().any(|set| set == name));
 }
 
 fn same(name: &str, asked: &str) -> bool {
@@ -237,6 +235,7 @@ mod tests {
     use guido::prelude::Color;
 
     use super::*;
+    use crate::theme::palette::Palette;
 
     fn config(toml: &str) -> UiConfig {
         toml::from_str(toml).unwrap()
@@ -283,6 +282,30 @@ mod tests {
         }
         .palette();
         assert_eq!(palette.unreadable(palette.island), None);
+    }
+
+    #[test]
+    fn a_hues_text_set_is_kept_and_one_left_follows_its_fill() {
+        let c = config("[light]\nwarning = \"#ffd000\"\ndanger_text = \"#ff8080\"");
+        let light = c.scheme(true);
+        let palette = light.palette();
+        // Set by hand, it stays as given even where it doesn't read.
+        assert_eq!(light.danger.text, Some(Color::from_hex(0xff8080)));
+        assert_eq!(palette.danger_text, Color::from_hex(0xff8080));
+        // Left to the source, it is the new fill darkened until it reads.
+        assert_ne!(palette.warning_text, palette.warning);
+        let reading = Palette {
+            danger_text: palette.text,
+            ..palette
+        };
+        assert_eq!(reading.unreadable(palette.island), None);
+        // A text tone of the source's own follows a fill set over it.
+        let mut source = UiConfig::default().scheme(true);
+        source.warning.text = Some(Color::from_hex(0x6a4a00));
+        let set = source
+            .with("warning", Some(Color::from_hex(0xffd000)))
+            .readable_but(|name| name == "warning");
+        assert_eq!(set.warning.text, None);
     }
 
     #[test]

@@ -132,11 +132,21 @@ are the common ones, already coloured.
 
 A theme sets a `Scheme`: `background`, `text`, `sub`, `dim`, and four fills
 (`accent`, `success`, `warning`, `danger`), each with the colour that reads
-on it. An on-colour left unset is worked out to reach a 4.5:1 contrast.
+on it and its hue as text. An on-colour left unset is worked out to reach a
+4.5:1 contrast.
 
 Components read the `Palette` derived from it: `island`, `surface`,
-`surface2`, `line`, `text`, `sub`, `dim`, each fill with its `on_*`, and
-`ripple`.
+`surface2`, `line`, `text`, `sub`, `dim`, each fill with its `on_*` and its
+`*_text`, and `ripple`.
+
+A fill is what paints a surface, a bar, a ring or a border; `on_*` is the
+text on that fill; `accent_text`, `success_text`, `warning_text` and
+`danger_text` are the hue as text or an icon on the island, `surface` and
+`surface2`, at 4.5:1 on all three (3:1 on a see-through island, below).
+Unless the theme or the config sets one,
+it is the fill moved in lightness only, in Oklab, with its hue and chroma
+kept (as far as sRGB holds them), just as far as it must to read: a fill
+that already reads is its own text, and a pale one turns deeper, not grey.
 
 `text` is body text and `sub` secondary text (captions, placeholders, small
 labels): both reach 4.5:1 on the island and on `surface` and `surface2`.
@@ -146,13 +156,18 @@ its borders or overlays; where none reads well enough, `Scheme::readable`
 mixes the nearest toward `text` until it does, and does the same for a theme
 from a seed. Colours set in `[appearance.dark]` and `[appearance.light]` are
 used as given, and the text they leave to the source is made to read again
-on a `background` set there.
+on a `background` set there; a hue's text left to the source follows its
+fill.
 
 On a see-through island the text is adjusted again: `Ui::colors` holds it
 as dark or as light as it must be to read with the island's opposite showing
-through, black behind a light island or white behind a dark one. Where not
-even black or white would read, the island is drawn denser. A colour set
-below its floor keeps the contrast it was set with. Paint text with `ui().colors`, not with a
+through, black behind a light island or white behind a dark one. Each
+`*_text` is moved the same way, in lightness only, but to 3:1, the floor
+`dim` has (WCAG's for icons and large text), not 4.5:1: with white behind
+dark glass, a hue that reads at 4.5:1 is so light it is all but white, as
+light as the text, and a warning no longer looks like one. Where not even
+black or white would read, the island is drawn denser. A colour set below
+its floor keeps the contrast it was set with. Paint text with `ui().colors`, not with a
 `Scheme`'s or a theme's own colours, or it won't follow.
 
 The preset themes, in `presets::THEMES`, each with dark and light flavours
@@ -194,6 +209,7 @@ mono = "JetBrains Mono"
 [appearance.dark]
 accent = "#ff79c6"
 on_accent = "#1a1b26"
+accent_text = "#ff92d0" # the accent as text; worked out from accent if unset
 
 [appearance.light]
 background = "#fdf6e3"

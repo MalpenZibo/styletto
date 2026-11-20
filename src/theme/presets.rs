@@ -264,27 +264,35 @@ mod tests {
 
     #[test]
     fn every_text_reads() {
+        // The text, and every hue as text with each of the accents.
         for theme in THEMES {
             for flavor in theme.flavors {
-                let palette = flavor.scheme(flavor.accent).palette();
-                assert_eq!(
-                    palette.unreadable(palette.island),
-                    None,
-                    "{} {}",
-                    theme.name,
-                    flavor.name
-                );
+                for (index, accent) in flavor.accents.iter().enumerate() {
+                    let palette = flavor.scheme(index).palette();
+                    assert_eq!(
+                        palette.unreadable(palette.island),
+                        None,
+                        "{} {} {}",
+                        theme.name,
+                        flavor.name,
+                        accent.name
+                    );
+                }
             }
         }
     }
 
     #[test]
     fn a_theme_keeps_the_colours_that_read() {
-        // Catppuccin Mocha's own text colours all read: none is worked out.
+        // Catppuccin Mocha's own text colours all read: none is worked out,
+        // and its hues read as text as they are.
         let mocha = CATPPUCCIN.flavors[0];
         let scheme = mocha.scheme(mocha.accent);
         assert_eq!(scheme.text, Color::from_hex(mocha.text));
         assert_eq!(scheme.sub, Color::from_hex(mocha.sub));
         assert_eq!(scheme.dim, Color::from_hex(mocha.dim));
+        let palette = scheme.palette();
+        assert_eq!(palette.accent_text, palette.accent);
+        assert_eq!(palette.danger_text, palette.danger);
     }
 }

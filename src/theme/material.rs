@@ -91,6 +91,7 @@ fn scheme(seed: Rgb, variant: Variant, contrast: Contrast, light: bool) -> Schem
     let paired = |color: Rgb, on: Rgb| Fill {
         color: color_of(color),
         on: Some(color_of(on)),
+        text: None,
     };
     // A hue's colour and its ink, at the tones the scheme gives its primary.
     let custom = |hex: u32| {

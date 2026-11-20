@@ -30,11 +30,22 @@ impl Level {
     }
 }
 
-/// The ink of `level`: the text's while normal.
+/// The ink of `level`: the text's while normal, else its hue as text.
 pub fn level_ink(level: Level) -> Color {
     let t = ui();
     match level {
         Level::Normal => t.colors.text,
+        Level::Warn => t.colors.warning_text,
+        Level::Alert => t.colors.danger_text,
+    }
+}
+
+/// The hue of a level past its threshold, as a card's tint and glow take
+/// it: the fill, not the text.
+fn level_fill(level: Level) -> Color {
+    let t = ui();
+    match level {
+        Level::Normal => t.colors.surface,
         Level::Warn => t.colors.warning,
         Level::Alert => t.colors.danger,
     }
@@ -88,8 +99,8 @@ pub fn stat_card(
         .background(
             (move || match level.get() {
                 Level::Normal => t.colors.surface,
-                Level::Warn => level_ink(Level::Warn).with_alpha(0.12),
-                Level::Alert => level_ink(Level::Alert).with_alpha(0.15),
+                Level::Warn => level_fill(Level::Warn).with_alpha(0.12),
+                Level::Alert => level_fill(Level::Alert).with_alpha(0.15),
             })
             .transition(motion::color()),
         )
@@ -97,7 +108,7 @@ pub fn stat_card(
             (move || {
                 let halo = match level.get() {
                     Level::Normal => Color::TRANSPARENT,
-                    hot => level_ink(hot).with_alpha(0.15),
+                    hot => level_fill(hot).with_alpha(0.15),
                 };
                 Shadow::new((0.0, 0.0), glow::MEDIUM, 0.0, halo)
             })

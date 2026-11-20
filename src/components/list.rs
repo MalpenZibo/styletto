@@ -76,7 +76,7 @@ pub fn row(
         .child(move || {
             checked
                 .get()
-                .then(|| icons::icon(Icon::Check, icon_box::SMALL.px(), t.colors.accent))
+                .then(|| icons::icon(Icon::Check, icon_box::SMALL.px(), t.colors.accent_text))
         })
 }
 

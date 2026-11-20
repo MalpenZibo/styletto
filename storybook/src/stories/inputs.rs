@@ -67,7 +67,7 @@ pub fn field(ctx: &Ctx) -> Container {
                         .color(t.colors.text)
                         .placeholder("Search apps".to_string())
                         .placeholder_color(t.colors.sub)
-                        .cursor_color(t.colors.accent)
+                        .cursor_color(t.colors.accent_text)
                         .on_submit(move |value| submitted(value.to_string())),
                 ),
             )
@@ -106,7 +106,7 @@ pub fn password_field(ctx: &Ctx) -> Container {
                         .color(t.colors.text)
                         .placeholder("Password".to_string())
                         .placeholder_color(t.colors.sub)
-                        .cursor_color(t.colors.accent)
+                        .cursor_color(t.colors.accent_text)
                         .readonly(held)
                         .on_submit(submitted.clone()),
                 ),

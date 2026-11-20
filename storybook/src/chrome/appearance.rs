@@ -819,7 +819,8 @@ fn flavors(a: Appearance, light: bool) -> AnyWidget {
 }
 
 /// A field's text for colour `name` of side `index`: what parses as a
-/// colour is written to that side, and nothing at all unsays an on-colour.
+/// colour is written to that side, and nothing at all unsays an on-colour
+/// or a hue's text.
 fn bind_hex(
     colors: RwSignal<[Scheme; 2]>,
     index: usize,
@@ -843,14 +844,18 @@ fn bind_hex(
     hex
 }
 
-/// The colour `name` of `scheme` as it is drawn: an on-colour left unsaid
-/// is the one worked out for it.
+/// The colour `name` of `scheme` as it is drawn: an on-colour or a hue's
+/// text left unsaid is the one worked out for it.
 fn drawn(scheme: &Scheme, name: &str) -> Color {
     match name {
         "on accent" => scheme.on(scheme.accent),
         "on success" => scheme.on(scheme.success),
         "on warning" => scheme.on(scheme.warning),
         "on danger" => scheme.on(scheme.danger),
+        "accent text" => scheme.palette().accent_text,
+        "success text" => scheme.palette().success_text,
+        "warning text" => scheme.palette().warning_text,
+        "danger text" => scheme.palette().danger_text,
         _ => scheme
             .named()
             .into_iter()
@@ -860,7 +865,8 @@ fn drawn(scheme: &Scheme, name: &str) -> Color {
 }
 
 /// Every colour one side's scheme says, by name, as a hex to edit (an
-/// on-colour may be left to be worked out), and a way back to the preset's.
+/// on-colour or a hue's text may be left to be worked out), and a way back
+/// to the preset's.
 fn palette_fields(a: Appearance, light: bool, generation: RwSignal<u32>) -> Vec<Container> {
     let t = ui();
     let index = light as usize;
