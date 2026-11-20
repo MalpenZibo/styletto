@@ -94,7 +94,8 @@ or a circle is round (`radius::pill(height)`). A box around another takes
 `radius::around(inner, padding)`, so the curves stay concentric.
 
 Fixed values: `stroke::HAIRLINE` 1, `RING` 1.5, `BOLD` 2, `HEAVY` 3;
-`opacity::DISABLED` 0.4; `glow::SMALL` 4, `MEDIUM` 8.
+`opacity::DISABLED` 0.4; `glow::SMALL` 4, `MEDIUM` 8; `scrollbar::WIDTH` 4,
+`HOVER_WIDTH` 8, `MARGIN` 2, `MIN_HANDLE` 24, the same in every density.
 
 ## Type
 

@@ -241,3 +241,16 @@ pub mod glow {
     pub const SMALL: f32 = 4.0;
     pub const MEDIUM: f32 = 8.0;
 }
+
+/// A scrollbar's measures. It shows where a list is rather than taking room
+/// in it, so they stay the same in every density.
+pub mod scrollbar {
+    /// Its width at rest.
+    pub const WIDTH: f32 = 4.0;
+    /// Its width under the pointer.
+    pub const HOVER_WIDTH: f32 = 8.0;
+    /// The gap between it and the list's edge.
+    pub const MARGIN: f32 = 2.0;
+    /// How short the handle may get, so it stays grabbable.
+    pub const MIN_HANDLE: f32 = 24.0;
+}

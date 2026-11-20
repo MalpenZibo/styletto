@@ -220,26 +220,27 @@ pub fn scroll_list(
     reserve_gutter: bool,
     #[prop(children)] children: (),
 ) -> impl Widget {
+    use crate::foundations::tokens::scrollbar;
+
     let t = ui();
-    let thin = size::S1.px();
     // The growth under the pointer is a movement: reduced motion keeps the
     // bar as it is and only brightens it.
     let grown = if t.motion == crate::ui::Motion::Full {
-        size::S2.px()
+        scrollbar::HOVER_WIDTH
     } else {
-        thin
+        scrollbar::WIDTH
     };
-    let bar = move || container().corners(radius::pill(thin));
+    let bar = || container().corners(radius::pill(scrollbar::WIDTH));
     container()
         .width(fill())
         .height(move || at_most(max_height.get()))
         .layout(Flex::column().spacing(size::S0_5.px()))
         .scroll(
             Scroll::vertical()
-                .width(thin)
+                .width(scrollbar::WIDTH)
                 .hover_width(grown)
-                .margin(size::S0_5.px())
-                .min_handle_size(size::S6.px())
+                .margin(scrollbar::MARGIN)
+                .min_handle_size(scrollbar::MIN_HANDLE)
                 .reserve_gutter(reserve_gutter)
                 .track(move |_| bar().background(t.colors.surface))
                 .handle(move |_| {
