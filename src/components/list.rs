@@ -15,6 +15,15 @@ use crate::primitives::layout::centered_row;
 use crate::primitives::text::{caption, label, overline};
 use crate::ui::ui;
 
+/// What a row's action risks, for the rows to think twice about.
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Tone {
+    /// It needs care: it can be undone, at a cost.
+    Warning,
+    /// It ends something: a session, a connection, what was saved.
+    Danger,
+}
+
 /// A list row: icon, title, subtitle and a trailing widget, each optional.
 #[component]
 pub fn row(
@@ -26,12 +35,27 @@ pub fn row(
     /// The choice in use: selects the row and ends it with a check, after
     /// the trailing widget.
     checked: bool,
+    /// Draws the title and the icon in the tone's hue as text, and tints the
+    /// hover and the press with it. The subtitle, the selection and the
+    /// trailing widget keep their colours.
+    tone: Option<Tone>,
     #[prop(default = true)] enabled: bool,
     #[prop(slot)] trailing: (),
     #[prop(callback)] on_click: (),
 ) -> impl Widget {
     let t = ui();
     let selected = move || selected.get() || checked.get();
+    let hue = move || {
+        tone.get().map(|tone| match tone {
+            Tone::Warning => t.colors.warning_text,
+            Tone::Danger => t.colors.danger_text,
+        })
+    };
+    // With a tone, the hover and the ripple are `surface` and `ripple` with
+    // the hue in place of their white or black, as faint: a hue is never
+    // brighter than white nor darker than black, so the hovered title reads
+    // at least as well as it does on `surface`.
+    let tinted = move |neutral: Color| hue().map_or(neutral, |hue| hue.with_alpha(neutral.a));
     let rest = move || {
         if selected() {
             t.colors.surface2
@@ -42,7 +66,11 @@ pub fn row(
     let words = container()
         .width(fill())
         .layout(Flex::column())
-        .child(label(title).overflow(TextOverflow::Ellipsis))
+        .child(
+            label(title)
+                .color(move || hue().unwrap_or(t.colors.text))
+                .overflow(TextOverflow::Ellipsis),
+        )
         .child(move || {
             (!subtitle.with(String::is_empty))
                 .then(|| caption(subtitle).overflow(TextOverflow::Ellipsis))
@@ -57,19 +85,22 @@ pub fn row(
                 if selected() {
                     t.colors.surface2
                 } else {
-                    t.colors.surface
+                    tinted(t.colors.surface)
                 }
             })
         })
-        .when_pressed(move |s| s.ripple_with_color(t.colors.ripple))
+        .when_pressed(move |s| s.ripple_with_color(move || tinted(t.colors.ripple)))
         .opacity(1.0.transition(motion::hover()))
         .when_disabled(|s| s.opacity(opacity::DISABLED).background(Color::TRANSPARENT))
         .enabled(enabled)
         .on_click(on_click)
         .layout(centered_row(size::S3.px()))
         .child(move || {
-            icon.get()
-                .map(|kind| icons::icon(kind, icon_box::SMALL.px(), t.colors.sub))
+            icon.get().map(|kind| {
+                icons::icon(kind, icon_box::SMALL.px(), move || {
+                    hue().unwrap_or(t.colors.sub)
+                })
+            })
         })
         .child(words)
         .children(trailing)
