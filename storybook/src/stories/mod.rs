@@ -6,6 +6,7 @@ mod inputs;
 mod motion;
 pub mod story;
 
+use styletto::Icon;
 use styletto::foundations::tokens::{IconSize, icon};
 
 use story::{Ctx, Story};
@@ -35,6 +36,18 @@ const fn story(
         group,
         name,
         render,
+    }
+}
+
+/// The icon a group's heading shows in the menu.
+pub fn group_icon(group: &str) -> Icon {
+    match group {
+        "Foundations" => Icon::Grid,
+        "Buttons" => Icon::Mouse,
+        "Inputs" => Icon::Keyboard,
+        "Feedback" => Icon::Bell,
+        "Composites" => Icon::Monitor,
+        _ => Icon::Zap,
     }
 }
 
