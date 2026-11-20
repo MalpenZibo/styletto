@@ -136,6 +136,7 @@ const NETWORKS: &[(&str, bool)] = &[
 
 pub fn list_pages(ctx: &Ctx) -> Container {
     let none = ctx.bool("No networks", false);
+    let subtitle = ctx.text("Subtitle", "");
     let connected = create_signal(0usize);
     let stack = create_signal(vec![Page::Main]);
     let chosen = ctx.action_with::<&'static str>("connect");
@@ -153,7 +154,7 @@ pub fn list_pages(ctx: &Ctx) -> Container {
             Page::Main => container()
                 .width(fill())
                 .layout(Flex::column().spacing(space::S1.px()))
-                .child(page_header("Settings"))
+                .child(page_header("Settings").subtitle(subtitle))
                 .child(
                     row("Wi-Fi")
                         .icon(Icon::Wifi)
@@ -177,6 +178,13 @@ pub fn list_pages(ctx: &Ctx) -> Container {
                     .layout(Flex::column().spacing(space::S0_5.px()))
                     .child(
                         page_header("Wi-Fi")
+                            .subtitle(move || {
+                                if none.get() {
+                                    String::new()
+                                } else {
+                                    format!("Connected to {}", NETWORKS[connected.get()].0)
+                                }
+                            })
                             .on_back(back(stack))
                             .trailing(icon_button(Icon::Refresh).size(Size::Sm).fill(Fill::Ghost)),
                     )

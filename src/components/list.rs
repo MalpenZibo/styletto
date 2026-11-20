@@ -114,10 +114,13 @@ pub fn empty(#[prop(required)] icon: Icon, #[prop(required)] message: String) ->
         )
 }
 
-/// A page's title row: back button, title and a trailing widget.
+/// A page's title row: back button, title, subtitle and a trailing widget.
+/// With a subtitle the row grows to hold both lines.
 #[component]
 pub fn page_header(
     #[prop(required)] title: String,
+    /// Where the page's feature stands. Empty means none.
+    subtitle: String,
     /// Shows the back button, which calls it.
     #[prop(callback)]
     on_back: (),
@@ -135,13 +138,20 @@ pub fn page_header(
                 .on_click(back)
         }))
         .child(
-            container().width(fill()).child(
-                text(title)
-                    .typeset(TITLE_XSMALL.em())
-                    .color(t.colors.text)
-                    .nowrap()
-                    .overflow(TextOverflow::Ellipsis),
-            ),
+            container()
+                .width(fill())
+                .layout(Flex::column())
+                .child(
+                    text(title)
+                        .typeset(TITLE_XSMALL.em())
+                        .color(t.colors.text)
+                        .nowrap()
+                        .overflow(TextOverflow::Ellipsis),
+                )
+                .child(move || {
+                    (!subtitle.with(String::is_empty))
+                        .then(|| caption(subtitle).overflow(TextOverflow::Ellipsis))
+                }),
         )
         .children(trailing)
 }
