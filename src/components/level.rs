@@ -67,13 +67,18 @@ pub fn level_ink(level: Level) -> Color {
 pub struct Levels(pub &'static [(f32, Icon)]);
 
 impl Levels {
-    /// A battery's charge: the icon with the nearest number of bars, empty
-    /// below 17%, one bar of three from 17%, two from 50%, full from 83%.
+    /// A battery's charge, its bars rounded up: a bar stays while there is
+    /// charge in its third. Empty below 15%, one bar of three from 15%, two
+    /// past a third, full past two thirds. Rounded to the nearest, one bar
+    /// would stand for anything up to half the charge, and say low where
+    /// the level is normal; this way one bar falls about where a battery is
+    /// a warning (30% or less, as an app usually colours it) and the empty
+    /// one where it is an alert (15% or less).
     pub const BATTERY: Levels = Levels(&[
         (0.0, Icon::Battery),
-        (17.0, Icon::BatteryLow),
-        (50.0, Icon::BatteryMedium),
-        (83.0, Icon::BatteryFull),
+        (15.0, Icon::BatteryLow),
+        (100.0 / 3.0, Icon::BatteryMedium),
+        (200.0 / 3.0, Icon::BatteryFull),
     ]);
 
     /// A volume: no waves while silent (below 1%), one wave from 1%, two
@@ -169,9 +174,20 @@ mod tests {
 
     #[test]
     fn a_value_picks_the_icon_it_reached() {
-        assert_eq!(Levels::BATTERY.icon(12.0), Some(Icon::Battery));
-        assert_eq!(Levels::BATTERY.icon(50.0), Some(Icon::BatteryMedium));
-        assert_eq!(Levels::BATTERY.icon(100.0), Some(Icon::BatteryFull));
+        // A battery's bars are rounded up.
+        for (charge, icon) in [
+            (12.0, Icon::Battery),
+            (14.9, Icon::Battery),
+            (15.0, Icon::BatteryLow),
+            (33.0, Icon::BatteryLow),
+            (33.5, Icon::BatteryMedium),
+            (46.0, Icon::BatteryMedium),
+            (66.0, Icon::BatteryMedium),
+            (67.0, Icon::BatteryFull),
+            (100.0, Icon::BatteryFull),
+        ] {
+            assert_eq!(Levels::BATTERY.icon(charge), Some(icon), "{charge}%");
+        }
         assert_eq!(Levels::VOLUME.icon(0.0), Some(Icon::VolumeZero));
         assert_eq!(Levels::VOLUME.icon(30.0), Some(Icon::VolumeLow));
         assert_eq!(Levels::VOLUME.icon(150.0), Some(Icon::Volume));
