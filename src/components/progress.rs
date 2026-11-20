@@ -5,7 +5,6 @@ use guido::prelude::*;
 use crate::foundations::motion;
 use crate::foundations::tokens::radius;
 use crate::foundations::tokens::{IconSize, icon, size as space};
-use crate::theme::palette::Palette;
 use crate::ui::ui;
 
 /// A thin bar.
@@ -50,19 +49,4 @@ pub fn ring(
         .track(t.colors.surface2)
         .color(move || color.get())
         .progress((move || value.get().clamp(0.0, 1.0)).transition(motion::spring()))
-}
-
-/// A battery's ink, for its icon and figure: success as text on the
-/// charger, danger at 15% or less, warning at 30% or less or while saving
-/// power, else the text's.
-pub fn battery_ink(colors: &Palette, percent: f32, plugged: bool, saving: bool) -> Color {
-    if plugged {
-        colors.success_text
-    } else if percent <= 15.0 {
-        colors.danger_text
-    } else if percent <= 30.0 || saving {
-        colors.warning_text
-    } else {
-        colors.text
-    }
 }

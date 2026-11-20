@@ -3,6 +3,7 @@ use std::time::Duration;
 use guido::prelude::*;
 use styletto::components::badge::{capsule, dot, icon_tile};
 use styletto::components::chip::chip;
+use styletto::components::level::{Level, Levels, level_indicator};
 use styletto::components::notification::app_icon;
 use styletto::components::progress::{progress_bar, ring};
 use styletto::components::roll;
@@ -114,6 +115,91 @@ pub fn rolling(ctx: &Ctx) -> Container {
             roll::rolling(move || format!("{:.0}%", value.get()))
                 .look(ty::DISPLAY_XSMALL.em())
                 .color(t.colors.accent_text),
+        )
+}
+
+const PRESETS: &[&str] = &["Battery", "Volume", "Wi-Fi"];
+const PRESET_LEVELS: [Levels; 3] = [Levels::BATTERY, Levels::VOLUME, Levels::WIFI];
+const LEVELS: &[&str] = &["As the app decides", "Normal", "Good", "Warn", "Alert"];
+const LEVEL_CHOICES: [Option<Level>; 5] = [
+    None,
+    Some(Level::Normal),
+    Some(Level::Good),
+    Some(Level::Warn),
+    Some(Level::Alert),
+];
+/// Where a battery turns to a warning, then an alert: the app's policy,
+/// not styletto's.
+const BATTERY_LEVELS: (f32, f32) = (30.0, 15.0);
+
+/// The level an app would give a reading: a battery is good on the charger,
+/// warns at 30% and alerts at 15%; a volume and a signal stay normal.
+fn decided(preset: usize, value: f32, charging: bool) -> Level {
+    match preset {
+        0 if charging => Level::Good,
+        0 => Level::below(value, BATTERY_LEVELS.0, BATTERY_LEVELS.1),
+        _ => Level::Normal,
+    }
+}
+
+/// The icon of a state off the scale: a battery charging, a volume muted.
+fn state_icon(preset: usize, charging: bool, muted: bool) -> Option<Icon> {
+    match preset {
+        0 => charging.then_some(Icon::BatteryCharging),
+        1 => muted.then_some(Icon::VolumeOff),
+        _ => None,
+    }
+}
+
+/// A value as the icon of its level, picked from a preset's set, inked by a
+/// level the app decides. Charging applies to the battery, muted to the
+/// volume. Below, every preset at a few values and in its states.
+pub fn level_indicators(ctx: &Ctx) -> Container {
+    let preset = ctx.choice("Preset", PRESETS, 0);
+    let value = ctx.number("Value", 0.0..=100.0, 12.0);
+    let charging = ctx.bool("Charging", false);
+    let muted = ctx.bool("Muted", false);
+    let percent = ctx.bool("Show percentage", true);
+    let level = ctx.choice("Level", LEVELS, 0);
+    let chosen = level_indicator(move || PRESET_LEVELS[preset.get()], value)
+        .icon(move || state_icon(preset.get(), charging.get(), muted.get()))
+        .level(move || {
+            LEVEL_CHOICES[level.get()]
+                .unwrap_or_else(|| decided(preset.get(), value.get(), charging.get()))
+        })
+        .percent(percent)
+        .size(Size::Md);
+    let gallery = |preset: usize, name: &'static str| {
+        let at = move |value: f32, charging: bool, muted: bool| {
+            level_indicator(PRESET_LEVELS[preset], value)
+                .icon(state_icon(preset, charging, muted))
+                .level(decided(preset, value, charging))
+                .percent(percent)
+        };
+        let state = match preset {
+            0 => Some(at(50.0, true, false)),
+            1 => Some(at(0.0, false, true)),
+            _ => None,
+        };
+        container()
+            .layout(centered_row(space::S4.px()))
+            .child(container().width(space::S15.px()).child(caption(name)))
+            .children([0.0, 12.0, 30.0, 60.0, 100.0].map(move |value| at(value, false, false)))
+            .child(state)
+    };
+    container()
+        .layout(
+            Flex::column()
+                .spacing(space::S6.px())
+                .cross_alignment(CrossAlignment::Center),
+        )
+        .child(chosen)
+        .child(
+            container()
+                .layout(Flex::column().spacing(space::S3.px()))
+                .child(gallery(0, "Battery"))
+                .child(gallery(1, "Volume"))
+                .child(gallery(2, "Wi-Fi")),
         )
 }
 

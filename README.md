@@ -259,9 +259,32 @@ The modules of `components`:
 | `list` | rows (a checked one marks the choice in use; one in a `Tone`, warning or danger, has its title, icon, hover and press in that hue), sections, empty states, page headers with a subtitle, pages that slide, a list that scrolls past a height with the theme's scrollbar |
 | `tile` | quick-settings tiles, wide and small; a wide one's subtitle takes a second line when it needs one, and tiles side by side in a `Flex::row()` are as tall as the tallest |
 | `chip`, `badge` | pills for a state, dots, capsules, icon tiles |
-| `card` | level figures and stat cards coloured past a threshold |
-| `progress`, `sparkline`, `roll` | bars, rings, a battery's colour, recent samples, rolling digits |
+| `level` | `Level`, how a value stands, and its ink; the level indicator: the icon a value picks from a set, its percentage beside it if asked |
+| `card` | level figures and stat cards coloured by their `Level` |
+| `progress`, `sparkline`, `roll` | bars, rings, recent samples, rolling digits |
 | `notification` | notifications, alone and grouped |
+
+The app decides a level, with its own thresholds, and styletto draws it:
+`Level::of(value, warn, alert)` when high is bad, `Level::below(value, warn,
+alert)` when low is, and `Level::Good` for better than normal, a battery
+charging. `level_ink` is `text` while normal, else `success_text`,
+`warning_text` or `danger_text`; a card's tint and glow take the fill.
+
+The indicator's sets of icons are data, each icon from the value it starts
+at: `Levels::BATTERY` is empty below 17%, then one, two and three bars from
+17, 50 and 83% (the nearest number of bars); `Levels::WIFI` is the same in
+arcs; `Levels::VOLUME` has no waves below 1%, one from 1% and two from 50%. A
+state off the scale takes its own icon in place of the set's:
+
+```rust
+use styletto::Icon;
+use styletto::components::level::{Level, Levels, level_indicator};
+
+level_indicator(Levels::BATTERY, 12.0).level(Level::below(12.0, 30.0, 15.0)).percent(true);
+level_indicator(Levels::BATTERY, 50.0).icon(Icon::BatteryCharging).level(Level::Good);
+level_indicator(Levels::VOLUME, 0.0).icon(Icon::VolumeOff);
+level_indicator(Levels::WIFI, 70.0);
+```
 
 ## Licence
 

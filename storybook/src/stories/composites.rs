@@ -1,6 +1,7 @@
 use guido::prelude::*;
 use styletto::components::button::{Fill, icon_button};
-use styletto::components::card::{Level, level_figure, stat_card};
+use styletto::components::card::{level_figure, stat_card};
+use styletto::components::level::Level;
 use styletto::components::list::{
     Tone, back, empty, page_header, pages, row, scroll_list, section, separator,
 };
