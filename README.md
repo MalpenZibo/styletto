@@ -304,9 +304,11 @@ charging. `level_ink` is `text` while normal, else `success_text`,
 `warning_text` or `danger_text`; a card's tint and glow take the fill.
 
 The indicator's sets of icons are data, each icon from the value it starts
-at: `Levels::BATTERY` is empty below 17%, then one, two and three bars from
-17, 50 and 83% (the nearest number of bars); `Levels::WIFI` is the same in
-arcs; `Levels::VOLUME` has no waves below 1%, one from 1% and two from 50%. A
+at: `Levels::BATTERY` rounds its bars up, a bar staying while there is
+charge in its third: empty below 15%, one bar from 15%, two past a third,
+three past two thirds, so one bar and the empty one fall where a battery is
+a warning and an alert; `Levels::WIFI` takes the nearest number of arcs,
+none below 17%, then one, two and three from 17, 50 and 83%; `Levels::VOLUME` has no waves below 1%, one from 1% and two from 50%. A
 state off the scale takes its own icon in place of the set's:
 
 ```rust
