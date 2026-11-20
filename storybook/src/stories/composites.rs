@@ -146,6 +146,7 @@ const NETWORKS: &[(&str, bool)] = &[
 pub fn list_pages(ctx: &Ctx) -> Container {
     let none = ctx.bool("No networks", false);
     let subtitle = ctx.text("Subtitle", "");
+    let checked = ctx.bool("Checked", false);
     let connected = create_signal(0usize);
     let stack = create_signal(vec![Page::Main]);
     let chosen = ctx.action_with::<&'static str>("connect");
@@ -178,7 +179,7 @@ pub fn list_pages(ctx: &Ctx) -> Container {
                         .trailing(toggle(false)),
                 )
                 .child(separator())
-                .child(row("Lock").icon(Icon::Lock))
+                .child(row("Lock").icon(Icon::Lock).checked(checked))
                 .child(row("Power off").icon(Icon::Power).enabled(false)),
             Page::Wifi => {
                 let chosen = chosen.clone();
@@ -222,7 +223,7 @@ pub fn list_pages(ctx: &Ctx) -> Container {
                                         );
                                     row(name)
                                         .icon(Icon::Wifi)
-                                        .selected(move || connected.get() == i)
+                                        .checked(move || connected.get() == i)
                                         .subtitle(move || {
                                             if connected.get() == i {
                                                 "Connected"

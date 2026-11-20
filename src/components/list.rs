@@ -23,13 +23,17 @@ pub fn row(
     /// Empty means none.
     subtitle: String,
     selected: bool,
+    /// The choice in use: selects the row and ends it with a check, after
+    /// the trailing widget.
+    checked: bool,
     #[prop(default = true)] enabled: bool,
     #[prop(slot)] trailing: (),
     #[prop(callback)] on_click: (),
 ) -> impl Widget {
     let t = ui();
+    let selected = move || selected.get() || checked.get();
     let rest = move || {
-        if selected.get() {
+        if selected() {
             t.colors.surface2
         } else {
             Color::TRANSPARENT
@@ -50,7 +54,7 @@ pub fn row(
         .background(rest.transition(motion::hover()))
         .when_hovered(move |s| {
             s.background(move || {
-                if selected.get() {
+                if selected() {
                     t.colors.surface2
                 } else {
                     t.colors.surface
@@ -69,6 +73,11 @@ pub fn row(
         })
         .child(words)
         .children(trailing)
+        .child(move || {
+            checked
+                .get()
+                .then(|| icons::icon(Icon::Check, icon_box::SMALL.px(), t.colors.accent))
+        })
 }
 
 /// A small uppercase label over a group of rows.
