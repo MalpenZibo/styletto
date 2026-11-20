@@ -2,7 +2,7 @@ use guido::prelude::*;
 use styletto::components::button::{Fill, icon_button};
 use styletto::components::card::{Level, level_figure, stat_card};
 use styletto::components::list::{
-    back, empty, page_header, pages, row, scroll_list, section, separator,
+    Tone, back, empty, page_header, pages, row, scroll_list, section, separator,
 };
 use styletto::components::notification::{app_icon, notification, notification_group};
 use styletto::components::slider::slider_row;
@@ -263,6 +263,34 @@ pub fn list_pages(ctx: &Ctx) -> Container {
                 .child(row("Auto-connect").trailing(toggle(true)))
                 .child(row("Forget network").icon(Icon::X)),
         }))
+}
+
+const TONES: &[&str] = &["None", "Warning", "Danger"];
+
+/// A session's power page: the rows that end it in a tone of their own.
+pub fn power_menu(ctx: &Ctx) -> Container {
+    let tone = ctx.choice("Tone", TONES, 2);
+    let chosen = ctx.action_with::<&'static str>("power");
+    let tone = move || [None, Some(Tone::Warning), Some(Tone::Danger)][tone.get()];
+    let item = |name: &'static str, kind: Icon| {
+        let chosen = chosen.clone();
+        row(name).icon(kind).on_click(move || chosen(name))
+    };
+    island::paint(container())
+        .width(PANEL)
+        .padding(space::S3.px())
+        .corners(tokens::radius::shape(tokens::radius::around(
+            tokens::radius::SMALL.px(),
+            space::S3.px(),
+        )))
+        .layout(Flex::column().spacing(space::S1.px()))
+        .child(page_header("Power"))
+        .child(item("Lock", Icon::Lock))
+        .child(item("Suspend", Icon::Moon))
+        .child(item("Log out", Icon::LogOut))
+        .child(separator())
+        .child(item("Reboot", Icon::Refresh).tone(tone))
+        .child(item("Shut down", Icon::Power).tone(tone))
 }
 
 /// Cards for the panel, and the figures under the island, both coloured
