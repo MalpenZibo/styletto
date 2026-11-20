@@ -1,6 +1,6 @@
 use guido::prelude::*;
 use styletto::centered_row;
-use styletto::components::button::{Fill, icon_button};
+use styletto::components::button::{Fill, button};
 use styletto::components::input::{field as frame, password_field as secret};
 use styletto::components::slider::slider as quick_slider;
 use styletto::components::toggle::toggle as switch;
@@ -88,7 +88,8 @@ pub fn password_field(ctx: &Ctx) -> Container {
     let t = ui();
     container().width(space::S80.px()).child(move || {
         let reveal = revealer.get().then(|| {
-            icon_button(Icon::Eye)
+            button()
+                .icon(Icon::Eye)
                 .size(Size::Sm)
                 .fill(Fill::Ghost)
                 .on_click(revealed.clone())

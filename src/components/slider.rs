@@ -4,7 +4,7 @@
 
 use guido::prelude::*;
 
-use crate::components::button::{Fill, icon_button};
+use crate::components::button::{Fill, button};
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
@@ -239,7 +239,7 @@ pub fn slider_row(
 ) -> impl Widget {
     let t = ui();
     let lead = match on_icon {
-        Some(pressed) => container().child(icon_button(icon).size(Size::Sm).on_click(pressed)),
+        Some(pressed) => container().child(button().icon(icon).size(Size::Sm).on_click(pressed)),
         None => container()
             .width(Size::Sm.height())
             .height(Size::Sm.height())
@@ -248,7 +248,8 @@ pub fn slider_row(
     };
     let tail = match on_more {
         Some(pressed) => container().child(
-            icon_button(Icon::ChevronRight)
+            button()
+                .icon(Icon::ChevronRight)
                 .size(Size::Sm)
                 .fill(Fill::Ghost)
                 .on_click(pressed),

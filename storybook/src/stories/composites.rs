@@ -1,5 +1,5 @@
 use guido::prelude::*;
-use styletto::components::button::{Fill, icon_button};
+use styletto::components::button::{Fill, button};
 use styletto::components::card::{level_figure, stat_card};
 use styletto::components::level::Level;
 use styletto::components::list::{
@@ -211,7 +211,12 @@ pub fn list_pages(ctx: &Ctx) -> Container {
                                 }
                             })
                             .on_back(back(stack))
-                            .trailing(icon_button(Icon::Refresh).size(Size::Sm).fill(Fill::Ghost)),
+                            .trailing(
+                                button()
+                                    .icon(Icon::Refresh)
+                                    .size(Size::Sm)
+                                    .fill(Fill::Ghost),
+                            ),
                     )
                     .child(move || {
                         if none.get() {
@@ -231,7 +236,8 @@ pub fn list_pages(ctx: &Ctx) -> Container {
                                             icon(Icon::Lock, icon_box::SMALL.px(), t.colors.dim)
                                         }))
                                         .child(
-                                            icon_button(Icon::ChevronRight)
+                                            button()
+                                                .icon(Icon::ChevronRight)
                                                 .size(Size::Xs)
                                                 .fill(Fill::Ghost)
                                                 .on_click(move || push(Page::Network(name))),

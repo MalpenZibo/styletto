@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use crate::system::color_scheme::{self, ColorScheme};
 use futures::StreamExt;
 use guido::prelude::*;
-use styletto::components::button::{Variant, button, icon_button};
+use styletto::components::button::{Variant, button};
 use styletto::components::card::level_figure;
 use styletto::components::level::Level;
 use styletto::components::list::row;
@@ -666,7 +666,8 @@ fn picture_field(a: Appearance) -> Container {
                 .layout(centered_row(space::S2.px()))
                 .child(boxed(input))
                 .child(
-                    icon_button(Icon::Folder)
+                    button()
+                        .icon(Icon::Folder)
                         .size(Size::Sm)
                         .on_click(move || a.chooser.send(())),
                 ),

@@ -5,7 +5,7 @@ use std::path::PathBuf;
 use std::rc::Rc;
 
 use guido::prelude::*;
-use styletto::components::button::{self, Fill, icon_button};
+use styletto::components::button::{self, Fill};
 use styletto::components::list::row;
 use styletto::components::slider::slider;
 use styletto::components::toggle::toggle;
@@ -299,13 +299,15 @@ fn toolbar(selected: RwSignal<usize>, theming: RwSignal<bool>, window: Window) -
             container()
                 .layout(Flex::row().spacing(space::S0_5.px()))
                 .child(
-                    icon_button(Icon::Minus)
+                    button::button()
+                        .icon(Icon::Minus)
                         .size(Size::Sm)
                         .fill(Fill::Ghost)
                         .on_click(move || window.collapse()),
                 )
                 .child(
-                    icon_button(Icon::X)
+                    button::button()
+                        .icon(Icon::X)
                         .size(Size::Sm)
                         .fill(Fill::Ghost)
                         .on_click(quit_app),
@@ -355,7 +357,8 @@ fn panel(ctx: Rc<Ctx>, log: RwSignal<Vec<String>>) -> Container {
                     container()
                         .visible(move || log.with(|l| !l.is_empty()))
                         .child(
-                            icon_button(Icon::X)
+                            button::button()
+                                .icon(Icon::X)
                                 .size(Size::Sm)
                                 .fill(Fill::Ghost)
                                 .on_click(move || log.set(Vec::new())),

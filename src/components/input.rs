@@ -2,7 +2,7 @@
 
 use guido::prelude::*;
 
-use crate::components::button::{Fill, icon_button};
+use crate::components::button::{Fill, button};
 use crate::foundations::control::Size;
 use crate::foundations::icons::{Icon, spinning};
 use crate::foundations::motion;
@@ -82,7 +82,8 @@ pub fn password_field(
                 )
                 .into_any()
         } else {
-            icon_button(Icon::ChevronRight)
+            button()
+                .icon(Icon::ChevronRight)
                 .size(Size::Sm)
                 .fill(Fill::Ghost)
                 .on_click(on_submit)

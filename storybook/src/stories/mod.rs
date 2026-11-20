@@ -60,7 +60,6 @@ pub const STORIES: &[Story] = &[
     story("Foundations", "Icons", foundations::icons),
     story("Foundations", "Matrix", foundations::matrix),
     story("Buttons", "Button", buttons::button),
-    story("Buttons", "Icon button", buttons::icon_button),
     story("Buttons", "Bar pill", buttons::bar_pill),
     story("Inputs", "Toggle", inputs::toggle),
     story("Inputs", "Slider", inputs::slider),

@@ -1,6 +1,6 @@
 use crate::chrome::appearance::{DENSITIES, SHAPES};
 use guido::prelude::*;
-use styletto::components::button::{Variant, button, icon_button};
+use styletto::components::button::{Variant, button};
 use styletto::components::list::{page_header, row};
 use styletto::components::slider::slider_row;
 use styletto::components::tag::tag;
@@ -229,7 +229,7 @@ pub fn controls(_: &Ctx) -> Container {
                     control.height(),
                     control.icon()
                 ))))
-                .child(icon_button(Icon::Bell).size(control))
+                .child(button().icon(Icon::Bell).size(control))
                 .child(
                     button()
                         .label("Lock")
@@ -350,7 +350,7 @@ fn sample() -> Container {
                 .layout(centered_row(size::S1.px()))
                 .child(button().label("Join").variant(Variant::Accent))
                 .child(button().label("Auto").active(true))
-                .child(icon_button(Icon::Refresh)),
+                .child(button().icon(Icon::Refresh)),
         )
         .child(
             container()
