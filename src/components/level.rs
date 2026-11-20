@@ -94,14 +94,14 @@ impl Levels {
     ]);
 
     /// The icon for `value`: the last one whose start it reached, or the
-    /// first. A set must hold at least one icon.
-    pub fn icon(self, value: f32) -> Icon {
+    /// first; none from an empty set.
+    pub fn icon(self, value: f32) -> Option<Icon> {
         let Levels(steps) = self;
         steps
             .iter()
             .rfind(|(from, _)| value >= *from)
-            .unwrap_or(&steps[0])
-            .1
+            .or(steps.first())
+            .map(|&(_, icon)| icon)
     }
 }
 
@@ -111,6 +111,9 @@ impl Levels {
 /// A state off the scale takes its own icon in place of the set's: a
 /// battery charging (`Icon::BatteryCharging`, with `Level::Good`), a volume
 /// muted (`Icon::VolumeOff`), a Wi-Fi off (`Icon::WifiOff`).
+///
+/// With an empty set and no icon given it draws no icon: the percentage
+/// alone if asked, else nothing.
 #[component]
 pub fn level_indicator(
     #[prop(required)] levels: Levels,
@@ -128,10 +131,12 @@ pub fn level_indicator(
 ) -> impl Widget {
     let size = size.get_untracked();
     let ink = move || level_ink(level.get());
-    let kind = move || icon.get().unwrap_or_else(|| levels.get().icon(value.get()));
+    // A memo, so the icon is built again only when it changes, not with
+    // every value.
+    let kind = create_memo(move || icon.get().or_else(|| levels.get().icon(value.get())));
     container()
         .layout(centered_row(size.gap()))
-        .child(icons::icon(kind, size.icon(), ink))
+        .child(move || kind.get().map(|kind| icons::icon(kind, size.icon(), ink)))
         .child(move || {
             percent.get().then(|| {
                 text(move || format!("{:.0}%", value.get()))
@@ -164,16 +169,22 @@ mod tests {
 
     #[test]
     fn a_value_picks_the_icon_it_reached() {
-        assert_eq!(Levels::BATTERY.icon(12.0), Icon::Battery);
-        assert_eq!(Levels::BATTERY.icon(50.0), Icon::BatteryMedium);
-        assert_eq!(Levels::BATTERY.icon(100.0), Icon::BatteryFull);
-        assert_eq!(Levels::VOLUME.icon(0.0), Icon::VolumeZero);
-        assert_eq!(Levels::VOLUME.icon(30.0), Icon::VolumeLow);
-        assert_eq!(Levels::VOLUME.icon(150.0), Icon::Volume);
-        assert_eq!(Levels::WIFI.icon(70.0), Icon::WifiHigh);
+        assert_eq!(Levels::BATTERY.icon(12.0), Some(Icon::Battery));
+        assert_eq!(Levels::BATTERY.icon(50.0), Some(Icon::BatteryMedium));
+        assert_eq!(Levels::BATTERY.icon(100.0), Some(Icon::BatteryFull));
+        assert_eq!(Levels::VOLUME.icon(0.0), Some(Icon::VolumeZero));
+        assert_eq!(Levels::VOLUME.icon(30.0), Some(Icon::VolumeLow));
+        assert_eq!(Levels::VOLUME.icon(150.0), Some(Icon::Volume));
+        assert_eq!(Levels::WIFI.icon(70.0), Some(Icon::WifiHigh));
         // Below the first start, or not a number, the first.
-        assert_eq!(Levels::WIFI.icon(-5.0), Icon::WifiZero);
-        assert_eq!(Levels::WIFI.icon(f32::NAN), Icon::WifiZero);
+        assert_eq!(Levels::WIFI.icon(-5.0), Some(Icon::WifiZero));
+        assert_eq!(Levels::WIFI.icon(f32::NAN), Some(Icon::WifiZero));
+    }
+
+    #[test]
+    fn an_empty_set_picks_no_icon() {
+        assert_eq!(Levels(&[]).icon(50.0), None);
+        assert_eq!(Levels(&[]).icon(f32::NAN), None);
     }
 
     #[test]
