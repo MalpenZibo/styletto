@@ -41,11 +41,16 @@ fn box_radius() -> f32 {
 
 /// A wide tile with two targets, as on Android: the icon toggles, the rest
 /// opens the details.
+///
+/// As tall as a small tile, unless its subtitle takes two lines. In a row
+/// that stretches its children, as a `Flex::row()` does by default, the
+/// tiles side by side are all as tall as the tallest.
 #[component]
 pub fn tile(
     #[prop(required)] icon: Icon,
     #[prop(required)] title: String,
-    /// Empty, the title stands alone in the middle of the tile.
+    /// Empty, the title stands alone in the middle of the tile. A long one
+    /// takes a second line, then is cut with an ellipsis.
     subtitle: String,
     on: bool,
     #[prop(callback)] on_toggle: fn(bool),
@@ -92,17 +97,14 @@ pub fn tile(
     .child(icons::icon(icon, Size::Md.icon(), ink));
 
     // An empty subtitle takes no line, so the title sits in the middle. A
-    // memo, so that the line is rebuilt only when it comes or goes.
+    // memo, so that the line is rebuilt only when it comes or goes. As tall
+    // as its lines, the label is centred on the icon box by the tile's row,
+    // whether the subtitle takes one line or two.
     let has_subtitle = create_memo(move || subtitle.with(|s| !s.is_empty()));
     let label = container()
         .width(fill())
-        .height(fill())
         .padding([0.0, size::S4.px(), 0.0, inset()])
-        .layout(
-            Flex::column()
-                .spacing(size::S0_5.px())
-                .main_alignment(MainAlignment::Center),
-        )
+        .layout(Flex::column().spacing(size::S0_5.px()))
         .child(
             text(title)
                 .typeset(LABEL_MEDIUM.em())
@@ -117,22 +119,27 @@ pub fn tile(
                     // On a fill the on-colour is the only one that reads; off
                     // it, the secondary text.
                     .color(move || if on.get() { ink() } else { t.colors.sub })
-                    .nowrap()
+                    // A long one, as a German one often is, takes a second
+                    // line before it is cut.
+                    .max_lines(Some(2))
                     .overflow(TextOverflow::Ellipsis)
             })
         });
 
+    // The icon box or the label, whichever is taller, with the inset around
+    // it: `height()` unless the subtitle takes two lines. No fixed height, so
+    // a row that stretches its children gives the tiles in it the height of
+    // the tallest. The corners stay those of `height()`, as the neighbours'.
     pressable(
         container()
             .width(fill())
-            .height(height())
             .corners(shape(on, height(), radius::MEDIUM.px()).transition(motion::spring()))
             .background(on_fill(on).transition(motion::color()))
             .overflow(Overflow::Hidden),
         0.97,
     )
     .layout(centered_row(0.0))
-    .padding([0.0, 0.0, 0.0, inset()])
+    .padding([inset(), 0.0, inset(), inset()])
     .on_click(label_click)
     .child(icon_box)
     .child(label)
@@ -149,7 +156,9 @@ pub fn small_tile(
     pressable(
         container()
             .width(fill())
-            .height(height())
+            // At least, so that beside a wide tile whose subtitle takes two
+            // lines it can be stretched to its height.
+            .height(at_least(height()))
             .corners(shape(on, height(), radius::MEDIUM.px()).transition(motion::spring()))
             .background(paint.transition(motion::color()))
             .when_hovered(move |s| s.background(move || hovered(paint()))),

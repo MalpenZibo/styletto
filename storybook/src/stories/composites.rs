@@ -25,6 +25,9 @@ pub fn tiles(ctx: &Ctx) -> Container {
     let mic = ctx.bool("Microphone", false);
     // Off, the wide tiles carry no subtitle: their title alone, centred.
     let subtitles = ctx.bool("Subtitles", true);
+    // On, Bluetooth's subtitle needs a second line, as a German one does;
+    // Wi-Fi beside it keeps a short one, and the two stay as tall.
+    let long = ctx.bool("Long subtitle", false);
     let opened = ctx.action_with::<&'static str>("open");
     let toggled = ctx.action_with::<(&'static str, bool)>("toggle");
 
@@ -73,7 +76,13 @@ pub fn tiles(ctx: &Ctx) -> Container {
                 .child(
                     tile(Icon::Bluetooth, "Bluetooth")
                         .subtitle(move || {
-                            subtitle(if bluetooth.get() { "2 devices" } else { "Off" })
+                            subtitle(if long.get() {
+                                "Reduzierte Leistungsfähigkeit und niedriger Energieverbrauch"
+                            } else if bluetooth.get() {
+                                "2 devices"
+                            } else {
+                                "Off"
+                            })
                         })
                         .on(bluetooth)
                         .on_toggle(toggler("bluetooth", bluetooth))
