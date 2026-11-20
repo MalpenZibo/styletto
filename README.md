@@ -239,7 +239,7 @@ The modules of `components`:
 |---|---|
 | `button` | pill buttons, icon buttons, toggle chips, `pressable` |
 | `toggle`, `slider`, `input` | a switch, a slider and a slider row, text and password fields |
-| `list` | rows, sections, empty states, page headers, pages that slide |
+| `list` | rows, sections, empty states, page headers with a subtitle, pages that slide |
 | `tile` | quick-settings tiles, wide and small |
 | `chip`, `badge` | pills for a state, dots, capsules, icon tiles |
 | `card` | level figures and stat cards coloured past a threshold |
