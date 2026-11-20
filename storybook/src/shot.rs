@@ -218,20 +218,19 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
     Ok(())
 }
 
-/// Steps through simulated time until nothing asks for another frame, or for
-/// as long as the longest animation takes: a spinner never stops asking.
+/// Steps through as much simulated time as the longest animation takes. It
+/// doesn't stop when `next_wait` says nothing is pending: that asks at the
+/// real time, behind the simulated one, and says so while animations are
+/// still under way.
 fn settle(h: &mut Headless, start: Instant) {
     let mut at = start + FRAME;
     while at - start < SETTLE {
         h.wait_for_image_decodes();
         h.step_at(at);
-        if h.next_wait().is_none() {
-            break;
-        }
         at += FRAME;
     }
     h.wait_for_image_decodes();
-    h.step_at(at + FRAME);
+    h.step_at(at);
 }
 
 fn set(controls: &[Control], name: &str, value: &str) -> Result<(), String> {
