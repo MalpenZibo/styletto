@@ -314,8 +314,14 @@ impl Appearance {
 /// every font file takes a moment.
 fn installed_families() -> Signal<Vec<Family>> {
     let families = create_signal(Vec::new());
-    let writer = families.writer();
-    std::thread::spawn(move || writer.set(fonts::families()));
+    // Not in tests: they run side by side on threads of their own, and
+    // Guido's queue of writes from other threads is one for the whole
+    // process, so the list could land in another test's tree, on a signal
+    // of another type.
+    if !cfg!(test) {
+        let writer = families.writer();
+        std::thread::spawn(move || writer.set(fonts::families()));
+    }
     families.read_only()
 }
 
