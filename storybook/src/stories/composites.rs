@@ -113,9 +113,11 @@ pub fn tiles(ctx: &Ctx) -> Container {
 }
 
 /// The settings rows the panel starts with: a slider per level, the icon
-/// mutes, the chevron opens the device list.
+/// mutes, the chevron opens the device list. The volume may be amplified up
+/// to its max.
 pub fn slider_rows(ctx: &Ctx) -> Container {
-    let volume = ctx.number("Volume", 0.0..=100.0, 64.0);
+    let volume = ctx.number("Volume", 0.0..=150.0, 64.0);
+    let max = ctx.number("Max", 100.0..=150.0, 100.0);
     let brightness = ctx.number("Brightness", 0.0..=100.0, 80.0);
     let muted = ctx.bool("Muted", false);
     let opened = ctx.action_with::<&'static str>("open");
@@ -133,6 +135,7 @@ pub fn slider_rows(ctx: &Ctx) -> Container {
                 },
                 volume,
             )
+            .max(max)
             .on_change(move |v| volume.set(v))
             .on_icon(move || muted.set(!muted.get_untracked()))
             .on_more(move || opened("audio")),

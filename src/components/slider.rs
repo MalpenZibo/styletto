@@ -1,5 +1,6 @@
 //! A percentage slider: a thin line at rest that swells into a pill showing
-//! its value while hovered or dragged. Press, drag or scroll to set it.
+//! its value while hovered or dragged. Press, drag or scroll to set it. It
+//! may go past 100, an amplified volume, say: a mark then shows where 100 is.
 
 use guido::prelude::*;
 
@@ -7,8 +8,8 @@ use crate::components::button::{Fill, icon_button};
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
-use crate::foundations::tokens::radius;
 use crate::foundations::tokens::size as space;
+use crate::foundations::tokens::{radius, stroke};
 use crate::foundations::typography::{LABEL_SMALL, Typeset};
 use crate::primitives::layout::centered_row;
 use crate::ui::ui;
@@ -23,14 +24,22 @@ fn thin() -> f32 {
 fn inset() -> f32 {
     space::S3.px()
 }
-/// Percent per wheel notch.
+/// Percent per wheel notch, whatever the maximum: a notch changes a level by
+/// the same amount past 100 as below it.
 const WHEEL_STEP: f32 = 5.0;
+/// Where the mark goes, and the maximum past which it shows.
+const FULL: f32 = 100.0;
 
 #[component]
 pub fn slider(
-    /// A percentage, 0 to 100.
+    /// A percentage, 0 to `max`. Past `max`, it is drawn at `max`.
     #[prop(required)]
     value: f32,
+    /// The highest percentage it can be set to. Above 100, a mark on the
+    /// track shows where 100 is. One that is not a positive finite number
+    /// counts as 100.
+    #[prop(default = FULL)]
+    max: f32,
     /// Called with each new whole percentage.
     #[prop(callback)]
     on_change: fn(f32),
@@ -41,6 +50,17 @@ pub fn slider(
             on_change.run(v);
         }
     };
+    // Every read of the max goes through this: a bad one would divide by
+    // zero or make a clamp panic.
+    let max = create_memo(move || {
+        let max = max.get();
+        if max.is_finite() && max > 0.0 {
+            max
+        } else {
+            FULL
+        }
+    })
+    .into_signal();
     let bounds = create_widget_ref();
     let hovered = create_signal(false);
     // While dragging, show where the pointer put it, not the owner's answer.
@@ -60,13 +80,13 @@ pub fn slider(
             .get()
             .or_else(|| wheeled.get())
             .unwrap_or_else(|| value.get())
-            .clamp(0.0, 100.0)
+            .clamp(0.0, max.get())
     });
     let width = create_memo(move || bounds.rect().get().width);
     let active = create_memo(move || hovered.get() || dragging.get().is_some());
 
     let set = move |v: f32| {
-        let v = v.clamp(0.0, 100.0).round();
+        let v = v.clamp(0.0, max.get_untracked()).round();
         wheeled.set(None);
         if dragging.get_untracked() != Some(v) {
             dragging.set(Some(v));
@@ -75,14 +95,34 @@ pub fn slider(
     };
     let locate = move |x: f32| {
         let w = bounds.rect().get_untracked().width;
-        if w > 0.0 { x / w * 100.0 } else { 0.0 }
+        if w > 0.0 {
+            x / w * max.get_untracked()
+        } else {
+            0.0
+        }
     };
 
-    let reach = move || shown.get() / 100.0 * width.get();
+    let reach = move || shown.get() / max.get() * width.get();
     let filled = container()
         .width(reach.transition(motion::tactile()))
         .height(fill())
         .background(t.colors.accent);
+    // A cut through the track in the island's colour: it reads on the empty
+    // part as much as the track reads on the island, and on the fill as much
+    // as the fill does, in any theme, and stays as quiet as the track.
+    let amplified = create_memo(move || max.get() > FULL);
+    let mark = move || {
+        amplified.get().then(|| {
+            container()
+                .width(stroke::HAIRLINE)
+                .height(fill())
+                .background(t.colors.island)
+                .translate(move || {
+                    let x = FULL / max.get() * width.get() - stroke::HAIRLINE / 2.0;
+                    Translate::new(x, 0.0)
+                })
+        })
+    };
     // The value sits at the far end until the fill reaches it, then rides the
     // fill's edge in the accent's ink.
     let label = create_widget_ref();
@@ -138,6 +178,7 @@ pub fn slider(
         .background(t.colors.surface2)
         .layout(ZStack::new())
         .child(filled)
+        .child(mark)
         .child(readout);
 
     container()
@@ -161,10 +202,14 @@ pub fn slider(
         })
         .on_mouse_up(move |_, _| dragging.set(None))
         .on_scroll(move |_, dy, _| {
+            // From what is shown: a value past a maximum lowered under it
+            // steps down from the maximum.
+            let max = max.get_untracked();
             let from = wheeled
                 .get_untracked()
-                .unwrap_or_else(|| value.get_untracked());
-            let next = (from - dy.signum() * WHEEL_STEP).clamp(0.0, 100.0).round();
+                .unwrap_or_else(|| value.get_untracked())
+                .clamp(0.0, max);
+            let next = (from - dy.signum() * WHEEL_STEP).clamp(0.0, max).round();
             if next != from {
                 // Held before the owner is told, so an answer given at once
                 // is seen catching up.
@@ -180,6 +225,10 @@ pub fn slider(
 pub fn slider_row(
     #[prop(required)] icon: Icon,
     #[prop(required)] value: f32,
+    /// The slider's `max`; one that is not a positive finite number counts
+    /// as 100.
+    #[prop(default = FULL)]
+    max: f32,
     #[prop(callback)] on_change: fn(f32),
     /// Makes the icon a button (mute, say).
     #[prop(callback)]
@@ -213,7 +262,7 @@ pub fn slider_row(
         .child(
             container()
                 .width(fill())
-                .child(slider(value).on_change(on_change)),
+                .child(slider(value).max(max).on_change(on_change)),
         )
         .child(tail)
 }
