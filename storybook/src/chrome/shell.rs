@@ -18,7 +18,7 @@ use styletto::primitives::text::{caption, heading, label, typed};
 use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
 
 use crate::chrome::appearance::{self, Appearance};
-use crate::chrome::widgets::{chips, field, island, section, wallpaper};
+use crate::chrome::widgets::{choices, field, island, section, wallpaper};
 use crate::stories::story::{Control, Ctx};
 use crate::stories::{STORIES, group_icon};
 
@@ -424,7 +424,7 @@ fn control_row(control: &Control) -> Container {
             field(
                 name,
                 None,
-                chips(
+                choices(
                     options.to_vec(),
                     move |index| value.get() == index,
                     move |index| value.set(index),

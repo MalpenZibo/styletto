@@ -1,4 +1,5 @@
-//! Pill buttons, icon buttons and toggle chips.
+//! Buttons, on and off as a tile is, a round icon button among them, and
+//! the bar's pills.
 
 use std::cell::Cell;
 
@@ -12,8 +13,10 @@ use crate::foundations::tokens::{opacity, stroke};
 use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::typed;
-use crate::ui::{active_fill, active_ink, ui};
+use crate::ui::ui;
 
+/// What a button does, by its colour: anything, the main thing, or what
+/// can't be undone.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Variant {
     #[default]
@@ -22,10 +25,15 @@ pub enum Variant {
     Danger,
 }
 
+/// How a button sits at rest.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Fill {
+    /// In its variant's fill (`surface` for a neutral one), its content in
+    /// the colour that reads on it.
     #[default]
     Solid,
+    /// Clear until hovered, then on `surface`; its content in the variant's
+    /// hue as text (`text` for a neutral one), which reads on both.
     Ghost,
 }
 
@@ -39,69 +47,61 @@ pub fn hovered(color: Color) -> Color {
 }
 
 /// A pill with a label, an icon before it, or only the icon in a circle.
+///
+/// While `active` it is on, as a tile is: filled with the accent, its
+/// content in `on_accent`, whatever its variant and fill. Disabled, on or
+/// off, it fades and takes no press.
 #[component]
 pub fn button(
     label: String,
     icon: Option<Icon>,
     variant: Variant,
-    size: Size,
-    #[prop(default = true)] enabled: bool,
-    #[prop(callback)] on_click: (),
-) -> impl Widget {
-    let t = ui();
-    let size = size.get_untracked();
-    let (fill, ink) = match variant.get_untracked() {
-        Variant::Neutral => (t.colors.surface2, t.colors.text),
-        Variant::Accent => (t.colors.accent, t.colors.on_accent),
-        Variant::Danger => (t.colors.danger, t.colors.on_danger),
-    };
-    pressable(
-        sized(container(), label, size)
-            .background(fill.transition(motion::hover()))
-            .when_hovered(move |s| s.background(hovered(fill))),
-        0.95,
-    )
-    .enabled(enabled)
-    .on_click(on_click)
-    .layout(centered_row(size.gap()).main_alignment(MainAlignment::Center))
-    .children(content(label, icon, move || ink, size))
-}
-
-/// A round button holding one icon, filled with the accent while on.
-#[component]
-pub fn icon_button(
-    #[prop(required)] icon: Icon,
-    size: Size,
     fill: Fill,
-    /// Fills it with the accent, as a tile that is on, whatever its `fill`.
+    size: Size,
+    /// On: filled with the accent, whatever its variant and fill.
     active: bool,
     #[prop(default = true)] enabled: bool,
     #[prop(callback)] on_click: (),
 ) -> impl Widget {
     let t = ui();
+    let c = t.colors;
     let size = size.get_untracked();
-    let side = size.height();
-    let (rest, hover) = match fill.get_untracked() {
-        Fill::Solid => (t.colors.surface, t.colors.surface2),
-        Fill::Ghost => (Color::TRANSPARENT, t.colors.surface),
+    // While off: the fill at rest, hovered, and the ink on both. A neutral
+    // fill steps to the next surface, a hue brightens.
+    let (rest, hover, ink) = match (fill.get_untracked(), variant.get_untracked()) {
+        (Fill::Solid, Variant::Neutral) => (c.surface, c.surface2, c.text),
+        (Fill::Solid, Variant::Accent) => (c.accent, hovered(c.accent), c.on_accent),
+        (Fill::Solid, Variant::Danger) => (c.danger, hovered(c.danger), c.on_danger),
+        (Fill::Ghost, variant) => (
+            Color::TRANSPARENT,
+            c.surface,
+            match variant {
+                Variant::Neutral => c.text,
+                Variant::Accent => c.accent_text,
+                Variant::Danger => c.danger_text,
+            },
+        ),
     };
     let lit = move |on: Color, off: Color| if active.get() { on } else { off };
     pressable(
-        container()
-            .width(side)
-            .height(side)
-            .corners(radius::pill(side))
-            .background((move || lit(t.colors.accent, rest)).transition(toggling(active)))
-            .when_hovered(move |s| s.background(move || lit(hovered(t.colors.accent), hover))),
-        0.9,
+        sized(label, size)
+            .background((move || lit(c.accent, rest)).transition(toggling(active)))
+            .when_hovered(move |s| s.background(move || lit(hovered(c.accent), hover))),
+        motion::PRESS_SCALE,
     )
     .enabled(enabled)
     .on_click(on_click)
-    .layout(Flex::column().center())
-    .child(icons::icon(icon, size.icon(), active_ink(active)))
+    .layout(centered_row(size.gap()).main_alignment(MainAlignment::Center))
+    .children(content(label, icon, move || lit(c.on_accent, ink), size))
 }
 
-/// Eases a fill turning on or off as a chip's, a hover as a button's: a
+/// A round button holding one icon: short for `button().icon(icon)`, with
+/// every prop of a button.
+pub fn icon_button<M>(icon: impl IntoSignal<Icon, M>) -> Button {
+    button().icon(icon.into_signal())
+}
+
+/// Eases a fill turning on or off as a tile's, a hover as a button's: a
 /// button that is never turned on keeps its quicker hover.
 fn toggling(active: Signal<bool>) -> impl Fn(Segment<Color>) -> Transition + 'static {
     let (hover, toggle) = (motion::hover(), motion::color());
@@ -116,35 +116,26 @@ fn toggling(active: Signal<bool>) -> impl Fn(Segment<Color>) -> Transition + 'st
     }
 }
 
-/// A small on/off pill, filled with the accent while on.
-#[component]
-pub fn chip_button(
-    #[prop(required)] label: String,
-    icon: Option<Icon>,
-    active: bool,
-    #[prop(callback)] on_click: (),
-) -> impl Widget {
-    let size = Size::Sm;
-    let fill = active_fill(active);
-    pressable(
-        sized(container(), label, size)
-            .background(fill.transition(motion::color()))
-            .when_hovered(move |s| s.background(move || hovered(fill()))),
-        0.95,
-    )
-    .on_click(on_click)
-    .layout(centered_row(size.gap()).main_alignment(MainAlignment::Center))
-    .children(content(label, icon, active_ink(active), size))
+/// A pill `size` tall: round ends, its content padded in from them. A
+/// button with a label, a tag and the bar's pill are drawn in one.
+pub(crate) fn pill_box(size: Size) -> Container {
+    let height = size.height();
+    container()
+        .height(height)
+        .padding([0.0, size.inline()])
+        .corners(radius::pill(height))
 }
 
-/// A circle without a label, a padded pill with one.
-fn sized(base: Container, label: Signal<String>, size: Size) -> Container {
-    let height = size.height();
-    let base = base.height(height).corners(radius::pill(height));
+/// A circle without a label, a pill with one.
+fn sized(label: Signal<String>, size: Size) -> Container {
     if label.with_untracked(String::is_empty) {
-        base.width(height)
+        let side = size.height();
+        container()
+            .width(side)
+            .height(side)
+            .corners(radius::pill(side))
     } else {
-        base.padding([0.0, size.inline()])
+        pill_box(size)
     }
 }
 
@@ -160,6 +151,8 @@ pub fn pressable(base: Container, pressed_scale: f32) -> Container {
         .when_disabled(|s| s.opacity(opacity::DISABLED).scale(Scale::NONE))
 }
 
+/// The icon, if any, then the label, if any. Whether each is there is
+/// decided once; what they show follows their signals.
 fn content(
     label: Signal<String>,
     kind: Signal<Option<Icon>>,
@@ -167,7 +160,8 @@ fn content(
     size: Size,
 ) -> Vec<Container> {
     let mut children = Vec::new();
-    if let Some(kind) = kind.get_untracked() {
+    if let Some(first) = kind.get_untracked() {
+        let kind = move || kind.get().unwrap_or(first);
         children.push(icons::icon(kind, size.icon(), ink));
     }
     if !label.with_untracked(String::is_empty) {
@@ -197,10 +191,7 @@ pub fn pill(
     let t = ui();
     let size = Size::Sm;
     let fill = move |rest: Color| if active.get() { t.colors.accent } else { rest };
-    container()
-        .height(size.height())
-        .padding([0.0, size.inline()])
-        .corners(radius::pill(size.height()))
+    pill_box(size)
         .background((move || fill(Color::TRANSPARENT)).transition(motion::hover()))
         .when_hovered(move |s| s.background(move || fill(t.colors.surface2)))
         .when_pressed(move |s| s.ripple_with_color(t.colors.ripple))

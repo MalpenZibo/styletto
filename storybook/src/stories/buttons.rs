@@ -1,6 +1,6 @@
 use guido::prelude::*;
 use styletto::Icon;
-use styletto::components::button::{self, Fill, Variant, chip_button, pill_text};
+use styletto::components::button::{self, Fill, Variant, pill_text};
 use styletto::foundations::control::Size;
 use styletto::foundations::tokens::{icon as icon_box, size as space};
 use styletto::{centered_row, icon, ui};
@@ -8,25 +8,40 @@ use styletto::{centered_row, icon, ui};
 use crate::stories::story::Ctx;
 
 const VARIANTS: &[&str] = &["Neutral", "Accent", "Danger"];
+const FILLS: &[&str] = &["Solid", "Ghost"];
 const SHOWS: &[&str] = &["Label", "Icon + label", "Icon"];
 
+/// A button in every form; a press turns it on or off, as a toggle's does.
 pub fn button(ctx: &Ctx) -> Container {
     let words = ctx.text("Label", "Lock");
     let variant = ctx.choice("Variant", VARIANTS, 1);
+    let fill = ctx.choice("Fill", FILLS, 0);
     let shows = ctx.choice("Content", SHOWS, 0);
+    let active = ctx.bool("Active", false);
     let enabled = ctx.bool("Enabled", true);
     let pressed = ctx.action("on_press");
+    let flip = move || {
+        active.set(!active.get_untracked());
+        pressed();
+    };
     container().child(move || {
         let variant = match variant.get() {
             1 => Variant::Accent,
             2 => Variant::Danger,
             _ => Variant::Neutral,
         };
+        let fill = if fill.get() == 1 {
+            Fill::Ghost
+        } else {
+            Fill::Solid
+        };
         let shown = shows.get();
         let mut lock = button::button()
             .variant(variant)
+            .fill(fill)
+            .active(active)
             .enabled(enabled)
-            .on_click(pressed.clone());
+            .on_click(flip.clone());
         if shown != 2 {
             lock = lock.label(words);
         }
@@ -67,30 +82,8 @@ pub fn icon_button(ctx: &Ctx) -> Container {
     })
 }
 
-pub fn chip(ctx: &Ctx) -> Container {
-    let active = ctx.bool("Active", false);
-    let toggled = ctx.action_with::<bool>("on_toggle");
-    let flip = move || {
-        active.set(!active.get_untracked());
-        toggled(active.get_untracked());
-    };
-    container()
-        .layout(Flex::row().spacing(space::S2.px()))
-        .child(
-            chip_button("Do not disturb")
-                .active(active)
-                .on_click(flip.clone()),
-        )
-        .child(
-            chip_button("Night light")
-                .icon(Icon::Moon)
-                .active(active)
-                .on_click(flip),
-        )
-}
-
 /// As in the row under the island's resting one.
-pub fn pill(ctx: &Ctx) -> Container {
+pub fn bar_pill(ctx: &Ctx) -> Container {
     let active = ctx.choice("Active", &["Workspace 1", "Workspace 2", "None"], 0);
     let chosen = ctx.action_with::<usize>("on_press");
     let t = ui();

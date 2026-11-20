@@ -242,6 +242,18 @@ pub mod glow {
     pub const MEDIUM: f32 = 8.0;
 }
 
+/// How strongly a hue tints what it fills or lights: the alpha its fill is
+/// laid over the island with. What sits on a tint is drawn in the hue as
+/// text.
+pub mod tint {
+    /// A card's wash while it warns or does well: faint, as a card is large.
+    pub const SUBTLE: f32 = 0.12;
+    /// A card's wash while it alerts, and a glow around a mark or a card.
+    pub const MEDIUM: f32 = 0.15;
+    /// Behind a small mark's ink: a tag, an alert's tile.
+    pub const STRONG: f32 = 0.2;
+}
+
 /// A scrollbar's measures. It shows where a list is rather than taking room
 /// in it, so they stay the same in every density.
 pub mod scrollbar {

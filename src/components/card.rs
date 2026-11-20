@@ -5,7 +5,7 @@ use guido::prelude::*;
 use crate::components::level::{Level, level_ink};
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
-use crate::foundations::tokens::{glow, icon as icon_box, radius, size};
+use crate::foundations::tokens::{glow, icon as icon_box, radius, size, tint};
 use crate::foundations::typography::{DISPLAY_XSMALL, LABEL_SMALL, Typeset};
 use crate::primitives::layout::centered_row;
 use crate::ui::ui;
@@ -70,8 +70,8 @@ pub fn stat_card(
         .background(
             (move || match level.get() {
                 Level::Normal => t.colors.surface,
-                Level::Alert => level_fill(Level::Alert).with_alpha(0.15),
-                calmer => level_fill(calmer).with_alpha(0.12),
+                Level::Alert => level_fill(Level::Alert).with_alpha(tint::MEDIUM),
+                calmer => level_fill(calmer).with_alpha(tint::SUBTLE),
             })
             .transition(motion::color()),
         )
@@ -79,7 +79,7 @@ pub fn stat_card(
             (move || {
                 let halo = match level.get() {
                     Level::Normal => Color::TRANSPARENT,
-                    hot => level_fill(hot).with_alpha(0.15),
+                    hot => level_fill(hot).with_alpha(tint::MEDIUM),
                 };
                 Shadow::new((0.0, 0.0), glow::MEDIUM, 0.0, halo)
             })
