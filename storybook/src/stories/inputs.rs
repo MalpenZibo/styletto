@@ -115,3 +115,71 @@ pub fn password_field(ctx: &Ctx) -> Container {
         field
     })
 }
+
+#[cfg(test)]
+mod tests {
+    use std::cell::{Cell, RefCell};
+    use std::rc::Rc;
+    use std::time::Instant;
+
+    use guido::prelude::*;
+    use guido::testing::Headless;
+    use styletto::components::slider::slider;
+
+    #[test]
+    fn wheel_notches_add_up_while_the_owner_answers() {
+        let Some(mut h) = Headless::new() else {
+            return;
+        };
+        let asked = Rc::new(RefCell::new(Vec::new()));
+        let probe = Rc::new(Cell::new(None));
+        let (log, seen) = (asked.clone(), probe.clone());
+        let id = h.surface(SurfaceConfig::new(), move || {
+            // An owner that answers only when the test says so.
+            let value = create_signal(60.0);
+            seen.set(Some(value));
+            let log = log.clone();
+            container()
+                .width(200.0)
+                .child(slider(value).on_change(move |v| log.borrow_mut().push(v)))
+        });
+        h.configure(id, 200, 100, 1.0);
+        h.step();
+        let value: RwSignal<f32> = probe.take().unwrap();
+        let notch = |h: &mut Headless, up: bool| {
+            let dy = if up { -1.0 } else { 1.0 };
+            h.event_at(
+                id,
+                Event::scroll(100.0, 8.0, 0.0, dy, ScrollSource::Wheel),
+                Instant::now(),
+            );
+            h.step();
+            asked.borrow_mut().drain(..).collect::<Vec<f32>>()
+        };
+
+        // No answer yet: each notch steps from the one before.
+        assert_eq!(notch(&mut h, true), [65.0]);
+        assert_eq!(notch(&mut h, true), [70.0]);
+        // A late answer to the first notch does not undo the second.
+        value.set(65.0);
+        h.step();
+        assert_eq!(notch(&mut h, true), [75.0]);
+        // Caught up, a value set from outside is where the next notch starts.
+        value.set(75.0);
+        h.step();
+        value.set(20.0);
+        h.step();
+        assert_eq!(notch(&mut h, false), [15.0]);
+        // A refused step holds until the pointer leaves.
+        assert_eq!(notch(&mut h, false), [10.0]);
+        h.event_at(id, Event::MouseLeave, Instant::now());
+        h.step();
+        assert_eq!(notch(&mut h, false), [15.0]);
+        // At an end, a notch past it asks nothing.
+        value.set(15.0);
+        h.step();
+        value.set(100.0);
+        h.step();
+        assert_eq!(notch(&mut h, true), Vec::<f32>::new());
+    }
+}

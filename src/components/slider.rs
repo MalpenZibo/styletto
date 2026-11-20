@@ -45,9 +45,20 @@ pub fn slider(
     let hovered = create_signal(false);
     // While dragging, show where the pointer put it, not the owner's answer.
     let dragging = create_signal(None::<f32>);
+    // Likewise the wheel's last step, until the owner's value catches up with
+    // it: the next notch steps from there, not from an answer on its way. The
+    // owner's value is rounded, as the steps are, for an owner that keeps
+    // finer levels (a backlight's) than whole percentages.
+    let wheeled = create_signal(None::<f32>);
+    create_effect(move || {
+        if wheeled.get_untracked() == Some(value.get().round()) {
+            wheeled.set(None);
+        }
+    });
     let shown = create_memo(move || {
         dragging
             .get()
+            .or_else(|| wheeled.get())
             .unwrap_or_else(|| value.get())
             .clamp(0.0, 100.0)
     });
@@ -56,6 +67,7 @@ pub fn slider(
 
     let set = move |v: f32| {
         let v = v.clamp(0.0, 100.0).round();
+        wheeled.set(None);
         if dragging.get_untracked() != Some(v) {
             dragging.set(Some(v));
             on_change(v);
@@ -133,7 +145,14 @@ pub fn slider(
         .width(fill())
         .height(height())
         .layout(Flex::column().main_alignment(MainAlignment::Center))
-        .on_hover(move |h| hovered.set(h))
+        .on_hover(move |h| {
+            hovered.set(h);
+            // Leaving ends the wheel's run: an owner that refused a step, or
+            // never answered, is believed again.
+            if !h {
+                wheeled.set(None);
+            }
+        })
         .on_mouse_down(move |x, _| set(locate(x)))
         .on_pointer_move(move |x, _| {
             if dragging.get_untracked().is_some() {
@@ -142,8 +161,16 @@ pub fn slider(
         })
         .on_mouse_up(move |_, _| dragging.set(None))
         .on_scroll(move |_, dy, _| {
-            let next = (value.get_untracked() - dy.signum() * WHEEL_STEP).clamp(0.0, 100.0);
-            on_change(next.round());
+            let from = wheeled
+                .get_untracked()
+                .unwrap_or_else(|| value.get_untracked());
+            let next = (from - dy.signum() * WHEEL_STEP).clamp(0.0, 100.0).round();
+            if next != from {
+                // Held before the owner is told, so an answer given at once
+                // is seen catching up.
+                wheeled.set(Some(next));
+                on_change(next);
+            }
         })
         .child(track)
 }
