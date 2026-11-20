@@ -95,12 +95,6 @@ pub fn button(
     .children(content(label, icon, move || lit(c.on_accent, ink), size))
 }
 
-/// A round button holding one icon: short for `button().icon(icon)`, with
-/// every prop of a button.
-pub fn icon_button<M>(icon: impl IntoSignal<Icon, M>) -> Button {
-    button().icon(icon.into_signal())
-}
-
 /// Eases a fill turning on or off as a tile's, a hover as a button's: a
 /// button that is never turned on keeps its quicker hover.
 fn toggling(active: Signal<bool>) -> impl Fn(Segment<Color>) -> Transition + 'static {

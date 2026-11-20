@@ -2,7 +2,7 @@
 
 use guido::prelude::*;
 
-use crate::components::button::{Fill, icon_button};
+use crate::components::button::{Fill, button};
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon, icon};
 use crate::foundations::motion;
@@ -49,7 +49,8 @@ pub fn notification(
     let close = container()
         .opacity((move || if hovered.get() { 1.0 } else { 0.0 }).transition(motion::hover()))
         .child(
-            icon_button(Icon::X)
+            button()
+                .icon(Icon::X)
                 .size(Size::Xs)
                 .fill(Fill::Ghost)
                 .on_click(on_dismiss),

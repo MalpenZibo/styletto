@@ -17,6 +17,7 @@ pub fn button(ctx: &Ctx) -> Container {
     let variant = ctx.choice("Variant", VARIANTS, 1);
     let fill = ctx.choice("Fill", FILLS, 0);
     let shows = ctx.choice("Content", SHOWS, 0);
+    let small = ctx.bool("Small", true);
     let active = ctx.bool("Active", false);
     let enabled = ctx.bool("Enabled", true);
     let pressed = ctx.action("on_press");
@@ -39,6 +40,7 @@ pub fn button(ctx: &Ctx) -> Container {
         let mut lock = button::button()
             .variant(variant)
             .fill(fill)
+            .size(if small.get() { Size::Sm } else { Size::Md })
             .active(active)
             .enabled(enabled)
             .on_click(flip.clone());
@@ -49,36 +51,6 @@ pub fn button(ctx: &Ctx) -> Container {
             lock = lock.icon(Icon::Lock);
         }
         lock
-    })
-}
-
-pub fn icon_button(ctx: &Ctx) -> Container {
-    let small = ctx.bool("Small", false);
-    let ghost = ctx.bool("Ghost", false);
-    let active = ctx.bool("Active", false);
-    let enabled = ctx.bool("Enabled", true);
-    let pressed = ctx.action("on_press");
-    container().child(move || {
-        let size = if small.get() { Size::Sm } else { Size::Md };
-        let fill = if ghost.get() {
-            Fill::Ghost
-        } else {
-            Fill::Solid
-        };
-        let row: Vec<_> = [Icon::Power, Icon::Lock, Icon::Moon, Icon::ChevronRight]
-            .into_iter()
-            .map(|kind| {
-                button::icon_button(kind)
-                    .size(size)
-                    .fill(fill)
-                    .active(active)
-                    .enabled(enabled)
-                    .on_click(pressed.clone())
-            })
-            .collect();
-        container()
-            .layout(Flex::row().spacing(space::S2.px()))
-            .children(row)
     })
 }
 

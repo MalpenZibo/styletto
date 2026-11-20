@@ -261,7 +261,7 @@ The modules of `components`:
 
 | Module | What |
 |---|---|
-| `button` | buttons, with a label, an icon or both, on and off as a tile is; `icon_button`, the round one; the bar's pills; `pressable` |
+| `button` | buttons, with a label, an icon or both, on and off as a tile is; the bar's pills; `pressable` |
 | `toggle`, `slider`, `input` | a switch, a slider and a slider row (to 100%, or past it to a max), text and password fields |
 | `list` | rows (a checked one marks the choice in use; one in a `Tone`, warning or danger, has its title, icon, hover and press in that hue), sections, empty states, page headers with a subtitle, pages that slide, a list that scrolls past a height with the theme's scrollbar |
 | `tile` | quick-settings tiles, wide and small; a wide one's subtitle takes a second line when it needs one, and tiles side by side in a `Flex::row()` are as tall as the tallest |
@@ -273,7 +273,7 @@ The modules of `components`:
 | `notification` | notifications, alone and grouped |
 
 A button is one component, with a label, an icon before it, or the icon
-alone in a circle (`icon_button(icon)` is short for `button().icon(icon)`).
+alone in a circle (`button().icon(icon)` with no label).
 Its `Variant` (`Neutral`, `Accent`, `Danger`) sets its colour and its `Fill`
 how it rests: `Solid` in the variant's fill (`surface` for a neutral one)
 with the ink on it, `Ghost` clear until hovered, its ink the hue as text.
@@ -288,12 +288,12 @@ holds: `text` while neutral, else the hue as text. With `glow` a toned tag
 lights around it, as the island's privacy tag does.
 
 ```rust
-use styletto::components::button::{Fill, Variant, button, icon_button};
+use styletto::components::button::{Fill, Variant, button};
 use styletto::components::tag::{Tone, tag};
 
 button().label("Auto").active(auto).on_click(flip);
 button().label("Forget").variant(Variant::Danger);
-icon_button(Icon::X).fill(Fill::Ghost).size(Size::Sm);
+button().icon(Icon::X).fill(Fill::Ghost).size(Size::Sm);
 tag().tone(Tone::Warning).glow(true).child(icon(Icon::Mic, size, Tone::Warning.ink()));
 ```
 

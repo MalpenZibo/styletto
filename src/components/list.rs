@@ -5,7 +5,7 @@ use std::rc::Rc;
 
 use guido::prelude::*;
 
-use crate::components::button::{Fill, icon_button};
+use crate::components::button::{Fill, button};
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
@@ -172,7 +172,8 @@ pub fn page_header(
         .height(at_least(Size::Sm.height()))
         .layout(centered_row(size::S2.px()))
         .children(on_back.map(|back| {
-            icon_button(Icon::ChevronLeft)
+            button()
+                .icon(Icon::ChevronLeft)
                 .size(Size::Sm)
                 .fill(Fill::Ghost)
                 .on_click(back)
