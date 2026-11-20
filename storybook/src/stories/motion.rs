@@ -1,6 +1,7 @@
 use guido::prelude::*;
 use styletto::components::button::{Variant, button};
-use styletto::components::card::{Level, level_figure};
+use styletto::components::card::level_figure;
+use styletto::components::level::Level;
 use styletto::foundations::control::Size;
 use styletto::foundations::motion::{self, armed, arriving, shake as shake_frames};
 use styletto::foundations::tokens;

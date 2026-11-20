@@ -55,6 +55,7 @@ pub const STORIES: &[Story] = &[
     story("Inputs", "Field", inputs::field),
     story("Inputs", "Password field", inputs::password_field),
     story("Feedback", "Progress", feedback::progress),
+    story("Feedback", "Level indicator", feedback::level_indicators),
     story("Feedback", "Sparkline", feedback::sparklines),
     story("Feedback", "Rolling digits", feedback::rolling),
     story("Feedback", "Marks", feedback::marks),

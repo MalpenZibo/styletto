@@ -1,0 +1,186 @@
+//! Levels: how worrying a value is, and an icon showing how full it is.
+//!
+//! The app decides the level, with its own thresholds; styletto draws it.
+
+use guido::prelude::*;
+
+use crate::foundations::control::Size;
+use crate::foundations::icons::{self, Icon};
+use crate::foundations::motion;
+use crate::foundations::typography::Typeset;
+use crate::primitives::layout::centered_row;
+use crate::ui::ui;
+
+/// How a value stands: as it should, well, worrying, or alarming.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Level {
+    #[default]
+    Normal,
+    /// Better than normal: a battery charging.
+    Good,
+    Warn,
+    Alert,
+}
+
+impl Level {
+    /// Where `value` stands when high is bad, as a temperature: an alert at
+    /// `alert` or above, a warning at `warn` or above.
+    pub fn of(value: f32, warn: f32, alert: f32) -> Self {
+        if value >= alert {
+            Level::Alert
+        } else if value >= warn {
+            Level::Warn
+        } else {
+            Level::Normal
+        }
+    }
+
+    /// Where `value` stands when low is bad, as a battery: an alert at
+    /// `alert` or below, a warning at `warn` or below.
+    pub fn below(value: f32, warn: f32, alert: f32) -> Self {
+        if value <= alert {
+            Level::Alert
+        } else if value <= warn {
+            Level::Warn
+        } else {
+            Level::Normal
+        }
+    }
+}
+
+/// The ink of `level`, for an icon or a figure: the text's while normal,
+/// else its hue as text.
+pub fn level_ink(level: Level) -> Color {
+    let t = ui();
+    match level {
+        Level::Normal => t.colors.text,
+        Level::Good => t.colors.success_text,
+        Level::Warn => t.colors.warning_text,
+        Level::Alert => t.colors.danger_text,
+    }
+}
+
+/// The icons of a value's levels, each with the value it starts from, in
+/// rising order; the first also stands for anything below it. The value is
+/// a percentage, as the indicator's figure shows it.
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct Levels(pub &'static [(f32, Icon)]);
+
+impl Levels {
+    /// A battery's charge: the icon with the nearest number of bars, empty
+    /// below 17%, one bar of three from 17%, two from 50%, full from 83%.
+    pub const BATTERY: Levels = Levels(&[
+        (0.0, Icon::Battery),
+        (17.0, Icon::BatteryLow),
+        (50.0, Icon::BatteryMedium),
+        (83.0, Icon::BatteryFull),
+    ]);
+
+    /// A volume: no waves while silent (below 1%), one wave from 1%, two
+    /// from 50% (past 100% too, amplified).
+    pub const VOLUME: Levels = Levels(&[
+        (0.0, Icon::VolumeZero),
+        (1.0, Icon::VolumeLow),
+        (50.0, Icon::Volume),
+    ]);
+
+    /// A Wi-Fi signal's strength: the icon with the nearest number of arcs,
+    /// none below 17%, one of three from 17%, two from 50%, all from 83%.
+    pub const WIFI: Levels = Levels(&[
+        (0.0, Icon::WifiZero),
+        (17.0, Icon::WifiLow),
+        (50.0, Icon::WifiHigh),
+        (83.0, Icon::Wifi),
+    ]);
+
+    /// The icon for `value`: the last one whose start it reached, or the
+    /// first. A set must hold at least one icon.
+    pub fn icon(self, value: f32) -> Icon {
+        let Levels(steps) = self;
+        steps
+            .iter()
+            .rfind(|(from, _)| value >= *from)
+            .unwrap_or(&steps[0])
+            .1
+    }
+}
+
+/// A value as an icon from its set, chosen by the value, and optionally
+/// its percentage beside it, both in the ink of its level.
+///
+/// A state off the scale takes its own icon in place of the set's: a
+/// battery charging (`Icon::BatteryCharging`, with `Level::Good`), a volume
+/// muted (`Icon::VolumeOff`), a Wi-Fi off (`Icon::WifiOff`).
+#[component]
+pub fn level_indicator(
+    #[prop(required)] levels: Levels,
+    /// A percentage: from 0 to 100, or past it.
+    #[prop(required)]
+    value: f32,
+    level: Level,
+    /// In place of the one `levels` picks.
+    icon: Option<Icon>,
+    /// Shows the value beside the icon.
+    percent: bool,
+    /// The icon, the type and the gap of a control this size.
+    #[prop(default = Size::Sm)]
+    size: Size,
+) -> impl Widget {
+    let size = size.get_untracked();
+    let ink = move || level_ink(level.get());
+    let kind = move || icon.get().unwrap_or_else(|| levels.get().icon(value.get()));
+    container()
+        .layout(centered_row(size.gap()))
+        .child(icons::icon(kind, size.icon(), ink))
+        .child(move || {
+            percent.get().then(|| {
+                text(move || format!("{:.0}%", value.get()))
+                    .typeset(size.label().em().tabular())
+                    .text_box(TextEdge::Cap, TextEdge::Alphabetic)
+                    .color(ink.transition(motion::color()))
+                    .nowrap()
+            })
+        })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn high_is_bad_from_the_thresholds_up() {
+        assert_eq!(Level::of(59.0, 60.0, 80.0), Level::Normal);
+        assert_eq!(Level::of(60.0, 60.0, 80.0), Level::Warn);
+        assert_eq!(Level::of(80.0, 60.0, 80.0), Level::Alert);
+    }
+
+    #[test]
+    fn low_is_bad_from_the_thresholds_down() {
+        assert_eq!(Level::below(31.0, 30.0, 15.0), Level::Normal);
+        assert_eq!(Level::below(30.0, 30.0, 15.0), Level::Warn);
+        assert_eq!(Level::below(15.0, 30.0, 15.0), Level::Alert);
+        assert_eq!(Level::below(0.0, 30.0, 15.0), Level::Alert);
+    }
+
+    #[test]
+    fn a_value_picks_the_icon_it_reached() {
+        assert_eq!(Levels::BATTERY.icon(12.0), Icon::Battery);
+        assert_eq!(Levels::BATTERY.icon(50.0), Icon::BatteryMedium);
+        assert_eq!(Levels::BATTERY.icon(100.0), Icon::BatteryFull);
+        assert_eq!(Levels::VOLUME.icon(0.0), Icon::VolumeZero);
+        assert_eq!(Levels::VOLUME.icon(30.0), Icon::VolumeLow);
+        assert_eq!(Levels::VOLUME.icon(150.0), Icon::Volume);
+        assert_eq!(Levels::WIFI.icon(70.0), Icon::WifiHigh);
+        // Below the first start, or not a number, the first.
+        assert_eq!(Levels::WIFI.icon(-5.0), Icon::WifiZero);
+        assert_eq!(Levels::WIFI.icon(f32::NAN), Icon::WifiZero);
+    }
+
+    #[test]
+    fn every_preset_rises() {
+        for Levels(steps) in [Levels::BATTERY, Levels::VOLUME, Levels::WIFI] {
+            assert!(!steps.is_empty());
+            assert!(steps.windows(2).all(|pair| pair[0].0 < pair[1].0));
+        }
+    }
+}
