@@ -40,6 +40,7 @@ pub fn button(ctx: &Ctx) -> Container {
 pub fn icon_button(ctx: &Ctx) -> Container {
     let small = ctx.bool("Small", false);
     let ghost = ctx.bool("Ghost", false);
+    let active = ctx.bool("Active", false);
     let enabled = ctx.bool("Enabled", true);
     let pressed = ctx.action("on_press");
     container().child(move || {
@@ -55,6 +56,7 @@ pub fn icon_button(ctx: &Ctx) -> Container {
                 button::icon_button(kind)
                     .size(size)
                     .fill(fill)
+                    .active(active)
                     .enabled(enabled)
                     .on_click(pressed.clone())
             })
