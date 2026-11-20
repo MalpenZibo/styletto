@@ -241,7 +241,7 @@ The modules of `components`:
 | `button` | pill buttons, icon buttons (on and off, as a tile), toggle chips, `pressable` |
 | `toggle`, `slider`, `input` | a switch, a slider and a slider row, text and password fields |
 | `list` | rows (a checked one marks the choice in use), sections, empty states, page headers with a subtitle, pages that slide, a list that scrolls past a height with the theme's scrollbar |
-| `tile` | quick-settings tiles, wide and small |
+| `tile` | quick-settings tiles, wide and small; a wide one's subtitle takes a second line when it needs one, and tiles side by side in a `Flex::row()` are as tall as the tallest |
 | `chip`, `badge` | pills for a state, dots, capsules, icon tiles |
 | `card` | level figures and stat cards coloured past a threshold |
 | `progress`, `sparkline`, `roll` | bars, rings, a battery's colour, recent samples, rolling digits |
