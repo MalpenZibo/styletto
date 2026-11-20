@@ -6,7 +6,7 @@ use std::rc::Rc;
 
 use guido::prelude::*;
 use styletto::components::button::{self, Fill, icon_button};
-use styletto::components::list::{self, row};
+use styletto::components::list::row;
 use styletto::components::slider::slider;
 use styletto::components::toggle::toggle;
 use styletto::foundations::control::Size;
@@ -14,13 +14,13 @@ use styletto::foundations::tokens;
 use styletto::foundations::tokens::{icon as icon_box, size as space, stroke};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
-use styletto::primitives::text::{caption, heading, label};
+use styletto::primitives::text::{caption, heading, label, typed};
 use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
 
 use crate::chrome::appearance::{self, Appearance};
 use crate::chrome::widgets::{chips, field, island, section, wallpaper};
-use crate::stories::STORIES;
 use crate::stories::story::{Control, Ctx};
+use crate::stories::{STORIES, group_icon};
 
 const CHROME: Color = Color::from_hex(0x1a1b26);
 const SIDEBAR: Color = Color::from_hex(0x16161e);
@@ -177,22 +177,67 @@ fn sidebar(
             .on_click(move || theming.set(true))
             .into_any(),
     ];
-    let mut group = "";
-    for (index, story) in STORIES.iter().enumerate() {
-        if story.group != group {
-            group = story.group;
-            rows.push(list::section(group).into_any());
-        }
+    // Each group is a heading, its stories nested under a guide line, so a
+    // group reads as one and not as one more story.
+    let t = ui();
+    let mut start = 0;
+    while start < STORIES.len() {
+        let group = STORIES[start].group;
+        let end = STORIES[start..]
+            .iter()
+            .position(|story| story.group != group)
+            .map_or(STORIES.len(), |len| start + len);
         rows.push(
-            row(story.name)
+            container()
+                .padding([
+                    space::S3.px(),
+                    space::S3.px(),
+                    space::S1.px(),
+                    space::S3.px(),
+                ])
+                .layout(centered_row(space::S2.px()))
+                .child(icon(
+                    group_icon(group),
+                    icon_box::SMALL.px(),
+                    t.colors.accent_text,
+                ))
+                .child(
+                    typed(group, ty::TITLE_XSMALL.em())
+                        .color(t.colors.text)
+                        .nowrap(),
+                )
+                .into_any(),
+        );
+        let stories = (start..end).map(|index| {
+            row(STORIES[index].name)
                 .selected(move || !theming.get() && selected.get() == index)
                 .on_click(move || {
                     log.set(Vec::new());
                     theming.set(false);
                     selected.set(index);
                 })
+                .into_any()
+        });
+        rows.push(
+            container()
+                .width(fill())
+                .padding([0.0, 0.0, 0.0, space::S4.px()])
+                .layout(Flex::row().spacing(space::S1.px()))
+                .child(
+                    container()
+                        .width(stroke::HAIRLINE)
+                        .height(fill())
+                        .background(t.colors.line),
+                )
+                .child(
+                    container()
+                        .width(fill())
+                        .layout(Flex::column().spacing(space::S0_5.px()))
+                        .children(stories.collect::<Vec<_>>()),
+                )
                 .into_any(),
         );
+        start = end;
     }
 
     container()
