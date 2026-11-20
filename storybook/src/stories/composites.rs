@@ -387,7 +387,7 @@ pub fn scrolling_list(ctx: &Ctx) -> Container {
                                 device.subtitle("Connected").trailing(icon(
                                     Icon::Check,
                                     icon_box::SMALL.px(),
-                                    t.colors.accent,
+                                    t.colors.accent_text,
                                 ))
                             } else {
                                 device.subtitle("Paired")

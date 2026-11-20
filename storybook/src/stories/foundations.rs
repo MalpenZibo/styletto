@@ -17,9 +17,10 @@ use super::{ICON_SIZES, ICON_STEPS};
 use crate::stories::story::Ctx;
 
 /// Every colour the components read, then each fill with the colour that
-/// reads on it.
+/// reads on it, and each hue as text on the island.
 pub fn colors(_: &Ctx) -> Container {
     let c = ui().colors;
+    let texts = [c.accent_text, c.success_text, c.warning_text, c.danger_text];
     container()
         .layout(Flex::column().spacing(size::S6.px()))
         .child(grid(
@@ -49,6 +50,13 @@ pub fn colors(_: &Ctx) -> Container {
                         .child(typed(name, ty::LABEL_MEDIUM.em()).color(on))
                 })),
         )
+        .child(container().layout(centered_row(size::S3.px())).children(
+            c.fills().into_iter().zip(texts).map(|((name, _, _), ink)| {
+                container()
+                    .padding([size::S2.px(), size::S4.px()])
+                    .child(typed(name, ty::LABEL_MEDIUM.em()).color(ink))
+            }),
+        ))
 }
 
 const CATEGORIES: &[&str] = &["Display", "Title", "Label", "Body", "Micro", "Mono"];
@@ -232,11 +240,11 @@ pub fn controls(_: &Ctx) -> Container {
                 .child(
                     chip()
                         .size(control)
-                        .child(icon(Icon::Download, control.icon(), t.colors.accent))
+                        .child(icon(Icon::Download, control.icon(), t.colors.accent_text))
                         .child(
                             typed("12", control.label().em())
                                 .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-                                .color(t.colors.accent)
+                                .color(t.colors.accent_text)
                                 .nowrap(),
                         ),
                 )
@@ -249,7 +257,7 @@ pub fn icons(ctx: &Ctx) -> Container {
     let t = ui();
     let color = move || {
         if colored.get() {
-            t.colors.accent
+            t.colors.accent_text
         } else {
             t.colors.text
         }

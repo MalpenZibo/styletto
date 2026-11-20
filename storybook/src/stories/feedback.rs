@@ -113,7 +113,7 @@ pub fn rolling(ctx: &Ctx) -> Container {
         .child(
             roll::rolling(move || format!("{:.0}%", value.get()))
                 .look(ty::DISPLAY_XSMALL.em())
-                .color(t.colors.accent),
+                .color(t.colors.accent_text),
         )
 }
 
@@ -127,11 +127,20 @@ pub fn marks(ctx: &Ctx) -> Container {
     let screen = ctx.bool("Screen share", false);
     let name = ctx.text("Initial of", "Firefox");
     let t = ui();
-    let ink = move || {
+    // The capsule is tinted with the fill, its icons drawn in the hue as
+    // text.
+    let tint = move || {
         if screen.get() {
             t.colors.danger
         } else {
             t.colors.warning
+        }
+    };
+    let ink = move || {
+        if screen.get() {
+            t.colors.danger_text
+        } else {
+            t.colors.warning_text
         }
     };
     let used = |on: RwSignal<bool>, kind: Icon| {
@@ -158,7 +167,7 @@ pub fn marks(ctx: &Ctx) -> Container {
             container()
                 .visible(move || microphone.get() || camera.get() || screen.get())
                 .child(
-                    capsule(ink)
+                    capsule(tint)
                         .child(used(microphone, Icon::Mic))
                         .child(used(camera, Icon::Camera))
                         .child(used(screen, Icon::Monitor)),
@@ -167,7 +176,7 @@ pub fn marks(ctx: &Ctx) -> Container {
         .child(labelled(
             "alert",
             MARK,
-            icon_tile(Icon::Battery, t.colors.danger),
+            icon_tile(Icon::Battery, t.colors.danger_text),
         ))
         .child(labelled("initial", MARK, initial(name)))
         .child(labelled(
@@ -175,7 +184,7 @@ pub fn marks(ctx: &Ctx) -> Container {
             MARK,
             spinning(Icon::Refresh)
                 .size(icon_box::MEDIUM)
-                .color(t.colors.accent),
+                .color(t.colors.accent_text),
         ))
 }
 
@@ -194,12 +203,16 @@ pub fn chips(ctx: &Ctx) -> Container {
                     chip()
                         .size(Size::Xxs)
                         .fill(t.colors.accent.with_alpha(0.16))
-                        .child(icon(Icon::Download, icon_box::SMALL.px(), t.colors.accent))
+                        .child(icon(
+                            Icon::Download,
+                            icon_box::SMALL.px(),
+                            t.colors.accent_text,
+                        ))
                         .child(
                             text(move || count.get().round().to_string())
                                 .typeset(ty::LABEL_SMALL.em())
                                 .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-                                .color(t.colors.accent)
+                                .color(t.colors.accent_text)
                                 .nowrap(),
                         ),
                 )

@@ -38,7 +38,9 @@ pub fn capsule(#[prop(required)] color: Color, #[prop(children)] children: ()) -
         .children(children)
 }
 
-/// An icon on a tinted squircle, heading an alert.
+/// An icon on a tinted squircle, heading an alert. `color` draws the icon
+/// and tints the squircle: a hue as text, such as `danger_text`, so the
+/// icon reads.
 #[component]
 pub fn icon_tile(#[prop(required)] icon: Icon, #[prop(required)] color: Color) -> impl Widget {
     container()

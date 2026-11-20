@@ -78,7 +78,7 @@ pub fn password_field(
                 .child(
                     spinning(Icon::Refresh)
                         .size(icon_box::SMALL)
-                        .color(t.colors.accent),
+                        .color(t.colors.accent_text),
                 )
                 .into_any()
         } else {

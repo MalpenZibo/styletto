@@ -245,18 +245,22 @@ mod tests {
 
     #[test]
     fn text_reads_on_every_material_over_the_worst_backdrop() {
+        // The text, and every hue as text with each of the accents.
         for theme in THEMES {
             for flavor in theme.flavors {
-                let palette = flavor.scheme(flavor.accent).palette();
-                for material in [Material::Solid, Material::Translucent, Material::Glass] {
-                    let colors = Ui::new(palette).with_material(material).colors;
-                    assert_eq!(
-                        colors.unreadable(palette.worst_backdrop()),
-                        None,
-                        "{} {} {material:?}",
-                        theme.name,
-                        flavor.name
-                    );
+                for (index, accent) in flavor.accents.iter().enumerate() {
+                    let palette = flavor.scheme(index).palette();
+                    for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                        let colors = Ui::new(palette).with_material(material).colors;
+                        assert_eq!(
+                            colors.unreadable(palette.worst_backdrop()),
+                            None,
+                            "{} {} {} {material:?}",
+                            theme.name,
+                            flavor.name,
+                            accent.name
+                        );
+                    }
                 }
             }
         }
@@ -274,16 +278,28 @@ mod tests {
 
     #[test]
     fn a_colour_set_keeps_its_contrast() {
-        // A dim set paler than its floor stays as set on a solid island,
-        // and on glass darkens only as far as it read when solid.
+        // A dim and a warning's text set paler than their floors (the
+        // warning's at 2.5:1, under even the 3:1 a hue keeps on glass)
+        // stay as set on a solid island, and on glass darken only as far
+        // as they read when solid.
         let mut palette = ThemeChoice::default().palette_of(true);
         palette.dim = Color::from_hex(0xa0a0a0);
+        palette.warning_text = palette.danger;
         assert_eq!(Ui::new(palette).colors, palette);
         let glass = Ui::new(palette).with_material(Material::Glass).colors;
         assert!(glass.dim.luminance() < palette.dim.luminance());
+        assert!(glass.warning_text.luminance() < palette.warning_text.luminance());
         assert_eq!(
             glass.unreadable(Color::BLACK).map(|(role, _)| role),
             Some("dim")
+        );
+        let dim_reading = Palette {
+            dim: glass.text,
+            ..glass
+        };
+        assert_eq!(
+            dim_reading.unreadable(Color::BLACK).map(|(role, _)| role),
+            Some("warning_text")
         );
     }
 }
