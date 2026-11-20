@@ -197,11 +197,11 @@ pub(crate) fn with_ui<R>(f: impl Fn(&Ui) -> R) -> R {
     with_context(&f).unwrap_or_else(|| f(&Ui::default()))
 }
 
-/// The accent while `on`, the surface while off.
-pub fn on_fill(on: Signal<bool>) -> impl Fn() -> Color + Copy + 'static {
+/// The accent while `active`, the surface while not.
+pub fn active_fill(active: Signal<bool>) -> impl Fn() -> Color + Copy + 'static {
     let t = ui();
     move || {
-        if on.get() {
+        if active.get() {
             t.colors.accent
         } else {
             t.colors.surface
@@ -209,11 +209,11 @@ pub fn on_fill(on: Signal<bool>) -> impl Fn() -> Color + Copy + 'static {
     }
 }
 
-/// The ink that reads on [`on_fill`].
-pub fn on_ink(on: Signal<bool>) -> impl Fn() -> Color + Copy + 'static {
+/// The ink that reads on [`active_fill`].
+pub fn active_ink(active: Signal<bool>) -> impl Fn() -> Color + Copy + 'static {
     let t = ui();
     move || {
-        if on.get() {
+        if active.get() {
             t.colors.on_accent
         } else {
             t.colors.text

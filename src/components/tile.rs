@@ -10,7 +10,7 @@ use crate::foundations::motion;
 use crate::foundations::tokens::{radius, size};
 use crate::foundations::typography::{LABEL_MEDIUM, LABEL_SMALL, Typeset};
 use crate::primitives::layout::centered_row;
-use crate::ui::{flip, on_fill, on_ink, ui};
+use crate::ui::{active_fill, active_ink, flip, ui};
 
 fn icon_box() -> f32 {
     Size::Lg.height()
@@ -59,7 +59,7 @@ pub fn tile(
     on_open: (),
 ) -> impl Widget {
     let t = ui();
-    let ink = on_ink(on);
+    let ink = active_ink(on);
     let toggle = flip(on, on_toggle);
     let label_click = move || match on_open {
         Some(open) => open.run(),
@@ -134,7 +134,7 @@ pub fn tile(
         container()
             .width(fill())
             .corners(shape(on, height(), radius::MEDIUM.px()).transition(motion::spring()))
-            .background(on_fill(on).transition(motion::color()))
+            .background(active_fill(on).transition(motion::color()))
             .overflow(Overflow::Hidden),
         0.97,
     )
@@ -152,7 +152,7 @@ pub fn small_tile(
     on: bool,
     #[prop(callback)] on_toggle: fn(bool),
 ) -> impl Widget {
-    let paint = on_fill(on);
+    let paint = active_fill(on);
     pressable(
         container()
             .width(fill())
@@ -166,5 +166,5 @@ pub fn small_tile(
     )
     .layout(Flex::column().center())
     .on_click(flip(on, on_toggle))
-    .child(icons::icon(icon, Size::Md.icon(), on_ink(on)))
+    .child(icons::icon(icon, Size::Md.icon(), active_ink(on)))
 }
