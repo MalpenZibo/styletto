@@ -45,6 +45,7 @@ fn box_radius() -> f32 {
 pub fn tile(
     #[prop(required)] icon: Icon,
     #[prop(required)] title: String,
+    /// Empty, the title stands alone in the middle of the tile.
     subtitle: String,
     on: bool,
     #[prop(callback)] on_toggle: fn(bool),
@@ -90,6 +91,9 @@ pub fn tile(
     .on_click(toggle)
     .child(icons::icon(icon, Size::Md.icon(), ink));
 
+    // An empty subtitle takes no line, so the title sits in the middle. A
+    // memo, so that the line is rebuilt only when it comes or goes.
+    let has_subtitle = create_memo(move || subtitle.with(|s| !s.is_empty()));
     let label = container()
         .width(fill())
         .height(fill())
@@ -106,15 +110,17 @@ pub fn tile(
                 .nowrap()
                 .overflow(TextOverflow::Ellipsis),
         )
-        .child(
-            text(subtitle)
-                .typeset(LABEL_SMALL)
-                // On a fill the on-colour is the only one that reads; off it,
-                // the secondary text.
-                .color(move || if on.get() { ink() } else { t.colors.sub })
-                .nowrap()
-                .overflow(TextOverflow::Ellipsis),
-        );
+        .child(move || {
+            has_subtitle.get().then(|| {
+                text(subtitle)
+                    .typeset(LABEL_SMALL)
+                    // On a fill the on-colour is the only one that reads; off
+                    // it, the secondary text.
+                    .color(move || if on.get() { ink() } else { t.colors.sub })
+                    .nowrap()
+                    .overflow(TextOverflow::Ellipsis)
+            })
+        });
 
     pressable(
         container()

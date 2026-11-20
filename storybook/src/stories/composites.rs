@@ -21,6 +21,8 @@ pub fn tiles(ctx: &Ctx) -> Container {
     let night = ctx.bool("Night light", false);
     let dnd = ctx.bool("Do not disturb", true);
     let mic = ctx.bool("Microphone", false);
+    // Off, the wide tiles carry no subtitle: their title alone, centred.
+    let subtitles = ctx.bool("Subtitles", true);
     let opened = ctx.action_with::<&'static str>("open");
     let toggled = ctx.action_with::<(&'static str, bool)>("toggle");
 
@@ -34,6 +36,13 @@ pub fn tiles(ctx: &Ctx) -> Container {
     let opener = |name: &'static str| {
         let opened = opened.clone();
         move || opened(name)
+    };
+    let subtitle = move |text: &str| {
+        if subtitles.get() {
+            text.to_string()
+        } else {
+            String::new()
+        }
     };
 
     container()
@@ -54,7 +63,7 @@ pub fn tiles(ctx: &Ctx) -> Container {
                         },
                         "Wi-Fi",
                     )
-                    .subtitle(move || if wifi.get() { "Home 5G" } else { "Off" }.to_string())
+                    .subtitle(move || subtitle(if wifi.get() { "Home 5G" } else { "Off" }))
                     .on(wifi)
                     .on_toggle(toggler("wifi", wifi))
                     .on_open(opener("wifi")),
@@ -62,7 +71,7 @@ pub fn tiles(ctx: &Ctx) -> Container {
                 .child(
                     tile(Icon::Bluetooth, "Bluetooth")
                         .subtitle(move || {
-                            if bluetooth.get() { "2 devices" } else { "Off" }.to_string()
+                            subtitle(if bluetooth.get() { "2 devices" } else { "Off" })
                         })
                         .on(bluetooth)
                         .on_toggle(toggler("bluetooth", bluetooth))
