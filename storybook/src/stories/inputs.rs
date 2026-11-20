@@ -26,13 +26,15 @@ pub fn toggle(ctx: &Ctx) -> Container {
         }))
 }
 
+/// A slider; a max past 100 shows where 100 is.
 pub fn slider(ctx: &Ctx) -> Container {
-    let value = ctx.number("Value", 0.0..=100.0, 60.0);
+    let value = ctx.number("Value", 0.0..=150.0, 60.0);
+    let max = ctx.number("Max", 100.0..=150.0, 100.0);
     let width = ctx.number("Width", 120.0..=480.0, 280.0);
     let changed = ctx.action_with::<f32>("on_change");
     container()
         .width(move || width.get())
-        .child(quick_slider(value).on_change(move |v| {
+        .child(quick_slider(value).max(max).on_change(move |v| {
             value.set(v);
             changed(v);
         }))
@@ -181,5 +183,53 @@ mod tests {
         value.set(100.0);
         h.step();
         assert_eq!(notch(&mut h, true), Vec::<f32>::new());
+    }
+
+    #[test]
+    fn wheel_and_press_reach_the_max() {
+        let Some(mut h) = Headless::new() else {
+            return;
+        };
+        let asked = Rc::new(RefCell::new(Vec::new()));
+        let probe = Rc::new(Cell::new(None));
+        let (log, seen) = (asked.clone(), probe.clone());
+        let id = h.surface(SurfaceConfig::new(), move || {
+            // An owner that takes every value at once.
+            let value = create_signal(140.0);
+            let max = create_signal(150.0);
+            seen.set(Some((value, max)));
+            let log = log.clone();
+            container()
+                .width(200.0)
+                .child(slider(value).max(max).on_change(move |v| {
+                    value.set(v);
+                    log.borrow_mut().push(v);
+                }))
+        });
+        h.configure(id, 200, 100, 1.0);
+        h.step();
+        let (_, max): (RwSignal<f32>, RwSignal<f32>) = probe.take().unwrap();
+        let send = |h: &mut Headless, event: Event| {
+            h.event_at(id, event, Instant::now());
+            h.step();
+            asked.borrow_mut().drain(..).collect::<Vec<f32>>()
+        };
+        let up = || Event::scroll(100.0, 8.0, 0.0, -1.0, ScrollSource::Wheel);
+        let down = || Event::scroll(100.0, 8.0, 0.0, 1.0, ScrollSource::Wheel);
+
+        // Past 100, up to the max and no further.
+        assert_eq!(send(&mut h, up()), [145.0]);
+        assert_eq!(send(&mut h, up()), [150.0]);
+        assert_eq!(send(&mut h, up()), Vec::<f32>::new());
+        // A press halfway asks for half the max.
+        let press = Event::mouse_down(100.0, 8.0, MouseButton::Left);
+        assert_eq!(send(&mut h, press), [75.0]);
+        send(&mut h, Event::mouse_up(100.0, 8.0, MouseButton::Left));
+        // A max lowered under the value asks nothing by itself; the next
+        // notch steps from the max, where the value is drawn.
+        max.set(50.0);
+        h.step();
+        assert!(asked.borrow().is_empty());
+        assert_eq!(send(&mut h, down()), [45.0]);
     }
 }
