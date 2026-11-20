@@ -237,7 +237,7 @@ The modules of `components`:
 
 | Module | What |
 |---|---|
-| `button` | pill buttons, icon buttons, toggle chips, `pressable` |
+| `button` | pill buttons, icon buttons (on and off, as a tile), toggle chips, `pressable` |
 | `toggle`, `slider`, `input` | a switch, a slider and a slider row, text and password fields |
 | `list` | rows, sections, empty states, page headers with a subtitle, pages that slide |
 | `tile` | quick-settings tiles, wide and small |

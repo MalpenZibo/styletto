@@ -1,5 +1,7 @@
 //! Pill buttons, icon buttons and toggle chips.
 
+use std::cell::Cell;
+
 use guido::prelude::*;
 
 use crate::foundations::control::Size;
@@ -65,12 +67,14 @@ pub fn button(
     .children(content(label, icon, move || ink, size))
 }
 
-/// A round button holding one icon.
+/// A round button holding one icon, filled with the accent while on.
 #[component]
 pub fn icon_button(
     #[prop(required)] icon: Icon,
     size: Size,
     fill: Fill,
+    /// Fills it with the accent, as a tile that is on, whatever its `fill`.
+    active: bool,
     #[prop(default = true)] enabled: bool,
     #[prop(callback)] on_click: (),
 ) -> impl Widget {
@@ -81,19 +85,35 @@ pub fn icon_button(
         Fill::Solid => (t.colors.surface, t.colors.surface2),
         Fill::Ghost => (Color::TRANSPARENT, t.colors.surface),
     };
+    let lit = move |on: Color, off: Color| if active.get() { on } else { off };
     pressable(
         container()
             .width(side)
             .height(side)
             .corners(radius::pill(side))
-            .background(rest.transition(motion::hover()))
-            .when_hovered(move |s| s.background(hover)),
+            .background((move || lit(t.colors.accent, rest)).transition(toggling(active)))
+            .when_hovered(move |s| s.background(move || lit(hovered(t.colors.accent), hover))),
         0.9,
     )
     .enabled(enabled)
     .on_click(on_click)
     .layout(Flex::column().center())
-    .child(icons::icon(icon, size.icon(), t.colors.text))
+    .child(icons::icon(icon, size.icon(), on_ink(active)))
+}
+
+/// Eases a fill turning on or off as a chip's, a hover as a button's: a
+/// button that is never turned on keeps its quicker hover.
+fn toggling(active: Signal<bool>) -> impl Fn(Segment<Color>) -> Transition + 'static {
+    let (hover, toggle) = (motion::hover(), motion::color());
+    let was = Cell::new(active.get_untracked());
+    move |_| {
+        let now = active.get_untracked();
+        if was.replace(now) == now {
+            hover.clone()
+        } else {
+            toggle.clone()
+        }
+    }
 }
 
 /// A small on/off pill, filled with the accent while on.
