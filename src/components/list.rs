@@ -205,3 +205,50 @@ where
             .children(page)
     })
 }
+
+/// A list of rows that grows to `max_height`, then scrolls. Its scrollbar is
+/// the theme's: a thin pill in `dim` that brightens and widens under the
+/// pointer, drawn over the rows' ends unless `reserve_gutter` gives it a
+/// lane of its own.
+#[component]
+pub fn scroll_list(
+    /// The height past which it scrolls.
+    #[prop(required)]
+    max_height: f32,
+    /// Keeps a lane for the scrollbar, so it never covers what a row has at
+    /// its end; the rows are narrower by it, scrolling or not.
+    reserve_gutter: bool,
+    #[prop(children)] children: (),
+) -> impl Widget {
+    use crate::foundations::tokens::scrollbar;
+
+    let t = ui();
+    // The growth under the pointer is a movement: reduced motion keeps the
+    // bar as it is and only brightens it.
+    let grown = if t.motion == crate::ui::Motion::Full {
+        scrollbar::HOVER_WIDTH
+    } else {
+        scrollbar::WIDTH
+    };
+    let bar = || container().corners(radius::pill(scrollbar::WIDTH));
+    container()
+        .width(fill())
+        .height(move || at_most(max_height.get()))
+        .layout(Flex::column().spacing(size::S0_5.px()))
+        .scroll(
+            Scroll::vertical()
+                .width(scrollbar::WIDTH)
+                .hover_width(grown)
+                .margin(scrollbar::MARGIN)
+                .min_handle_size(scrollbar::MIN_HANDLE)
+                .reserve_gutter(reserve_gutter)
+                .track(move |_| bar().background(t.colors.surface))
+                .handle(move |_| {
+                    bar()
+                        .background(t.colors.dim.transition(motion::hover()))
+                        .when_hovered(move |s| s.background(t.colors.sub))
+                        .when_pressed(move |s| s.background(t.colors.text))
+                }),
+        )
+        .children(children)
+}

@@ -1,7 +1,9 @@
 use guido::prelude::*;
 use styletto::components::button::{Fill, icon_button};
 use styletto::components::card::{Level, level_figure, stat_card};
-use styletto::components::list::{back, empty, page_header, pages, row, section, separator};
+use styletto::components::list::{
+    back, empty, page_header, pages, row, scroll_list, section, separator,
+};
 use styletto::components::notification::{app_icon, notification, notification_group};
 use styletto::components::slider::slider_row;
 use styletto::components::tile::{small_tile, tile};
@@ -328,5 +330,58 @@ pub fn notifications(ctx: &Ctx) -> Container {
                 .urgent(urgent)
                 .lead(app_icon(Icon::Battery, t.colors.danger))
                 .on_dismiss(move || dismissed("battery")),
+        )
+}
+
+const DEVICES: &[(&str, Icon, bool)] = &[
+    ("Headphones", Icon::Headphones, true),
+    ("Keyboard", Icon::Keyboard, true),
+    ("Mouse", Icon::Mouse, false),
+    ("Speaker", Icon::Volume, false),
+    ("Controller", Icon::Gamepad, false),
+    ("Earbuds", Icon::Headphones, false),
+    ("Monitor", Icon::Monitor, false),
+    ("Microphone", Icon::Mic, false),
+    ("Trackpad", Icon::Mouse, false),
+    ("Camera", Icon::Camera, false),
+    ("Phone", Icon::User, false),
+    ("Watch", Icon::Zap, false),
+];
+
+/// Devices nearby, more than fit: the list stops growing and scrolls.
+pub fn scrolling_list(ctx: &Ctx) -> Container {
+    let lane = ctx.bool("Lane", false);
+    let count = ctx.number("Devices", 0.0..=DEVICES.len() as f32, DEVICES.len() as f32);
+    let t = ui();
+    island::paint(container())
+        .width(PANEL)
+        .padding(space::S3.px())
+        .corners(tokens::radius::shape(tokens::radius::around(
+            tokens::radius::SMALL.px(),
+            space::S3.px(),
+        )))
+        .layout(Flex::column().spacing(space::S0_5.px()))
+        .child(page_header("Bluetooth").trailing(toggle(true)))
+        .child(section("Nearby"))
+        .child(
+            scroll_list(space::S60.px())
+                .reserve_gutter(lane)
+                .children(move || {
+                    DEVICES[..count.get() as usize]
+                        .iter()
+                        .map(|&(name, kind, connected)| {
+                            let device = row(name).icon(kind).selected(connected);
+                            if connected {
+                                device.subtitle("Connected").trailing(icon(
+                                    Icon::Check,
+                                    icon_box::SMALL.px(),
+                                    t.colors.accent,
+                                ))
+                            } else {
+                                device.subtitle("Paired")
+                            }
+                        })
+                        .collect::<Vec<_>>()
+                }),
         )
 }
