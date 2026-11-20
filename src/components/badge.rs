@@ -2,10 +2,8 @@
 
 use guido::prelude::*;
 
-use crate::components::chip::chip;
-use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
-use crate::foundations::tokens::{icon, radius, size, stroke};
+use crate::foundations::tokens::{icon, radius, size, stroke, tint};
 
 #[component]
 pub fn dot(
@@ -28,16 +26,6 @@ pub fn dot(
         })
 }
 
-/// A tinted, glowing capsule holding the icons of what is in use.
-#[component]
-pub fn capsule(#[prop(required)] color: Color, #[prop(children)] children: ()) -> impl Widget {
-    chip()
-        .size(Size::Xxs)
-        .fill(move || color.get().with_alpha(0.2))
-        .glow(move || color.get().with_alpha(0.15))
-        .children(children)
-}
-
 /// An icon on a tinted squircle, heading an alert. `color` draws the icon
 /// and tints the squircle: a hue as text, such as `danger_text`, so the
 /// icon reads.
@@ -47,7 +35,7 @@ pub fn icon_tile(#[prop(required)] icon: Icon, #[prop(required)] color: Color) -
         .width(size::S10.px())
         .height(size::S10.px())
         .corners(radius::SMALL.corners())
-        .background(move || color.get().with_alpha(0.22))
+        .background(move || color.get().with_alpha(tint::STRONG))
         .layout(Flex::column().center())
         .child(icons::icon(icon, icon::MEDIUM.px(), color))
 }

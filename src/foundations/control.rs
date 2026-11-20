@@ -7,7 +7,7 @@ use crate::ui::with_ui;
 
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 pub enum Size {
-    /// A chip in the island at rest, a switch.
+    /// A tag in the island at rest, a switch.
     Xxs,
     /// Inside a row, beside its text.
     Xs,

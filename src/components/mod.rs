@@ -4,7 +4,6 @@
 pub mod badge;
 pub mod button;
 pub mod card;
-pub mod chip;
 pub mod input;
 pub mod level;
 pub mod list;
@@ -13,5 +12,6 @@ pub mod progress;
 pub mod roll;
 pub mod slider;
 pub mod sparkline;
+pub mod tag;
 pub mod tile;
 pub mod toggle;

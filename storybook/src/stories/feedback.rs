@@ -1,13 +1,13 @@
 use std::time::Duration;
 
 use guido::prelude::*;
-use styletto::components::badge::{capsule, dot, icon_tile};
-use styletto::components::chip::chip;
+use styletto::components::badge::{dot, icon_tile};
 use styletto::components::level::{Level, Levels, level_indicator};
 use styletto::components::notification::app_icon;
 use styletto::components::progress::{progress_bar, ring};
 use styletto::components::roll;
 use styletto::components::sparkline::sparkline;
+use styletto::components::tag::{Tone, tag};
 use styletto::foundations::control::Size;
 use styletto::foundations::icons::{artwork, initial, picture, spinning};
 use styletto::foundations::tokens::{TileSize, icon as icon_box, size as space, tile};
@@ -204,35 +204,27 @@ pub fn level_indicators(ctx: &Ctx) -> Container {
 }
 
 /// What marks something wanting attention, as the island shows it: the
-/// unread dot, the privacy capsule, the tile an alert opens with, the
-/// initial of what has no icon, the spinner of what runs.
-pub fn marks(ctx: &Ctx) -> Container {
+/// unread dot, the glowing tag of what is in use, the tile an alert opens
+/// with, the initial of what has no icon, the spinner of what runs.
+pub fn badges(ctx: &Ctx) -> Container {
     let urgent = ctx.bool("Urgent", false);
     let microphone = ctx.bool("Microphone", true);
     let camera = ctx.bool("Camera", true);
     let screen = ctx.bool("Screen share", false);
     let name = ctx.text("Initial of", "Firefox");
     let t = ui();
-    // The capsule is tinted with the fill, its icons drawn in the hue as
-    // text.
-    let tint = move || {
+    // A screen shared is graver than a microphone or a camera in use.
+    let tone = move || {
         if screen.get() {
-            t.colors.danger
+            Tone::Danger
         } else {
-            t.colors.warning
-        }
-    };
-    let ink = move || {
-        if screen.get() {
-            t.colors.danger_text
-        } else {
-            t.colors.warning_text
+            Tone::Warning
         }
     };
     let used = |on: RwSignal<bool>, kind: Icon| {
         container()
             .visible(on)
-            .child(icon(kind, icon_box::XSMALL.px(), ink))
+            .child(icon(kind, icon_box::XSMALL.px(), move || tone().ink()))
     };
     container()
         .layout(centered_row(space::S8.px()))
@@ -253,7 +245,9 @@ pub fn marks(ctx: &Ctx) -> Container {
             container()
                 .visible(move || microphone.get() || camera.get() || screen.get())
                 .child(
-                    capsule(tint)
+                    tag()
+                        .tone(tone)
+                        .glow(true)
                         .child(used(microphone, Icon::Mic))
                         .child(used(camera, Icon::Camera))
                         .child(used(screen, Icon::Monitor)),
@@ -274,10 +268,31 @@ pub fn marks(ctx: &Ctx) -> Container {
         ))
 }
 
-pub fn chips(ctx: &Ctx) -> Container {
+const TONES: &[&str] = &["Neutral", "Accent", "Success", "Warning", "Danger"];
+const TONE_OF: [Tone; 5] = [
+    Tone::Neutral,
+    Tone::Accent,
+    Tone::Success,
+    Tone::Warning,
+    Tone::Danger,
+];
+
+/// Tags, which show and take no press: a count in a tone, the player
+/// shown, readings on the surface.
+pub fn tags(ctx: &Ctx) -> Container {
     let count = ctx.number("Updates", 0.0..=99.0, 12.0);
+    let tone = ctx.choice("Tone", TONES, 1);
+    let glow = ctx.bool("Glow", false);
     let chosen = ctx.bool("Player chosen", true);
     let t = ui();
+    let tone = move || TONE_OF[tone.get()];
+    let player = move || {
+        if chosen.get() {
+            Tone::Accent
+        } else {
+            Tone::Neutral
+        }
+    };
     container()
         .layout(Flex::column().spacing(space::S4.px()))
         .child(sized(
@@ -286,46 +301,34 @@ pub fn chips(ctx: &Ctx) -> Container {
             container()
                 .layout(centered_row(space::S2.px()))
                 .child(
-                    chip()
-                        .size(Size::Xxs)
-                        .fill(t.colors.accent.with_alpha(0.16))
-                        .child(icon(
-                            Icon::Download,
-                            icon_box::SMALL.px(),
-                            t.colors.accent_text,
-                        ))
+                    tag()
+                        .tone(tone)
+                        .glow(glow)
+                        .child(icon(Icon::Download, icon_box::SMALL.px(), move || {
+                            tone().ink()
+                        }))
                         .child(
                             text(move || count.get().round().to_string())
                                 .typeset(ty::LABEL_SMALL.em())
                                 .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-                                .color(t.colors.accent_text)
+                                .color(move || tone().ink())
                                 .nowrap(),
                         ),
                 )
                 .child(
-                    chip()
-                        .size(Size::Xxs)
-                        .on_click(move || chosen.set(!chosen.get_untracked()))
-                        .fill(move || {
-                            if chosen.get() {
-                                t.colors.accent.with_alpha(0.3)
-                            } else {
-                                t.colors.surface
-                            }
-                        })
-                        .child(
-                            text("Spotify")
-                                .typeset(ty::LABEL_XSMALL.em())
-                                .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-                                .color(t.colors.text)
-                                .nowrap(),
-                        ),
+                    tag().tone(player).child(
+                        text("Spotify")
+                            .typeset(ty::LABEL_XSMALL.em())
+                            .text_box(TextEdge::Cap, TextEdge::Alphabetic)
+                            .color(move || player().ink())
+                            .nowrap(),
+                    ),
                 ),
         ))
         .child(sized(
             Size::Sm,
             "Medium",
-            chip()
+            tag()
                 .size(Size::Sm)
                 .child(icon(Icon::Headphones, icon_box::SMALL.px(), t.colors.sub))
                 .child(
@@ -338,7 +341,7 @@ pub fn chips(ctx: &Ctx) -> Container {
         .child(sized(
             Size::Md,
             "Large",
-            chip()
+            tag()
                 .size(Size::Md)
                 .child(icon(Icon::Battery, icon_box::MEDIUM.px(), t.colors.text))
                 .child(
@@ -421,7 +424,7 @@ fn labelled(name: &'static str, height: f32, shown: impl Widget + 'static) -> Co
         .child(caption(name))
 }
 
-/// A chip of `size` in its row, named before it.
+/// A tag of `size` in its row, named before it.
 fn sized(size: Size, name: &'static str, shown: impl Widget + 'static) -> Container {
     container()
         .layout(centered_row(space::S4.px()))

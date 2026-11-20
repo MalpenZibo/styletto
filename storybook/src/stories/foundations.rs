@@ -1,9 +1,9 @@
 use crate::chrome::appearance::{DENSITIES, SHAPES};
 use guido::prelude::*;
-use styletto::components::button::{Variant, button, chip_button, icon_button};
-use styletto::components::chip::chip;
+use styletto::components::button::{Variant, button, icon_button};
 use styletto::components::list::{page_header, row};
 use styletto::components::slider::slider_row;
+use styletto::components::tag::tag;
 use styletto::components::tile::small_tile;
 use styletto::components::toggle::toggle;
 use styletto::foundations::control::Size;
@@ -216,7 +216,7 @@ const CONTROLS: [(&str, Size); 5] = [
 ];
 
 /// Every control size: its height, its icon and its label, as an icon
-/// button, a button and a chip.
+/// button, a button and a tag.
 pub fn controls(_: &Ctx) -> Container {
     let t = ui();
     container()
@@ -238,7 +238,7 @@ pub fn controls(_: &Ctx) -> Container {
                         .size(control),
                 )
                 .child(
-                    chip()
+                    tag()
                         .size(control)
                         .child(icon(Icon::Download, control.icon(), t.colors.accent_text))
                         .child(
@@ -349,7 +349,7 @@ fn sample() -> Container {
             container()
                 .layout(centered_row(size::S1.px()))
                 .child(button().label("Join").variant(Variant::Accent))
-                .child(chip_button("Auto").active(true))
+                .child(button().label("Auto").active(true))
                 .child(icon_button(Icon::Refresh)),
         )
         .child(

@@ -1,7 +1,7 @@
 //! The storybook's own small pieces, shared by its chrome and its pages.
 
 use std::path::PathBuf;
-use styletto::components::button::{self, chip_button};
+use styletto::components::button::{self, button};
 use styletto::foundations::tokens::{radius, size as space, stroke};
 use styletto::primitives::island;
 use styletto::primitives::text::{label, overline};
@@ -31,7 +31,7 @@ pub fn swatch(color: Color, on: impl Fn() -> bool + 'static) -> Container {
     )
 }
 
-/// A named choice among a few options, as chips.
+/// A named choice among a few options, as buttons.
 pub fn choice<T: Copy + PartialEq + 'static>(
     name: &'static str,
     options: &'static [(&'static str, T)],
@@ -40,7 +40,7 @@ pub fn choice<T: Copy + PartialEq + 'static>(
     field(
         name,
         None,
-        chips(
+        choices(
             options.iter().map(|(name, _)| *name).collect(),
             move |index| value.get() == options[index].1,
             move |index| value.set(options[index].1),
@@ -73,8 +73,8 @@ pub fn field(name: &'static str, note: Option<Text>, body: impl Widget + 'static
         .child(body)
 }
 
-/// The options as chips, as many to a line as fit.
-pub fn chips(
+/// The options as buttons, the chosen one on, as many to a line as fit.
+pub fn choices(
     names: Vec<&'static str>,
     active: impl Fn(usize) -> bool + Copy + 'static,
     pick: impl Fn(usize) + Copy + 'static,
@@ -83,7 +83,8 @@ pub fn chips(
         .width(fill())
         .layout(Flex::row().spacing(space::S1.px()).wrap(true))
         .children(names.into_iter().enumerate().map(move |(index, name)| {
-            chip_button(name)
+            button()
+                .label(name)
                 .active(move || active(index))
                 .on_click(move || pick(index))
         }))

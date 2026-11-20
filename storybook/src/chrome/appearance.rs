@@ -9,7 +9,7 @@ use std::path::PathBuf;
 use crate::system::color_scheme::{self, ColorScheme};
 use futures::StreamExt;
 use guido::prelude::*;
-use styletto::components::button::{Variant, button, chip_button, icon_button};
+use styletto::components::button::{Variant, button, icon_button};
 use styletto::components::card::level_figure;
 use styletto::components::level::Level;
 use styletto::components::list::row;
@@ -29,7 +29,7 @@ use styletto::theme::presets::{Mode, THEMES, ThemeChoice};
 use styletto::ui::{Density, Fonts, Material, Motion, Shape};
 use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
 
-use crate::chrome::widgets::{chips, choice, field, island, section, swatch, wallpaper};
+use crate::chrome::widgets::{choice, choices, field, island, section, swatch, wallpaper};
 use crate::system::fonts::{self, Family};
 use crate::system::picker;
 
@@ -552,7 +552,7 @@ fn themes(a: Appearance) -> Container {
             field(
                 "Colours",
                 None,
-                chips(
+                choices(
                     SOURCES.iter().map(|(name, _)| *name).collect(),
                     move |index| a.source.get() == SOURCES[index].1,
                     move |index| {
@@ -586,7 +586,7 @@ fn themes(a: Appearance) -> Container {
                         _ => format!("Showing {shown}"),
                     }
                 })),
-                chips(
+                choices(
                     MODES.iter().map(|(name, _)| *name).collect(),
                     move |index| a.choice.with(|c| c.mode) == MODES[index].1,
                     move |index| a.choose(|c| c.mode = MODES[index].1),
@@ -602,7 +602,7 @@ fn themes(a: Appearance) -> Container {
                 field(
                     "Preset",
                     None,
-                    chips(
+                    choices(
                         THEMES.iter().map(|theme| theme.name).collect(),
                         move |index| a.choice.get().theme.name == THEMES[index].name,
                         move |index| a.choice.set(ThemeChoice::of(&THEMES[index])),
@@ -789,7 +789,7 @@ fn side(a: Appearance, light: bool, custom: bool, generation: RwSignal<u32>) -> 
     }
 }
 
-/// The theme's flavours of one kind, as chips, or why there are none.
+/// The theme's flavours of one kind, as buttons, or why there are none.
 fn flavors(a: Appearance, light: bool) -> AnyWidget {
     let t = ui();
     let theme = a.choice.get_untracked().theme;
@@ -811,7 +811,7 @@ fn flavors(a: Appearance, light: bool) -> AnyWidget {
             )
             .into_any();
     }
-    chips(
+    choices(
         flavors.iter().map(|flavor| flavor.name).collect(),
         move |index| a.choice.get().side(light).flavor == index,
         move |index| a.choose(|c| c.side_mut(light).flavor = index),
@@ -962,7 +962,7 @@ fn preview(a: Appearance) -> Container {
 }
 
 /// A piece of a panel whose controls answer: the row's switch, the slider
-/// and its mute, a chip, two tiles.
+/// and its mute, a button that toggles, two tiles.
 fn panel(c: Controls) -> Container {
     let flip = |on: RwSignal<bool>| move || on.set(!on.get_untracked());
     container()
@@ -1021,7 +1021,7 @@ fn panel(c: Controls) -> Container {
         .child(
             container()
                 .layout(centered_row(space::S1.px()))
-                .child(chip_button("Auto").active(c.auto).on_click(flip(c.auto)))
+                .child(button().label("Auto").active(c.auto).on_click(flip(c.auto)))
                 .child(button().label("Join").variant(Variant::Accent))
                 .child(button().label("Forget").variant(Variant::Danger)),
         )
@@ -1334,7 +1334,7 @@ mod tests {
             top(&h.read_frame(id)) != unscrolled,
             "the scroll went back to the top"
         );
-        // A press anywhere down the column, as a chip is chosen.
+        // A press anywhere down the column, as an option is chosen.
         let mut frame = 120;
         for y in (140..680).step_by(20) {
             h.click(id, 60.0, y as f32);
