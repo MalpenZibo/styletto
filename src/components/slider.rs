@@ -36,7 +36,8 @@ pub fn slider(
     #[prop(required)]
     value: f32,
     /// The highest percentage it can be set to. Above 100, a mark on the
-    /// track shows where 100 is.
+    /// track shows where 100 is. One that is not a positive finite number
+    /// counts as 100.
     #[prop(default = FULL)]
     max: f32,
     /// Called with each new whole percentage.
@@ -49,6 +50,17 @@ pub fn slider(
             on_change.run(v);
         }
     };
+    // Every read of the max goes through this: a bad one would divide by
+    // zero or make a clamp panic.
+    let max = create_memo(move || {
+        let max = max.get();
+        if max.is_finite() && max > 0.0 {
+            max
+        } else {
+            FULL
+        }
+    })
+    .into_signal();
     let bounds = create_widget_ref();
     let hovered = create_signal(false);
     // While dragging, show where the pointer put it, not the owner's answer.
@@ -213,7 +225,8 @@ pub fn slider(
 pub fn slider_row(
     #[prop(required)] icon: Icon,
     #[prop(required)] value: f32,
-    /// The slider's `max`.
+    /// The slider's `max`; one that is not a positive finite number counts
+    /// as 100.
     #[prop(default = FULL)]
     max: f32,
     #[prop(callback)] on_change: fn(f32),

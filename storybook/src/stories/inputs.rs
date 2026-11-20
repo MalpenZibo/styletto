@@ -231,5 +231,19 @@ mod tests {
         h.step();
         assert!(asked.borrow().is_empty());
         assert_eq!(send(&mut h, down()), [45.0]);
+        // A max that is not a positive finite number counts as 100.
+        max.set(0.0);
+        h.step();
+        assert_eq!(send(&mut h, up()), [50.0]);
+        max.set(f32::NAN);
+        let press = Event::mouse_down(150.0, 8.0, MouseButton::Left);
+        assert_eq!(send(&mut h, press), [75.0]);
+        send(&mut h, Event::mouse_up(150.0, 8.0, MouseButton::Left));
+        max.set(f32::INFINITY);
+        h.step();
+        assert_eq!(send(&mut h, up()), [80.0]);
+        max.set(-10.0);
+        h.step();
+        assert_eq!(send(&mut h, up()), [85.0]);
     }
 }
