@@ -10,10 +10,10 @@ use styletto::components::list::row;
 use styletto::components::slider::slider;
 use styletto::components::toggle::toggle;
 use styletto::foundations::control::Size;
-use styletto::foundations::tokens;
 use styletto::foundations::tokens::{icon as icon_box, size as space, stroke};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
+use styletto::foundations::{motion, tokens};
 use styletto::primitives::text::{caption, heading, label, typed};
 use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
 
@@ -88,10 +88,11 @@ fn pill(selected: RwSignal<usize>, window: Window) -> Container {
             .height(fill())
             .padding([0.0, space::S2.px(), 0.0, space::S4.px()])
             .corners(tokens::radius::pill(PILL.1 as f32))
-            .background(CHROME.transition(styletto::foundations::motion::hover()))
+            .background(CHROME.transition(motion::hover()))
             .border(stroke::HAIRLINE, Color::WHITE.with_alpha(0.12))
             .when_hovered(|s| s.background(SIDEBAR)),
-        0.96,
+        // A surface as wide as a wide tile presses as one does.
+        motion::PRESS_SCALE_WIDE,
     )
     .on_click(move || window.expand())
     .layout(centered_row(space::S2.px()))
