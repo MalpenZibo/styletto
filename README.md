@@ -262,7 +262,7 @@ The modules of `components`:
 | Module | What |
 |---|---|
 | `button` | buttons, with a label, an icon or both, on and off as a tile is; the bar's pills; `pressable` |
-| `toggle`, `slider`, `input` | a switch, a slider and a slider row (to 100%, or past it to a max), text and password fields |
+| `toggle`, `slider`, `input` | a switch, a slider and a slider row (to 100%, or past it to a max; a wheel notch moves it by a step, 5% unless set), text and password fields |
 | `list` | rows (a checked one marks the choice in use; one in a `Tone`, warning or danger, has its title, icon, hover and press in that hue), sections, empty states, page headers with a subtitle, pages that slide, a list that scrolls past a height with the theme's scrollbar |
 | `tile` | quick-settings tiles, wide and small; a wide one's subtitle takes a second line when it needs one, and tiles side by side in a `Flex::row()` are as tall as the tallest |
 | `tag` | read-only pills for a state, tinted by a `Tone` (neutral, accent, success, warning, danger), glowing if asked |

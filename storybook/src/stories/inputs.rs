@@ -26,15 +26,17 @@ pub fn toggle(ctx: &Ctx) -> Container {
         }))
 }
 
-/// A slider; a max past 100 shows where 100 is.
+/// A slider; a max past 100 shows where 100 is, and a wheel notch moves it
+/// by its step.
 pub fn slider(ctx: &Ctx) -> Container {
     let value = ctx.number("Value", 0.0..=150.0, 60.0);
     let max = ctx.number("Max", 100.0..=150.0, 100.0);
+    let step = ctx.number("Step", 1.0..=20.0, 5.0);
     let width = ctx.number("Width", 120.0..=480.0, 280.0);
     let changed = ctx.action_with::<f32>("on_change");
     container()
         .width(move || width.get())
-        .child(quick_slider(value).max(max).on_change(move |v| {
+        .child(quick_slider(value).max(max).step(step).on_change(move |v| {
             value.set(v);
             changed(v);
         }))
@@ -246,5 +248,62 @@ mod tests {
         max.set(-10.0);
         h.step();
         assert_eq!(send(&mut h, up()), [85.0]);
+    }
+
+    #[test]
+    fn a_notch_moves_by_the_step() {
+        let Some(mut h) = Headless::new() else {
+            return;
+        };
+        let asked = Rc::new(RefCell::new(Vec::new()));
+        let probe = Rc::new(Cell::new(None));
+        let (log, seen) = (asked.clone(), probe.clone());
+        let id = h.surface(SurfaceConfig::new(), move || {
+            // An owner that takes every value at once.
+            let value = create_signal(50.0);
+            let step = create_signal(2.0);
+            seen.set(Some(step));
+            let log = log.clone();
+            container()
+                .width(200.0)
+                .child(slider(value).max(150.0).step(step).on_change(move |v| {
+                    value.set(v);
+                    log.borrow_mut().push(v);
+                }))
+        });
+        h.configure(id, 200, 100, 1.0);
+        h.step();
+        let step: RwSignal<f32> = probe.take().unwrap();
+        let send = |h: &mut Headless, event: Event| {
+            h.event_at(id, event, Instant::now());
+            h.step();
+            asked.borrow_mut().drain(..).collect::<Vec<f32>>()
+        };
+        let up = || Event::scroll(100.0, 8.0, 0.0, -1.0, ScrollSource::Wheel);
+        let down = || Event::scroll(100.0, 8.0, 0.0, 1.0, ScrollSource::Wheel);
+
+        assert_eq!(send(&mut h, up()), [52.0]);
+        assert_eq!(send(&mut h, down()), [50.0]);
+        // A fraction is rounded, to 1 at least.
+        step.set(2.6);
+        h.step();
+        assert_eq!(send(&mut h, up()), [53.0]);
+        step.set(0.2);
+        h.step();
+        assert_eq!(send(&mut h, up()), [54.0]);
+        // One that is not a positive finite number counts as 5.
+        for bad in [0.0, -3.0, f32::NAN, f32::INFINITY] {
+            step.set(bad);
+            h.step();
+            assert_eq!(send(&mut h, down()), [49.0], "{bad}");
+            assert_eq!(send(&mut h, up()), [54.0], "{bad}");
+        }
+        // The same past 100.
+        step.set(20.0);
+        h.step();
+        assert_eq!(
+            [send(&mut h, up()), send(&mut h, up()), send(&mut h, up())].concat(),
+            [74.0, 94.0, 114.0]
+        );
     }
 }

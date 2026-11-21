@@ -24,9 +24,9 @@ fn thin() -> f32 {
 fn inset() -> f32 {
     space::S3.px()
 }
-/// Percent per wheel notch, whatever the maximum: a notch changes a level by
-/// the same amount past 100 as below it.
-const WHEEL_STEP: f32 = 5.0;
+/// Percent per wheel notch unless the app sets its own; whatever the
+/// maximum, a notch changes a level by the same amount past 100 as below it.
+const STEP: f32 = 5.0;
 /// Where the mark goes, and the maximum past which it shows.
 const FULL: f32 = 100.0;
 
@@ -40,6 +40,11 @@ pub fn slider(
     /// counts as 100.
     #[prop(default = FULL)]
     max: f32,
+    /// The percentage a wheel notch adds or takes, 5 unless set; the same
+    /// past 100. A whole percentage: a fraction is rounded, to 1 at least.
+    /// One that is not a positive finite number counts as 5.
+    #[prop(default = STEP)]
+    step: f32,
     /// Called with each new whole percentage.
     #[prop(callback)]
     on_change: fn(f32),
@@ -58,6 +63,16 @@ pub fn slider(
             max
         } else {
             FULL
+        }
+    })
+    .into_signal();
+    // Whole, as the values it steps between are.
+    let step = create_memo(move || {
+        let step = step.get();
+        if step.is_finite() && step > 0.0 {
+            step.round().max(1.0)
+        } else {
+            STEP
         }
     })
     .into_signal();
@@ -209,7 +224,9 @@ pub fn slider(
                 .get_untracked()
                 .unwrap_or_else(|| value.get_untracked())
                 .clamp(0.0, max);
-            let next = (from - dy.signum() * WHEEL_STEP).clamp(0.0, max).round();
+            let next = (from - dy.signum() * step.get_untracked())
+                .clamp(0.0, max)
+                .round();
             if next != from {
                 // Held before the owner is told, so an answer given at once
                 // is seen catching up.
@@ -229,6 +246,9 @@ pub fn slider_row(
     /// as 100.
     #[prop(default = FULL)]
     max: f32,
+    /// The slider's `step`, 5 unless set.
+    #[prop(default = STEP)]
+    step: f32,
     #[prop(callback)] on_change: fn(f32),
     /// Makes the icon a button (mute, say).
     #[prop(callback)]
@@ -263,7 +283,7 @@ pub fn slider_row(
         .child(
             container()
                 .width(fill())
-                .child(slider(value).max(max).on_change(on_change)),
+                .child(slider(value).max(max).step(step).on_change(on_change)),
         )
         .child(tail)
 }
