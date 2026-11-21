@@ -5,7 +5,7 @@ mod foundations;
 mod inputs;
 mod motion;
 #[cfg(test)]
-pub(crate) mod mounted;
+mod mounted;
 pub mod story;
 
 use styletto::Icon;

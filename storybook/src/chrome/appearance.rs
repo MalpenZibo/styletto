@@ -1117,7 +1117,7 @@ mod tests {
     use std::cell::Cell;
     use std::rc::Rc;
 
-    use crate::stories::mounted::headless;
+    use crate::testing::headless;
     use guido::prelude::*;
     use styletto::theme::palette::{Scheme, parse_hex};
     use styletto::theme::presets::{Mode, THEMES, ThemeChoice};

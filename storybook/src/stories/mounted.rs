@@ -7,15 +7,7 @@ use std::time::Instant;
 use guido::prelude::*;
 use guido::testing::Headless;
 
-/// The headless app for a test, or `None` without a GPU adapter, so the
-/// test skips. With `STYLETTO_REQUIRE_GPU` set, as in CI, it panics instead.
-pub fn headless() -> Option<Headless> {
-    let h = Headless::new();
-    if h.is_none() && std::env::var_os("STYLETTO_REQUIRE_GPU").is_some() {
-        panic!("no GPU adapter, and STYLETTO_REQUIRE_GPU is set");
-    }
-    h
-}
+use crate::testing::headless;
 
 /// What a tree asks its owner, in order.
 pub type Asked<T> = Rc<RefCell<Vec<T>>>;
