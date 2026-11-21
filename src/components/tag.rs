@@ -47,12 +47,12 @@ impl Tone {
     /// `text` while neutral, else the hue as text, which reads on the tint.
     pub fn ink(self) -> Color {
         let c = ui().colors;
-        self.hue().map_or(c.text, |hue| c.hue(hue).text)
+        c.ink(self.hue())
     }
 }
 
 /// A glow `spread` wide around what lights up in a hue: its fill at
-/// [`tint::MEDIUM`], nothing when there is none.
+/// [`tint::MEDIUM`], nothing when there is none. A tag's and a card's.
 pub(crate) fn halo(fill: Option<Color>, spread: f32) -> Shadow {
     let color = fill.map_or(Color::TRANSPARENT, |fill| fill.with_alpha(tint::MEDIUM));
     Shadow::new((0.0, 0.0), spread, 0.0, color)

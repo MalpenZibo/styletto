@@ -20,42 +20,11 @@ impl Hue {
     /// Its fill's name, in a [`Scheme`] and a [`Palette`]: `accent` and the
     /// rest.
     pub const fn name(self) -> &'static str {
-        self.names()[0]
-    }
-
-    /// Its fill's name, then the names of the colour on it and of the hue
-    /// as text: in a palette (`on_accent`, `accent_text`), then in a scheme
-    /// (`on accent`, `accent text`).
-    const fn names(self) -> [&'static str; 5] {
         match self {
-            Hue::Accent => [
-                "accent",
-                "on_accent",
-                "accent_text",
-                "on accent",
-                "accent text",
-            ],
-            Hue::Success => [
-                "success",
-                "on_success",
-                "success_text",
-                "on success",
-                "success text",
-            ],
-            Hue::Warning => [
-                "warning",
-                "on_warning",
-                "warning_text",
-                "on warning",
-                "warning text",
-            ],
-            Hue::Danger => [
-                "danger",
-                "on_danger",
-                "danger_text",
-                "on danger",
-                "danger text",
-            ],
+            Hue::Accent => "accent",
+            Hue::Success => "success",
+            Hue::Warning => "warning",
+            Hue::Danger => "danger",
         }
     }
 }
@@ -156,6 +125,11 @@ impl Default for Palette {
 }
 
 impl Palette {
+    /// What reads as text in `hue`: the hue as text, or `text` without one.
+    pub fn ink(&self, hue: Option<Hue>) -> Color {
+        hue.map_or(self.text, |hue| self.hue(hue).text)
+    }
+
     /// The colours of `hue`.
     pub fn hue(&self, hue: Hue) -> &HueColors {
         match hue {
@@ -178,12 +152,8 @@ impl Palette {
     /// Every colour with its name, in the order a picker lists them: a
     /// hue's as `accent`, `on_accent` and `accent_text`.
     pub fn named(&self) -> [(&'static str, Color); 20] {
-        let hues = Hue::ALL.map(|hue| {
-            let [fill, on, text, ..] = hue.names();
-            let colors = self.hue(hue);
-            [(fill, colors.fill), (on, colors.on), (text, colors.text)]
-        });
-        let mut named = [
+        let [a, s, w, d] = [self.accent, self.success, self.warning, self.danger];
+        [
             ("island", self.island),
             ("surface", self.surface),
             ("surface2", self.surface2),
@@ -191,11 +161,20 @@ impl Palette {
             ("text", self.text),
             ("sub", self.sub),
             ("dim", self.dim),
+            ("accent", a.fill),
+            ("on_accent", a.on),
+            ("accent_text", a.text),
+            ("success", s.fill),
+            ("on_success", s.on),
+            ("success_text", s.text),
+            ("warning", w.fill),
+            ("on_warning", w.on),
+            ("warning_text", w.text),
+            ("danger", d.fill),
+            ("on_danger", d.on),
+            ("danger_text", d.text),
+            ("ripple", self.ripple),
         ]
-        .into_iter()
-        .chain(hues.into_iter().flatten())
-        .chain([("ripple", self.ripple)]);
-        std::array::from_fn(|_| named.next().expect("twenty colours"))
     }
 
     /// What a text can sit on: the island, as it shows over `backdrop`, and
@@ -268,14 +247,20 @@ impl Palette {
         } else {
             TEXT_CONTRAST
         };
-        let hues = Hue::ALL.map(|h| (h.names()[2], self.hue(h).text));
-        [("text", self.text), ("sub", self.sub), ("dim", self.dim)]
-            .into_iter()
-            .chain(hues)
-            .zip(FLOORS.into_iter().chain([hue; 4]))
-            .map(|((role, ink), floor)| (role, lowest(ink, grounds), floor))
-            .find(|&(_, ratio, floor)| ratio < floor)
-            .map(|(role, ratio, _)| (role, ratio))
+        [
+            ("text", self.text),
+            ("sub", self.sub),
+            ("dim", self.dim),
+            ("accent_text", self.accent.text),
+            ("success_text", self.success.text),
+            ("warning_text", self.warning.text),
+            ("danger_text", self.danger.text),
+        ]
+        .into_iter()
+        .zip(FLOORS.into_iter().chain([hue; 4]))
+        .map(|((role, ink), floor)| (role, lowest(ink, grounds), floor))
+        .find(|&(_, ratio, floor)| ratio < floor)
+        .map(|(role, ratio, _)| (role, ratio))
     }
 }
 
@@ -510,7 +495,7 @@ impl Scheme {
         };
         for hue in Hue::ALL {
             let fill = scheme.fill_mut(hue);
-            let follows = !kept(hue.names()[4])
+            let follows = !kept(&format!("{} text", hue.name()))
                 && (kept(hue.name())
                     || fill
                         .text
@@ -604,20 +589,25 @@ impl Scheme {
     /// Every colour by name; an on-colour or a hue's text may be unset.
     /// A hue's as `accent`, `on accent` and `accent text`.
     pub fn named(&self) -> [(&'static str, Option<Color>); 16] {
-        let hues = Hue::ALL.map(|hue| {
-            let [color, .., on, text] = hue.names();
-            let fill = self.fill(hue);
-            [(color, Some(fill.color)), (on, fill.on), (text, fill.text)]
-        });
-        let mut named = [
+        let [a, s, w, d] = [self.accent, self.success, self.warning, self.danger];
+        [
             ("background", Some(self.background)),
             ("text", Some(self.text)),
             ("sub", Some(self.sub)),
             ("dim", Some(self.dim)),
+            ("accent", Some(a.color)),
+            ("on accent", a.on),
+            ("accent text", a.text),
+            ("success", Some(s.color)),
+            ("on success", s.on),
+            ("success text", s.text),
+            ("warning", Some(w.color)),
+            ("on warning", w.on),
+            ("warning text", w.text),
+            ("danger", Some(d.color)),
+            ("on danger", d.on),
+            ("danger text", d.text),
         ]
-        .into_iter()
-        .chain(hues.into_iter().flatten());
-        std::array::from_fn(|_| named.next().expect("sixteen colours"))
     }
 
     /// Sets `name` to `color`. A fill's own colour can't be unset; an unknown
@@ -633,19 +623,19 @@ impl Scheme {
             "text" => solid(&mut self.text),
             "sub" => solid(&mut self.sub),
             "dim" => solid(&mut self.dim),
-            _ => {
-                for hue in Hue::ALL {
-                    let [own, .., on, text] = hue.names();
-                    let fill = self.fill_mut(hue);
-                    if name == own {
-                        solid(&mut fill.color);
-                    } else if name == on {
-                        fill.on = color;
-                    } else if name == text {
-                        fill.text = color;
-                    }
-                }
-            }
+            "accent" => solid(&mut self.accent.color),
+            "on accent" => self.accent.on = color,
+            "accent text" => self.accent.text = color,
+            "success" => solid(&mut self.success.color),
+            "on success" => self.success.on = color,
+            "success text" => self.success.text = color,
+            "warning" => solid(&mut self.warning.color),
+            "on warning" => self.warning.on = color,
+            "warning text" => self.warning.text = color,
+            "danger" => solid(&mut self.danger.color),
+            "on danger" => self.danger.on = color,
+            "danger text" => self.danger.text = color,
+            _ => {}
         }
         self
     }

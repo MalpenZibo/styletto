@@ -63,18 +63,19 @@ impl Level {
 /// else its hue as text.
 pub fn level_ink(level: Level) -> Color {
     let c = ui().colors;
-    level.hue().map_or(c.text, |hue| c.hue(hue).text)
+    c.ink(level.hue())
 }
 
-/// A level's figure beside its icon: set in `label`, emphasised, its digits
-/// tabular, its box trimmed to the capitals, in `ink`.
+/// A figure beside its icon (a level's, a slider's): set in `kind`,
+/// emphasised, its digits tabular, its box trimmed to the capitals, in
+/// `ink`.
 pub(crate) fn figure_text<M>(
     content: impl IntoSignal<String, M>,
-    label: Type,
+    kind: Type,
     ink: impl Fn() -> Color + 'static,
 ) -> Text {
     text(content)
-        .typeset(label.em().tabular())
+        .typeset(kind.em().tabular())
         .text_box(TextEdge::Cap, TextEdge::Alphabetic)
         .color(ink.transition(motion::color()))
         .nowrap()
