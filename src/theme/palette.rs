@@ -65,6 +65,12 @@ pub(crate) const DIM_CONTRAST: f32 = 3.0;
 /// What `text`, `sub` and `dim` reach on all of a text's grounds, in that
 /// order; `text` reaches [`BODY_CONTRAST`] on a solid island besides.
 const FLOORS: [f32; 3] = [TEXT_CONTRAST, TEXT_CONTRAST, DIM_CONTRAST];
+/// What they reach on a see-through island, whatever shows through: `sub`
+/// only `dim`'s 3:1. The island's opposite behind it turns it grey, and at
+/// 4.5:1 there `sub` would be pushed as far as `text` is, the same colour,
+/// and the two levels of text would be one; on a solid island it keeps
+/// 4.5:1.
+const SEE_THROUGH_FLOORS: [f32; 3] = [TEXT_CONTRAST, DIM_CONTRAST, DIM_CONTRAST];
 /// The contrast a hue's text keeps on a see-through island, whatever shows
 /// through: `dim`'s. 4.5:1 there would turn the hues of a dark theme to
 /// near white on glass, as light as its text, and a warning would no
@@ -119,6 +125,9 @@ pub struct Palette {
     pub surface2: Color,
     pub line: Color,
     pub text: Color,
+    /// Secondary text, at 4.5:1 on a solid island; on a see-through one
+    /// ([`Ui::colors`](crate::Ui::colors)) at 3:1 whatever shows through, to
+    /// stay a level lighter than `text`.
     pub sub: Color,
     pub dim: Color,
     pub accent: HueColors,
@@ -207,19 +216,19 @@ impl Palette {
 
     /// The palette with the island at `opacity`, its text darkened or
     /// lightened as far as keeps the contrast it has on the opaque island,
-    /// up to the floors, whatever shows through; each hue's text the same,
-    /// in lightness only, up to 3:1. The worst is the opposite of the text:
-    /// black behind a light island turns it grey under dark text, white
-    /// behind a dark one turns it grey under light text. Where not even
-    /// black or white would read, the island is drawn as much denser as
-    /// lets them.
+    /// up to [`SEE_THROUGH_FLOORS`], whatever shows through; each hue's text
+    /// the same, in lightness only, up to 3:1. The worst is the opposite of
+    /// the text: black behind a light island turns it grey under dark text,
+    /// white behind a dark one turns it grey under light text. Where not
+    /// even black or white would read, the island is drawn as much denser
+    /// as lets them.
     pub(crate) fn see_through(&self, opacity: f32) -> Palette {
         // The text moves toward the same extreme that is worst behind.
         let worst = self.worst_backdrop();
         let solid = self.grounds(self.island);
         let inks = [self.text, self.sub, self.dim];
         // A colour set below its floor keeps the contrast it was set with.
-        let floors = [0, 1, 2].map(|i| FLOORS[i].min(lowest(inks[i], solid)));
+        let floors = [0, 1, 2].map(|i| SEE_THROUGH_FLOORS[i].min(lowest(inks[i], solid)));
         let at = |opacity: f32| Palette {
             island: self.island.scale_alpha(opacity),
             ..*self
@@ -249,14 +258,15 @@ impl Palette {
 #[cfg(test)]
 impl Palette {
     /// The first of `text`, `sub`, `dim` and the hues' texts short of its
-    /// floor on the island over `backdrop`, with the contrast it has. A
-    /// hue's floor is 4.5:1 on a solid island, 3:1 on a see-through one.
+    /// floor on the island over `backdrop`, with the contrast it has. The
+    /// floors of `sub` and a hue are 4.5:1 on a solid island, 3:1 on a
+    /// see-through one.
     pub(crate) fn unreadable(&self, backdrop: Color) -> Option<(&'static str, f32)> {
         let grounds = self.grounds(backdrop);
-        let hue = if self.island.a < 1.0 {
-            SEE_THROUGH_HUE_CONTRAST
+        let (floors, hue) = if self.island.a < 1.0 {
+            (SEE_THROUGH_FLOORS, SEE_THROUGH_HUE_CONTRAST)
         } else {
-            TEXT_CONTRAST
+            (FLOORS, TEXT_CONTRAST)
         };
         [
             ("text", self.text),
@@ -268,7 +278,7 @@ impl Palette {
             ("danger_text", self.danger.text),
         ]
         .into_iter()
-        .zip(FLOORS.into_iter().chain([hue; 4]))
+        .zip(floors.into_iter().chain([hue; 4]))
         .map(|((role, ink), floor)| (role, lowest(ink, grounds), floor))
         .find(|&(_, ratio, floor)| ratio < floor)
         .map(|(role, ratio, _)| (role, ratio))
