@@ -7,9 +7,8 @@ use std::time::Instant;
 use guido::prelude::*;
 use guido::testing::Headless;
 
-/// A headless app for a test, none without a GPU adapter: the test then
-/// skips. Where `STYLETTO_REQUIRE_GPU` is set, as CI sets it, a missing
-/// adapter fails instead, so the tests can't quietly stop running.
+/// The headless app for a test, or `None` without a GPU adapter, so the
+/// test skips. With `STYLETTO_REQUIRE_GPU` set, as in CI, it panics instead.
 pub fn headless() -> Option<Headless> {
     let h = Headless::new();
     if h.is_none() && std::env::var_os("STYLETTO_REQUIRE_GPU").is_some() {

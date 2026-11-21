@@ -35,7 +35,6 @@ jobs:
       - name: Run clippy with the default features
         run: cargo clippy --locked -p styletto --all-targets -- -D warnings
       - name: Run tests
-        # Without an adapter a headless test fails here rather than skips.
         env:
           STYLETTO_REQUIRE_GPU: 1
         run: cargo test --locked --workspace --all-features
