@@ -59,6 +59,14 @@ pub mod size {
     pub const S60: Space = Space(13);
     pub const S80: Space = Space(14);
     pub const S100: Space = Space(15);
+
+    /// A length the app chose for its layout, such as a panel's width or a
+    /// list's height before it scrolls, grown or shrunk with the density
+    /// ([`Density::scale`](crate::ui::Density::scale)) as what it holds is.
+    /// `scaled(392.0)` is 343 compact, 392 by default and 490 comfortable.
+    pub fn scaled(length: f32) -> f32 {
+        length * crate::ui::with_ui(|u| u.density.scale())
+    }
 }
 
 /// A step of corner radius.

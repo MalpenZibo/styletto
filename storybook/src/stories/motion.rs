@@ -11,7 +11,7 @@ use styletto::primitives::satellite::{balance, satellite as satellite_shape};
 use styletto::primitives::text::{caption, heading};
 use styletto::{Icon, centered_row, icon, ui};
 
-use super::{CPU_LEVELS, PANEL, TEMP_LEVELS};
+use super::{CPU_LEVELS, TEMP_LEVELS, panel};
 use crate::stories::story::Ctx;
 
 pub fn cross_fade(ctx: &Ctx) -> Container {
@@ -161,7 +161,7 @@ pub fn satellite(ctx: &Ctx) -> Container {
 
     let island = island::paint(container())
         .width(
-            (move || Length::exact(if open.get() { PANEL } else { width.get() }))
+            (move || Length::exact(if open.get() { panel() } else { width.get() }))
                 .transition(motion::spring()),
         )
         .height(

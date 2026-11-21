@@ -7,7 +7,7 @@ mod motion;
 pub mod story;
 
 use styletto::Icon;
-use styletto::foundations::tokens::{IconSize, icon};
+use styletto::foundations::tokens::{IconSize, icon, size};
 
 use story::{Ctx, Story};
 
@@ -21,8 +21,10 @@ const ICON_SIZES: [IconSize; 5] = [
     icon::XLARGE,
 ];
 
-/// The width of a panel under the island.
-const PANEL: f32 = 392.0;
+/// The width of a panel under the island, following the density.
+fn panel() -> f32 {
+    size::scaled(392.0)
+}
 /// Where CPU use and temperature turn to a warning, then an alert.
 const CPU_LEVELS: (f32, f32) = (60.0, 80.0);
 const TEMP_LEVELS: (f32, f32) = (70.0, 85.0);

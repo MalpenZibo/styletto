@@ -5,7 +5,9 @@ use guido::prelude::*;
 
 use crate::theme::palette::Palette;
 
-/// How much room things take: type, controls and space move one step.
+/// How much room things take: type, controls and space move one step, and
+/// the lengths an app lays out with [`size::scaled`](crate::foundations::tokens::size::scaled)
+/// grow or shrink by its [`scale`](Self::scale).
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
@@ -25,6 +27,18 @@ impl Density {
             Density::Compact => -1,
             Density::Default => 0,
             Density::Comfortable => 1,
+        }
+    }
+
+    /// How much a layout length grows: about as much as what a panel holds
+    /// does when its type, controls and space move one step, so a panel
+    /// keeps its proportions. A step itself is too coarse for this (padding
+    /// goes 16 to 24, half again).
+    pub fn scale(self) -> f32 {
+        match self {
+            Density::Compact => 0.875,
+            Density::Default => 1.0,
+            Density::Comfortable => 1.25,
         }
     }
 }
@@ -242,6 +256,14 @@ pub fn tabular() -> FontFeatures {
 mod tests {
     use super::*;
     use crate::theme::presets::{THEMES, ThemeChoice};
+
+    #[test]
+    fn a_denser_layout_scales_its_lengths_down() {
+        let [compact, default, comfortable] =
+            [Density::Compact, Density::Default, Density::Comfortable].map(Density::scale);
+        assert!(compact < default && default == 1.0 && default < comfortable);
+        assert_eq!(392.0 * comfortable, 490.0);
+    }
 
     #[test]
     fn text_reads_on_every_material_over_the_worst_backdrop() {
