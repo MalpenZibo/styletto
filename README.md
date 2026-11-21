@@ -236,7 +236,9 @@ background = "#fdf6e3"
 `motion::spring()` is the island's spring for every fold and growth,
 `tactile()` the quicker one of a press, `hover()` and `color()` eased
 changes, `easing(ms)` and `springing(config)` custom ones. All follow the
-`Motion` of the `Ui`. `fading(enter, leave)` gives a value one transition
+`Motion` of the `Ui`. `toggling(rest, hovered)` moves a fill that turns on
+and off, as a toggling button's or a tile's: a hover at `hover()`, a change
+of state at `color()`, told apart by the fill it leaves. `fading(enter, leave)` gives a value one transition
 for a view coming in and another for it going out. `arriving` cross-fades a
 view in, `entering` opens a panel, `shake()` plays a refusal and `armed()`
 ignores presses just after a view appears.
@@ -276,7 +278,7 @@ The modules of `components`:
 
 | Module | What |
 |---|---|
-| `button` | buttons, with a label, an icon or both, on and off as a tile is; the bar's pills; `pressable` |
+| `button` | buttons, with a label, an icon or both, an action or a toggle as a tile is; the bar's pills; `pressable` |
 | `toggle`, `slider`, `input` | a switch, a slider and a slider row (to 100%, or past it to a max; a wheel notch moves it by a step, 5% unless set), text and password fields |
 | `list` | rows (a checked one marks the choice in use; one in a tag's `Tone`, as warning or danger, has its title, icon, hover and press in that hue), sections, empty states, page headers with a subtitle, pages that slide, a list that scrolls past a height with the theme's scrollbar |
 | `tile` | quick-settings tiles, wide and small; a wide one's subtitle takes a second line when it needs one, and tiles side by side in a `Flex::row()` are as tall as the tallest |
@@ -292,11 +294,21 @@ alone in a circle (`button().icon(icon)` with no label).
 Its `Variant` (`Neutral`, `Accent`, `Danger`) sets its colour and its `Fill`
 how it rests: `Solid` in the variant's fill (`surface` for a neutral one)
 with the ink on it, `Ghost` clear until hovered, its ink the hue as text.
-`active` turns it on, as a tile: filled with the accent, its ink
-`accent.on`, whatever its variant and fill; a toggle is a neutral or
-ghost button with `active` (a solid accent one is filled with the accent
-already, and looks the same on and off). Hovered, a neutral fill steps to the next surface and a hue
-brightens; disabled, on or off, it fades and takes no press.
+An action takes `on_click`. A toggle takes `active` and `on_toggle`: while
+`active` it is on, as a tile: filled with the accent, its ink `accent.on`,
+whatever its variant and fill; a toggle is a neutral or ghost button (a
+solid accent one is filled with the accent already, and looks the same on
+and off). Given both, a press calls `on_click`, then `on_toggle`. Hovered,
+a neutral fill steps to the next surface and a hue brightens; disabled, on
+or off, it fades and takes no press.
+
+Whatever turns on and off (a toggling button, a tile, a small tile, the
+switch) is controlled, as GTK's toggle button: the app passes `active`, a
+press calls `on_toggle` with the opposite, and the app stores what it
+keeps, or not. `ui::active_fill(active, off)` and `active_ink(active, off)`
+are its fill and its ink: the accent and `accent.on` while on, `off` while
+not. A bar's `pill` is not a toggle: its `active` marks the one chosen (a
+workspace shown) and a press calls `on_click`, as a list row's `selected`.
 
 A tag shows and takes no press. Its `Tone` tints it at `tint::STRONG`
 (`surface` while neutral), and `Tone::ink()` is the colour for what it
@@ -308,7 +320,7 @@ lights around it, as the island's privacy tag does.
 use styletto::components::button::{Fill, Variant, button};
 use styletto::components::tag::{Tone, tag};
 
-button().label("Auto").active(auto).on_click(flip);
+button().label("Auto").active(auto).on_toggle(move |on| auto.set(on));
 button().label("Forget").variant(Variant::Danger);
 button().icon(Icon::X).fill(Fill::Ghost).size(Size::Sm);
 tag().tone(Tone::Warning).glow(true).child(icon(Icon::Mic, size, Tone::Warning.ink()));

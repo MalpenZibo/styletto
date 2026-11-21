@@ -362,7 +362,7 @@ fn sample() -> Container {
                 .child(
                     container()
                         .width(fill())
-                        .child(small_tile(Icon::Moon).on(true)),
+                        .child(small_tile(Icon::Moon).active(true)),
                 )
                 .child(container().width(fill()).child(small_tile(Icon::Bell))),
         )

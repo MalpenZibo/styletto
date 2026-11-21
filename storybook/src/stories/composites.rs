@@ -71,7 +71,7 @@ pub fn tiles(ctx: &Ctx) -> Container {
                         "Wi-Fi",
                     )
                     .subtitle(move || subtitle(if wifi.get() { "Home 5G" } else { "Off" }))
-                    .on(wifi)
+                    .active(wifi)
                     .on_toggle(toggler("wifi", wifi))
                     .on_open(opener("wifi")),
                 )
@@ -86,7 +86,7 @@ pub fn tiles(ctx: &Ctx) -> Container {
                                 "Off"
                             })
                         })
-                        .on(bluetooth)
+                        .active(bluetooth)
                         .on_toggle(toggler("bluetooth", bluetooth))
                         .on_open(opener("bluetooth")),
                 ),
@@ -97,17 +97,17 @@ pub fn tiles(ctx: &Ctx) -> Container {
                 .layout(Flex::row().spacing(space::S2.px()))
                 .child(
                     small_tile(Icon::Moon)
-                        .on(night)
+                        .active(night)
                         .on_toggle(toggler("night", night)),
                 )
                 .child(
                     small_tile(move || if dnd.get() { Icon::BellOff } else { Icon::Bell })
-                        .on(dnd)
+                        .active(dnd)
                         .on_toggle(toggler("dnd", dnd)),
                 )
                 .child(
                     small_tile(move || if mic.get() { Icon::Mic } else { Icon::MicOff })
-                        .on(mic)
+                        .active(mic)
                         .on_toggle(toggler("mic", mic)),
                 )
                 .child(small_tile(Icon::Zap)),
@@ -423,4 +423,64 @@ fn panel_frame() -> Container {
             tokens::radius::SMALL.px(),
             space::S3.px(),
         )))
+}
+
+#[cfg(test)]
+mod tests {
+    use guido::prelude::*;
+    use styletto::Icon;
+    use styletto::components::tile::{small_tile, tile};
+    use styletto::foundations::control::Size;
+    use styletto::foundations::tokens::size as space;
+
+    use crate::stories::mounted::Mounted;
+
+    /// The middle of a wide tile's icon box, its sides inset as much from
+    /// the tile's top and left.
+    fn icon_box() -> f32 {
+        (Size::Lg.height() + 2.0 * space::S3.px()) / 2.0
+    }
+
+    #[test]
+    fn a_press_on_a_tile_asks_for_the_opposite() {
+        let Some((mut m, active)) = Mounted::<String>::new(|log| {
+            let active = create_signal(true);
+            let (toggled, opened) = (log.clone(), log);
+            let wifi = tile(Icon::Wifi, "Wi-Fi")
+                .active(active)
+                .on_toggle(move |on| toggled.borrow_mut().push(format!("toggle({on})")))
+                .on_open(move || opened.borrow_mut().push("open".into()));
+            (container().width(200.0).child(wifi), active)
+        }) else {
+            return;
+        };
+
+        let middle = icon_box();
+        assert_eq!(m.click(middle, middle), ["toggle(false)"]);
+        // Until the owner keeps it, a press asks the same.
+        assert_eq!(m.click(middle, middle), ["toggle(false)"]);
+        // The rest of it opens the details.
+        assert_eq!(m.click(150.0, middle), ["open"]);
+        active.set(false);
+        m.step();
+        assert_eq!(m.click(middle, middle), ["toggle(true)"]);
+    }
+
+    #[test]
+    fn a_press_on_a_small_tile_asks_for_the_opposite() {
+        let Some((mut m, active)) = Mounted::<bool>::new(|log| {
+            let active = create_signal(false);
+            let moon = small_tile(Icon::Moon)
+                .active(active)
+                .on_toggle(move |on| log.borrow_mut().push(on));
+            (container().width(100.0).child(moon), active)
+        }) else {
+            return;
+        };
+
+        assert_eq!(m.click(50.0, 20.0), [true]);
+        active.set(true);
+        m.step();
+        assert_eq!(m.click(50.0, 20.0), [false]);
+    }
 }

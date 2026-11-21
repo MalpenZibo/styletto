@@ -3,7 +3,7 @@
 
 use guido::prelude::*;
 
-use crate::components::button::{hovered, pressable};
+use crate::components::button::{hovered, pressable, toggled};
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
@@ -24,9 +24,9 @@ fn height() -> f32 {
 }
 
 /// A pill while off, a squircle of `on_radius` while on.
-fn shape(on: Signal<bool>, height: f32, on_radius: f32) -> impl Fn() -> Corners + Copy {
+fn shape(active: Signal<bool>, height: f32, on_radius: f32) -> impl Fn() -> Corners + Copy {
     move || {
-        if on.get() {
+        if active.get() {
             radius::shape(on_radius)
         } else {
             radius::pill(height)
@@ -42,6 +42,9 @@ fn box_radius() -> f32 {
 /// A wide tile with two targets, as on Android: the icon toggles, the rest
 /// opens the details.
 ///
+/// On while `active`; a press that toggles calls `on_toggle` with the
+/// opposite, and the owner sets `active` to what it keeps.
+///
 /// As tall as a small tile, unless its subtitle takes two lines. In a row
 /// that stretches its children, as a `Flex::row()` does by default, the
 /// tiles side by side are all as tall as the tallest.
@@ -52,44 +55,43 @@ pub fn tile(
     /// Empty, the title stands alone in the middle of the tile. A long one
     /// takes a second line, then is cut with an ellipsis.
     subtitle: String,
-    on: bool,
+    active: bool,
     #[prop(callback)] on_toggle: fn(bool),
     /// Without it, the whole tile toggles.
     #[prop(callback)]
     on_open: (),
 ) -> impl Widget {
     let t = ui();
-    let ink = active_ink(on);
-    let toggle = flip(on, on_toggle);
+    let ink = active_ink(active, t.colors.text);
+    let toggle = flip(active, on_toggle);
     let label_click = move || match on_open {
         Some(open) => open.run(),
         None => toggle(),
     };
 
+    let rest = move || {
+        if active.get() {
+            Color::BLACK.with_alpha(0.13)
+        } else {
+            t.colors.surface2
+        }
+    };
+    let lifted = move || {
+        if active.get() {
+            Color::BLACK.with_alpha(0.2)
+        } else {
+            hovered(t.colors.surface2)
+        }
+    };
     let icon_box = pressable(
-        container()
-            .width(icon_box())
-            .height(icon_box())
-            .corners(shape(on, icon_box(), box_radius()).transition(motion::spring()))
-            .background(
-                (move || {
-                    if on.get() {
-                        Color::BLACK.with_alpha(0.13)
-                    } else {
-                        t.colors.surface2
-                    }
-                })
-                .transition(motion::color()),
-            )
-            .when_hovered(move |s| {
-                s.background(move || {
-                    if on.get() {
-                        Color::BLACK.with_alpha(0.2)
-                    } else {
-                        hovered(t.colors.surface2)
-                    }
-                })
-            }),
+        toggled(
+            container()
+                .width(icon_box())
+                .height(icon_box())
+                .corners(shape(active, icon_box(), box_radius()).transition(motion::spring())),
+            rest,
+            lifted,
+        ),
         motion::PRESS_SCALE_INNER,
     )
     .layout(Flex::column().center())
@@ -118,7 +120,7 @@ pub fn tile(
                     .typeset(LABEL_SMALL)
                     // On a fill the on-colour is the only one that reads; off
                     // it, the secondary text.
-                    .color(move || if on.get() { ink() } else { t.colors.sub })
+                    .color(active_ink(active, t.colors.sub))
                     // A long one, as a German one often is, takes a second
                     // line before it is cut.
                     .max_lines(Some(2))
@@ -133,8 +135,8 @@ pub fn tile(
     pressable(
         container()
             .width(fill())
-            .corners(shape(on, height(), radius::MEDIUM.px()).transition(motion::spring()))
-            .background(active_fill(on).transition(motion::color()))
+            .corners(shape(active, height(), radius::MEDIUM.px()).transition(motion::spring()))
+            .background(active_fill(active, t.colors.surface).transition(motion::color()))
             .overflow(Overflow::Hidden),
         motion::PRESS_SCALE_WIDE,
     )
@@ -145,26 +147,34 @@ pub fn tile(
     .child(label)
 }
 
-/// A compact icon-only tile; the whole tile toggles.
+/// A compact icon-only tile; the whole tile toggles, as a wide tile's icon
+/// does.
 #[component]
 pub fn small_tile(
     #[prop(required)] icon: Icon,
-    on: bool,
+    active: bool,
     #[prop(callback)] on_toggle: fn(bool),
 ) -> impl Widget {
-    let paint = active_fill(on);
+    let t = ui();
+    let rest = active_fill(active, t.colors.surface);
     pressable(
-        container()
-            .width(fill())
-            // At least, so that beside a wide tile whose subtitle takes two
-            // lines it can be stretched to its height.
-            .height(at_least(height()))
-            .corners(shape(on, height(), radius::MEDIUM.px()).transition(motion::spring()))
-            .background(paint.transition(motion::color()))
-            .when_hovered(move |s| s.background(move || hovered(paint()))),
+        toggled(
+            container()
+                .width(fill())
+                // At least, so that beside a wide tile whose subtitle takes
+                // two lines it can be stretched to its height.
+                .height(at_least(height()))
+                .corners(shape(active, height(), radius::MEDIUM.px()).transition(motion::spring())),
+            rest,
+            move || hovered(rest()),
+        ),
         motion::PRESS_SCALE,
     )
     .layout(Flex::column().center())
-    .on_click(flip(on, on_toggle))
-    .child(icons::icon(icon, Size::Md.icon(), active_ink(on)))
+    .on_click(flip(active, on_toggle))
+    .child(icons::icon(
+        icon,
+        Size::Md.icon(),
+        active_ink(active, t.colors.text),
+    ))
 }

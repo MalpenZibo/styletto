@@ -991,7 +991,7 @@ fn panel(c: Controls) -> Container {
                 .child(
                     container().width(fill()).child(
                         small_tile(Icon::Moon)
-                            .on(c.night)
+                            .active(c.night)
                             .on_toggle(move |on| c.night.set(on)),
                     ),
                 )
@@ -1004,7 +1004,7 @@ fn panel(c: Controls) -> Container {
                                 Icon::Bell
                             }
                         })
-                        .on(c.silent)
+                        .active(c.silent)
                         .on_toggle(move |on| c.silent.set(on)),
                     ),
                 ),
@@ -1012,7 +1012,12 @@ fn panel(c: Controls) -> Container {
         .child(
             container()
                 .layout(centered_row(space::S1.px()))
-                .child(button().label("Auto").active(c.auto).on_click(flip(c.auto)))
+                .child(
+                    button()
+                        .label("Auto")
+                        .active(c.auto)
+                        .on_toggle(move |on| c.auto.set(on)),
+                )
                 .child(button().label("Join").variant(Variant::Accent))
                 .child(button().label("Forget").variant(Variant::Danger)),
         )
