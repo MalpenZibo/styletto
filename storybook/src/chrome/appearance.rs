@@ -840,24 +840,18 @@ fn bind_hex(
     hex
 }
 
-/// The colour `name` of `scheme` as it is drawn: an on-colour or a hue's
-/// text left unsaid is the one worked out for it.
-fn drawn(scheme: &Scheme, name: &str) -> Color {
-    match name {
-        "on accent" => scheme.on(scheme.accent),
-        "on success" => scheme.on(scheme.success),
-        "on warning" => scheme.on(scheme.warning),
-        "on danger" => scheme.on(scheme.danger),
-        "accent text" => scheme.palette().accent_text,
-        "success text" => scheme.palette().success_text,
-        "warning text" => scheme.palette().warning_text,
-        "danger text" => scheme.palette().danger_text,
-        _ => scheme
-            .named()
-            .into_iter()
-            .find_map(|(named, color)| (named == name).then_some(color).flatten())
-            .unwrap_or(Color::TRANSPARENT),
-    }
+/// The colour a scheme's `name` is drawn in, from its palette: an
+/// on-colour or a hue's text left unsaid is the one worked out for it.
+fn drawn(palette: &Palette, name: &str) -> Color {
+    let name = match name {
+        "background" => "island".to_string(),
+        name => name.replace(' ', "_"),
+    };
+    palette
+        .named()
+        .into_iter()
+        .find_map(|(named, color)| (named == name).then_some(color))
+        .unwrap_or(Color::TRANSPARENT)
 }
 
 /// Every colour one side's scheme says, by name, as a hex to edit (an
@@ -867,6 +861,8 @@ fn palette_fields(a: Appearance, light: bool, generation: RwSignal<u32>) -> Vec<
     let t = ui();
     let index = light as usize;
     let start = a.colors.get_untracked()[index];
+    // Worked out once per change, for every swatch of the side.
+    let palette = create_memo(move || a.colors.with(|sides| sides[index].palette()));
     let mut rows: Vec<Container> = start
         .named()
         .into_iter()
@@ -881,7 +877,7 @@ fn palette_fields(a: Appearance, light: bool, generation: RwSignal<u32>) -> Vec<
                         .height(space::S4.px())
                         .corners(radius::pill(space::S4.px()))
                         .border(stroke::HAIRLINE, t.colors.line)
-                        .background(move || a.colors.with(|sides| drawn(&sides[index], name))),
+                        .background(move || palette.with(|palette| drawn(palette, name))),
                 )
                 .child(container().width(space::S20.px()).child(caption(name)))
                 .child(

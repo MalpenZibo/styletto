@@ -144,7 +144,7 @@ pub fn level_indicator(
         .child(move || kind.get().map(|kind| icons::icon(kind, size.icon(), ink)))
         .child(move || {
             percent.get().then(|| {
-                text(move || format!("{:.0}%", value.get()))
+                text(move || format!("{}%", value.get().round().max(0.0)))
                     .typeset(size.label().em().tabular())
                     .text_box(TextEdge::Cap, TextEdge::Alphabetic)
                     .color(ink.transition(motion::color()))

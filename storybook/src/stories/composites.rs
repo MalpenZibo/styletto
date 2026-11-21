@@ -170,67 +170,63 @@ pub fn list_pages(ctx: &Ctx) -> Container {
     let t = ui();
     let push = move |page: Page| stack.update(|s| s.push(page));
 
-    island::paint(container())
-        .width(panel())
-        .padding(space::S3.px())
-        .corners(tokens::radius::shape(tokens::radius::around(
-            tokens::radius::SMALL.px(),
-            space::S3.px(),
-        )))
-        .child(pages(stack, move |page| match page {
-            Page::Main => container()
+    panel_frame().child(pages(stack, move |page| match page {
+        Page::Main => container()
+            .width(fill())
+            .layout(Flex::column().spacing(space::S1.px()))
+            .child(page_header("Settings").subtitle(subtitle))
+            .child(
+                row("Wi-Fi")
+                    .icon(Icon::Wifi)
+                    .subtitle(move || NETWORKS[connected.get()].0.to_string())
+                    .trailing(icon(Icon::ChevronRight, icon_box::SMALL.px(), t.colors.dim))
+                    .on_click(move || push(Page::Wifi)),
+            )
+            .child(
+                row("Bluetooth")
+                    .icon(Icon::Bluetooth)
+                    .subtitle("Off")
+                    .trailing(toggle(false)),
+            )
+            .child(separator())
+            .child(row("Lock").icon(Icon::Lock).checked(checked))
+            .child(row("Power off").icon(Icon::Power).enabled(false)),
+        Page::Wifi => {
+            let chosen = chosen.clone();
+            container()
                 .width(fill())
-                .layout(Flex::column().spacing(space::S1.px()))
-                .child(page_header("Settings").subtitle(subtitle))
+                .layout(Flex::column().spacing(space::S0_5.px()))
                 .child(
-                    row("Wi-Fi")
-                        .icon(Icon::Wifi)
-                        .subtitle(move || NETWORKS[connected.get()].0.to_string())
-                        .trailing(icon(Icon::ChevronRight, icon_box::SMALL.px(), t.colors.dim))
-                        .on_click(move || push(Page::Wifi)),
+                    page_header("Wi-Fi")
+                        .subtitle(move || {
+                            if none.get() {
+                                String::new()
+                            } else {
+                                format!("Connected to {}", NETWORKS[connected.get()].0)
+                            }
+                        })
+                        .on_back(back(stack))
+                        .trailing(
+                            button()
+                                .icon(Icon::Refresh)
+                                .size(Size::Sm)
+                                .fill(Fill::Ghost),
+                        ),
                 )
-                .child(
-                    row("Bluetooth")
-                        .icon(Icon::Bluetooth)
-                        .subtitle("Off")
-                        .trailing(toggle(false)),
-                )
-                .child(separator())
-                .child(row("Lock").icon(Icon::Lock).checked(checked))
-                .child(row("Power off").icon(Icon::Power).enabled(false)),
-            Page::Wifi => {
-                let chosen = chosen.clone();
-                container()
-                    .width(fill())
-                    .layout(Flex::column().spacing(space::S0_5.px()))
-                    .child(
-                        page_header("Wi-Fi")
-                            .subtitle(move || {
-                                if none.get() {
-                                    String::new()
-                                } else {
-                                    format!("Connected to {}", NETWORKS[connected.get()].0)
-                                }
-                            })
-                            .on_back(back(stack))
-                            .trailing(
-                                button()
-                                    .icon(Icon::Refresh)
-                                    .size(Size::Sm)
-                                    .fill(Fill::Ghost),
-                            ),
-                    )
-                    .child(move || {
-                        if none.get() {
-                            return empty(Icon::WifiOff, "No networks in range").into_any();
-                        }
-                        let chosen = chosen.clone();
-                        container()
-                            .width(fill())
-                            .layout(Flex::column().spacing(space::S0_5.px()))
-                            .child(section("Known"))
-                            .children(NETWORKS.iter().enumerate().map(
-                                move |(i, &(name, secured))| {
+                .child(move || {
+                    if none.get() {
+                        return empty(Icon::WifiOff, "No networks in range").into_any();
+                    }
+                    let chosen = chosen.clone();
+                    container()
+                        .width(fill())
+                        .layout(Flex::column().spacing(space::S0_5.px()))
+                        .child(section("Known"))
+                        .children(
+                            NETWORKS
+                                .iter()
+                                .enumerate()
+                                .map(move |(i, &(name, secured))| {
                                     let chosen = chosen.clone();
                                     let details = container()
                                         .layout(centered_row(space::S1.px()))
@@ -260,18 +256,18 @@ pub fn list_pages(ctx: &Ctx) -> Container {
                                             connected.set(i);
                                             chosen(name);
                                         })
-                                },
-                            ))
-                            .into_any()
-                    })
-            }
-            Page::Network(name) => container()
-                .width(fill())
-                .layout(Flex::column().spacing(space::S1.px()))
-                .child(page_header(name).on_back(back(stack)))
-                .child(row("Auto-connect").trailing(toggle(true)))
-                .child(row("Forget network").icon(Icon::X)),
-        }))
+                                }),
+                        )
+                        .into_any()
+                })
+        }
+        Page::Network(name) => container()
+            .width(fill())
+            .layout(Flex::column().spacing(space::S1.px()))
+            .child(page_header(name).on_back(back(stack)))
+            .child(row("Auto-connect").trailing(toggle(true)))
+            .child(row("Forget network").icon(Icon::X)),
+    }))
 }
 
 const TONES: &[&str] = &["None", "Warning", "Danger"];
@@ -285,13 +281,7 @@ pub fn power_menu(ctx: &Ctx) -> Container {
         let chosen = chosen.clone();
         row(name).icon(kind).on_click(move || chosen(name))
     };
-    island::paint(container())
-        .width(panel())
-        .padding(space::S3.px())
-        .corners(tokens::radius::shape(tokens::radius::around(
-            tokens::radius::SMALL.px(),
-            space::S3.px(),
-        )))
+    panel_frame()
         .layout(Flex::column().spacing(space::S1.px()))
         .child(page_header("Power"))
         .child(item("Lock", Icon::Lock))
@@ -401,14 +391,7 @@ const DEVICES: &[(&str, Icon, bool)] = &[
 pub fn scrolling_list(ctx: &Ctx) -> Container {
     let lane = ctx.bool("Lane", false);
     let count = ctx.number("Devices", 0.0..=DEVICES.len() as f32, DEVICES.len() as f32);
-    let t = ui();
-    island::paint(container())
-        .width(panel())
-        .padding(space::S3.px())
-        .corners(tokens::radius::shape(tokens::radius::around(
-            tokens::radius::SMALL.px(),
-            space::S3.px(),
-        )))
+    panel_frame()
         .layout(Flex::column().spacing(space::S0_5.px()))
         .child(page_header("Bluetooth").trailing(toggle(true)))
         .child(section("Nearby"))
@@ -419,18 +402,24 @@ pub fn scrolling_list(ctx: &Ctx) -> Container {
                     DEVICES[..count.get() as usize]
                         .iter()
                         .map(|&(name, kind, connected)| {
-                            let device = row(name).icon(kind).selected(connected);
-                            if connected {
-                                device.subtitle("Connected").trailing(icon(
-                                    Icon::Check,
-                                    icon_box::SMALL.px(),
-                                    t.colors.accent_text,
-                                ))
-                            } else {
-                                device.subtitle("Paired")
-                            }
+                            row(name)
+                                .icon(kind)
+                                .subtitle(if connected { "Connected" } else { "Paired" })
+                                .checked(connected)
                         })
                         .collect::<Vec<_>>()
                 }),
         )
+}
+
+/// A panel under the island, as the stories here draw it: painted like the
+/// island, as wide as a panel, its corners nesting its rows'.
+fn panel_frame() -> Container {
+    island::paint(container())
+        .width(panel())
+        .padding(space::S3.px())
+        .corners(tokens::radius::shape(tokens::radius::around(
+            tokens::radius::SMALL.px(),
+            space::S3.px(),
+        )))
 }

@@ -58,7 +58,9 @@ pub fn button(
     variant: Variant,
     fill: Fill,
     size: Size,
-    /// On: filled with the accent, whatever its variant and fill.
+    /// On: filled with the accent, whatever its variant and fill. A solid
+    /// accent button is filled with it already and looks the same on and
+    /// off, so a toggle is a neutral or ghost one.
     active: bool,
     #[prop(default = true)] enabled: bool,
     #[prop(callback)] on_click: (),
@@ -68,7 +70,7 @@ pub fn button(
     let size = size.get_untracked();
     // While off: the fill at rest, hovered, and the ink on both. A neutral
     // fill steps to the next surface, a hue brightens.
-    let (rest, hover, ink) = match (fill.get_untracked(), variant.get_untracked()) {
+    let off = move || match (fill.get(), variant.get()) {
         (Fill::Solid, Variant::Neutral) => (c.surface, c.surface2, c.text),
         (Fill::Solid, Variant::Accent) => (c.accent, hovered(c.accent), c.on_accent),
         (Fill::Solid, Variant::Danger) => (c.danger, hovered(c.danger), c.on_danger),
@@ -85,14 +87,19 @@ pub fn button(
     let lit = move |on: Color, off: Color| if active.get() { on } else { off };
     pressable(
         sized(label, size)
-            .background((move || lit(c.accent, rest)).transition(toggling(active)))
-            .when_hovered(move |s| s.background(move || lit(hovered(c.accent), hover))),
+            .background((move || lit(c.accent, off().0)).transition(toggling(active)))
+            .when_hovered(move |s| s.background(move || lit(hovered(c.accent), off().1))),
         motion::PRESS_SCALE,
     )
     .enabled(enabled)
     .on_click(on_click)
     .layout(centered_row(size.gap()).main_alignment(MainAlignment::Center))
-    .children(content(label, icon, move || lit(c.on_accent, ink), size))
+    .children(content(
+        label,
+        icon,
+        move || lit(c.on_accent, off().2),
+        size,
+    ))
 }
 
 /// Eases a fill turning on or off as a tile's, a hover as a button's: a

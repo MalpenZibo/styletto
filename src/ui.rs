@@ -203,12 +203,18 @@ pub fn provide_ui(ui: Ui) {
 /// The nearest [`Ui`], or the default. Read while building, not in event
 /// handlers.
 pub fn ui() -> Ui {
-    use_context::<Ui>().unwrap_or_default()
+    use_context::<Ui>().unwrap_or_else(|| DEFAULT.with(|ui| *ui))
+}
+
+thread_local! {
+    /// The `Ui` read where none is provided, worked out once: its palette
+    /// takes a search per hue.
+    static DEFAULT: Ui = Ui::default();
 }
 
 /// Reads one field of the nearest [`Ui`] without cloning it.
 pub(crate) fn with_ui<R>(f: impl Fn(&Ui) -> R) -> R {
-    with_context(&f).unwrap_or_else(|| f(&Ui::default()))
+    with_context(&f).unwrap_or_else(|| DEFAULT.with(|ui| f(ui)))
 }
 
 /// The accent while `active`, the surface while not.

@@ -39,7 +39,7 @@ impl Tone {
     /// else the hue's fill at [`tint::STRONG`].
     pub fn tint(self) -> Color {
         self.hue()
-            .map_or(ui().colors.surface, |hue| hue.with_alpha(tint::STRONG))
+            .map_or_else(|| ui().colors.surface, |hue| hue.with_alpha(tint::STRONG))
     }
 
     /// The colour for what a tag in this tone holds, its icons and its text:

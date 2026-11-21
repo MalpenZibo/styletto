@@ -249,6 +249,13 @@ fn away(text: Color, ground: Color) -> Color {
 /// How finely a colour is searched for.
 const STEPS: u16 = 100;
 
+/// The alphas of a scheme's tints: a control's resting and hovered fills, a
+/// line, a press's ripple.
+const SURFACE: f32 = 0.065;
+const SURFACE2: f32 = 0.11;
+const LINE: f32 = 0.08;
+const RIPPLE: f32 = 0.16;
+
 /// `top` painted over the opaque `below`, the channels mixed as they are
 /// stored, as the renderer blends them.
 fn over(top: Color, below: Color) -> Color {
@@ -437,8 +444,7 @@ impl Scheme {
     /// [`named`](Self::named) name as they are. A hue's text not kept
     /// follows its fill when the fill is kept: it is worked out again.
     pub(crate) fn readable_but(self, kept: impl Fn(&str) -> bool) -> Self {
-        let palette = self.palette();
-        let grounds = palette.grounds(palette.island);
+        let grounds = self.grounds();
         let floors = [0, 1, 2].map(|i| {
             if kept(["text", "sub", "dim"][i]) {
                 0.0
@@ -495,46 +501,50 @@ impl Scheme {
     }
 
     pub fn palette(&self) -> Palette {
-        // Surfaces, line and ripple: white over a dark background, black over a
-        // light one.
-        let light = self.is_light();
-        let tint = |alpha: f32| {
-            if light {
-                Color::rgba(0.0, 0.0, 0.0, alpha * 0.8)
-            } else {
-                Color::rgba(1.0, 1.0, 1.0, alpha)
-            }
-        };
-        let palette = Palette {
+        let grounds = self.grounds();
+        Palette {
             island: self.background,
-            surface: tint(0.065),
-            surface2: tint(0.11),
-            line: tint(0.08),
+            surface: self.tint(SURFACE),
+            surface2: self.tint(SURFACE2),
+            line: self.tint(LINE),
             text: self.text,
             sub: self.sub,
             dim: self.dim,
             accent: self.accent.color,
             on_accent: self.on(self.accent),
-            accent_text: self.accent.color,
+            accent_text: self.text_of(self.accent, grounds),
             success: self.success.color,
             on_success: self.on(self.success),
-            success_text: self.success.color,
+            success_text: self.text_of(self.success, grounds),
             warning: self.warning.color,
             on_warning: self.on(self.warning),
-            warning_text: self.warning.color,
+            warning_text: self.text_of(self.warning, grounds),
             danger: self.danger.color,
             on_danger: self.on(self.danger),
-            danger_text: self.danger.color,
-            ripple: tint(0.16),
-        };
-        let grounds = palette.grounds(palette.island);
-        Palette {
-            accent_text: self.text_of(self.accent, grounds),
-            success_text: self.text_of(self.success, grounds),
-            warning_text: self.text_of(self.warning, grounds),
             danger_text: self.text_of(self.danger, grounds),
-            ..palette
+            ripple: self.tint(RIPPLE),
         }
+    }
+
+    /// Surfaces, line and ripple at `alpha`: white over a dark background,
+    /// black over a light one.
+    fn tint(&self, alpha: f32) -> Color {
+        if self.is_light() {
+            Color::rgba(0.0, 0.0, 0.0, alpha * 0.8)
+        } else {
+            Color::rgba(1.0, 1.0, 1.0, alpha)
+        }
+    }
+
+    /// What a text sits on in the palette: the island, and a control's
+    /// fills over it.
+    fn grounds(&self) -> [Color; 3] {
+        let island = over(self.background, self.background);
+        [
+            island,
+            over(self.tint(SURFACE), island),
+            over(self.tint(SURFACE2), island),
+        ]
     }
 
     /// Every colour by name; an on-colour or a hue's text may be unset.

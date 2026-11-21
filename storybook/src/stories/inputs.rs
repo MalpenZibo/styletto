@@ -129,180 +129,179 @@ mod tests {
 
     use guido::prelude::*;
     use guido::testing::Headless;
-    use styletto::components::slider::slider;
+    use styletto::components::slider::{Slider, slider};
+
+    /// What a slider asks its owner, in order.
+    type Asked = Rc<RefCell<Vec<f32>>>;
+
+    /// A slider's tree mounted headless, 200 wide, with what it asked.
+    struct Mounted {
+        h: Headless,
+        id: SurfaceId,
+        asked: Asked,
+    }
+
+    impl Mounted {
+        /// The tree `build` makes from the log of what is asked, and the
+        /// signals it hands back for the test to drive; none without a GPU.
+        fn new<P: 'static>(build: impl Fn(Asked) -> (Container, P) + 'static) -> Option<(Self, P)> {
+            let mut h = Headless::new()?;
+            let asked = Asked::default();
+            let probe = Rc::new(Cell::new(None));
+            let (log, seen) = (asked.clone(), probe.clone());
+            let id = h.surface(SurfaceConfig::new(), move || {
+                let (tree, handed) = build(log.clone());
+                seen.set(Some(handed));
+                tree
+            });
+            h.configure(id, 200, 100, 1.0);
+            h.step();
+            // Only a missing GPU skips a test; a tree that was not built fails.
+            let handed = probe.take().expect("the tree was built");
+            Some((Self { h, id, asked }, handed))
+        }
+
+        /// Sends `event`, steps, and gives what it asked.
+        fn send(&mut self, event: Event) -> Vec<f32> {
+            self.h.event_at(self.id, event, Instant::now());
+            self.h.step();
+            self.asked.borrow_mut().drain(..).collect()
+        }
+
+        /// A wheel notch, up or down.
+        fn notch(&mut self, up: bool) -> Vec<f32> {
+            let dy = if up { -1.0 } else { 1.0 };
+            self.send(Event::scroll(100.0, 8.0, 0.0, dy, ScrollSource::Wheel))
+        }
+
+        /// A press and a release at `x`, giving what the press asked.
+        fn press(&mut self, x: f32) -> Vec<f32> {
+            let asked = self.send(Event::mouse_down(x, 8.0, MouseButton::Left));
+            self.send(Event::mouse_up(x, 8.0, MouseButton::Left));
+            asked
+        }
+
+        fn step(&mut self) {
+            self.h.step();
+        }
+    }
+
+    /// A slider whose owner takes every value at once.
+    fn taking(value: RwSignal<f32>, log: Asked) -> Slider {
+        slider(value).on_change(move |v| {
+            value.set(v);
+            log.borrow_mut().push(v);
+        })
+    }
 
     #[test]
     fn wheel_notches_add_up_while_the_owner_answers() {
-        let Some(mut h) = Headless::new() else {
-            return;
-        };
-        let asked = Rc::new(RefCell::new(Vec::new()));
-        let probe = Rc::new(Cell::new(None));
-        let (log, seen) = (asked.clone(), probe.clone());
-        let id = h.surface(SurfaceConfig::new(), move || {
+        let Some((mut m, value)) = Mounted::new(|log| {
             // An owner that answers only when the test says so.
             let value = create_signal(60.0);
-            seen.set(Some(value));
-            let log = log.clone();
-            container()
-                .width(200.0)
-                .child(slider(value).on_change(move |v| log.borrow_mut().push(v)))
-        });
-        h.configure(id, 200, 100, 1.0);
-        h.step();
-        let value: RwSignal<f32> = probe.take().unwrap();
-        let notch = |h: &mut Headless, up: bool| {
-            let dy = if up { -1.0 } else { 1.0 };
-            h.event_at(
-                id,
-                Event::scroll(100.0, 8.0, 0.0, dy, ScrollSource::Wheel),
-                Instant::now(),
-            );
-            h.step();
-            asked.borrow_mut().drain(..).collect::<Vec<f32>>()
+            let slider = slider(value).on_change(move |v| log.borrow_mut().push(v));
+            (container().width(200.0).child(slider), value)
+        }) else {
+            return;
         };
 
         // No answer yet: each notch steps from the one before.
-        assert_eq!(notch(&mut h, true), [65.0]);
-        assert_eq!(notch(&mut h, true), [70.0]);
+        assert_eq!(m.notch(true), [65.0]);
+        assert_eq!(m.notch(true), [70.0]);
         // A late answer to the first notch does not undo the second.
         value.set(65.0);
-        h.step();
-        assert_eq!(notch(&mut h, true), [75.0]);
+        m.step();
+        assert_eq!(m.notch(true), [75.0]);
         // Caught up, a value set from outside is where the next notch starts.
         value.set(75.0);
-        h.step();
+        m.step();
         value.set(20.0);
-        h.step();
-        assert_eq!(notch(&mut h, false), [15.0]);
+        m.step();
+        assert_eq!(m.notch(false), [15.0]);
         // A refused step holds until the pointer leaves.
-        assert_eq!(notch(&mut h, false), [10.0]);
-        h.event_at(id, Event::MouseLeave, Instant::now());
-        h.step();
-        assert_eq!(notch(&mut h, false), [15.0]);
+        assert_eq!(m.notch(false), [10.0]);
+        m.send(Event::MouseLeave);
+        assert_eq!(m.notch(false), [15.0]);
         // At an end, a notch past it asks nothing.
         value.set(15.0);
-        h.step();
+        m.step();
         value.set(100.0);
-        h.step();
-        assert_eq!(notch(&mut h, true), Vec::<f32>::new());
+        m.step();
+        assert_eq!(m.notch(true), Vec::<f32>::new());
     }
 
     #[test]
     fn wheel_and_press_reach_the_max() {
-        let Some(mut h) = Headless::new() else {
+        let Some((mut m, max)) = Mounted::new(|log| {
+            let (value, max) = (create_signal(140.0), create_signal(150.0));
+            (
+                container().width(200.0).child(taking(value, log).max(max)),
+                max,
+            )
+        }) else {
             return;
         };
-        let asked = Rc::new(RefCell::new(Vec::new()));
-        let probe = Rc::new(Cell::new(None));
-        let (log, seen) = (asked.clone(), probe.clone());
-        let id = h.surface(SurfaceConfig::new(), move || {
-            // An owner that takes every value at once.
-            let value = create_signal(140.0);
-            let max = create_signal(150.0);
-            seen.set(Some((value, max)));
-            let log = log.clone();
-            container()
-                .width(200.0)
-                .child(slider(value).max(max).on_change(move |v| {
-                    value.set(v);
-                    log.borrow_mut().push(v);
-                }))
-        });
-        h.configure(id, 200, 100, 1.0);
-        h.step();
-        let (_, max): (RwSignal<f32>, RwSignal<f32>) = probe.take().unwrap();
-        let send = |h: &mut Headless, event: Event| {
-            h.event_at(id, event, Instant::now());
-            h.step();
-            asked.borrow_mut().drain(..).collect::<Vec<f32>>()
-        };
-        let up = || Event::scroll(100.0, 8.0, 0.0, -1.0, ScrollSource::Wheel);
-        let down = || Event::scroll(100.0, 8.0, 0.0, 1.0, ScrollSource::Wheel);
 
         // Past 100, up to the max and no further.
-        assert_eq!(send(&mut h, up()), [145.0]);
-        assert_eq!(send(&mut h, up()), [150.0]);
-        assert_eq!(send(&mut h, up()), Vec::<f32>::new());
+        assert_eq!(m.notch(true), [145.0]);
+        assert_eq!(m.notch(true), [150.0]);
+        assert_eq!(m.notch(true), Vec::<f32>::new());
         // A press halfway asks for half the max.
-        let press = Event::mouse_down(100.0, 8.0, MouseButton::Left);
-        assert_eq!(send(&mut h, press), [75.0]);
-        send(&mut h, Event::mouse_up(100.0, 8.0, MouseButton::Left));
+        assert_eq!(m.press(100.0), [75.0]);
         // A max lowered under the value asks nothing by itself; the next
         // notch steps from the max, where the value is drawn.
         max.set(50.0);
-        h.step();
-        assert!(asked.borrow().is_empty());
-        assert_eq!(send(&mut h, down()), [45.0]);
+        m.step();
+        assert!(m.asked.borrow().is_empty());
+        assert_eq!(m.notch(false), [45.0]);
         // A max that is not a positive finite number counts as 100.
         max.set(0.0);
-        h.step();
-        assert_eq!(send(&mut h, up()), [50.0]);
+        m.step();
+        assert_eq!(m.notch(true), [50.0]);
         max.set(f32::NAN);
-        let press = Event::mouse_down(150.0, 8.0, MouseButton::Left);
-        assert_eq!(send(&mut h, press), [75.0]);
-        send(&mut h, Event::mouse_up(150.0, 8.0, MouseButton::Left));
+        assert_eq!(m.press(150.0), [75.0]);
         max.set(f32::INFINITY);
-        h.step();
-        assert_eq!(send(&mut h, up()), [80.0]);
+        m.step();
+        assert_eq!(m.notch(true), [80.0]);
         max.set(-10.0);
-        h.step();
-        assert_eq!(send(&mut h, up()), [85.0]);
+        m.step();
+        assert_eq!(m.notch(true), [85.0]);
     }
 
     #[test]
     fn a_notch_moves_by_the_step() {
-        let Some(mut h) = Headless::new() else {
+        let Some((mut m, step)) = Mounted::new(|log| {
+            let (value, step) = (create_signal(50.0), create_signal(2.0));
+            let slider = taking(value, log).max(150.0).step(step);
+            (container().width(200.0).child(slider), step)
+        }) else {
             return;
         };
-        let asked = Rc::new(RefCell::new(Vec::new()));
-        let probe = Rc::new(Cell::new(None));
-        let (log, seen) = (asked.clone(), probe.clone());
-        let id = h.surface(SurfaceConfig::new(), move || {
-            // An owner that takes every value at once.
-            let value = create_signal(50.0);
-            let step = create_signal(2.0);
-            seen.set(Some(step));
-            let log = log.clone();
-            container()
-                .width(200.0)
-                .child(slider(value).max(150.0).step(step).on_change(move |v| {
-                    value.set(v);
-                    log.borrow_mut().push(v);
-                }))
-        });
-        h.configure(id, 200, 100, 1.0);
-        h.step();
-        let step: RwSignal<f32> = probe.take().unwrap();
-        let send = |h: &mut Headless, event: Event| {
-            h.event_at(id, event, Instant::now());
-            h.step();
-            asked.borrow_mut().drain(..).collect::<Vec<f32>>()
-        };
-        let up = || Event::scroll(100.0, 8.0, 0.0, -1.0, ScrollSource::Wheel);
-        let down = || Event::scroll(100.0, 8.0, 0.0, 1.0, ScrollSource::Wheel);
 
-        assert_eq!(send(&mut h, up()), [52.0]);
-        assert_eq!(send(&mut h, down()), [50.0]);
+        assert_eq!(m.notch(true), [52.0]);
+        assert_eq!(m.notch(false), [50.0]);
+        // A sideways scroll moves nothing.
+        let sideways = Event::scroll(100.0, 8.0, 1.0, 0.0, ScrollSource::Wheel);
+        assert_eq!(m.send(sideways), Vec::<f32>::new());
         // A fraction is rounded, to 1 at least.
         step.set(2.6);
-        h.step();
-        assert_eq!(send(&mut h, up()), [53.0]);
+        m.step();
+        assert_eq!(m.notch(true), [53.0]);
         step.set(0.2);
-        h.step();
-        assert_eq!(send(&mut h, up()), [54.0]);
+        m.step();
+        assert_eq!(m.notch(true), [54.0]);
         // One that is not a positive finite number counts as 5.
         for bad in [0.0, -3.0, f32::NAN, f32::INFINITY] {
             step.set(bad);
-            h.step();
-            assert_eq!(send(&mut h, down()), [49.0], "{bad}");
-            assert_eq!(send(&mut h, up()), [54.0], "{bad}");
+            m.step();
+            assert_eq!(m.notch(false), [49.0], "{bad}");
+            assert_eq!(m.notch(true), [54.0], "{bad}");
         }
         // The same past 100.
         step.set(20.0);
-        h.step();
+        m.step();
         assert_eq!(
-            [send(&mut h, up()), send(&mut h, up()), send(&mut h, up())].concat(),
+            [m.notch(true), m.notch(true), m.notch(true)].concat(),
             [74.0, 94.0, 114.0]
         );
     }

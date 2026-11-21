@@ -71,10 +71,7 @@ pub fn row(
                 .color(move || hue().unwrap_or(t.colors.text))
                 .overflow(TextOverflow::Ellipsis),
         )
-        .child(move || {
-            (!subtitle.with(String::is_empty))
-                .then(|| caption(subtitle).overflow(TextOverflow::Ellipsis))
-        });
+        .child(subtitle_line(subtitle));
     container()
         .width(fill())
         .padding([size::S2.px(), size::S3.px()])
@@ -189,10 +186,7 @@ pub fn page_header(
                         .nowrap()
                         .overflow(TextOverflow::Ellipsis),
                 )
-                .child(move || {
-                    (!subtitle.with(String::is_empty))
-                        .then(|| caption(subtitle).overflow(TextOverflow::Ellipsis))
-                }),
+                .child(subtitle_line(subtitle)),
         )
         .children(trailing)
 }
@@ -257,7 +251,7 @@ pub fn scroll_list(
     let t = ui();
     // The growth under the pointer is a movement: reduced motion keeps the
     // bar as it is and only brightens it.
-    let grown = if t.motion == crate::ui::Motion::Full {
+    let grown = if motion::moves() {
         scrollbar::HOVER_WIDTH
     } else {
         scrollbar::WIDTH
@@ -283,4 +277,13 @@ pub fn scroll_list(
                 }),
         )
         .children(children)
+}
+
+/// A caption under a title while `subtitle` holds something; none while it
+/// is empty.
+fn subtitle_line(subtitle: Signal<String>) -> impl Fn() -> Option<Text> + 'static {
+    move || {
+        (!subtitle.with(String::is_empty))
+            .then(|| caption(subtitle).overflow(TextOverflow::Ellipsis))
+    }
 }
