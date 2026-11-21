@@ -19,7 +19,8 @@ pub struct Mounted<T> {
 
 impl<T: 'static> Mounted<T> {
     /// The tree `build` makes from the log of what is asked, and the
-    /// signals it hands back for the test to drive; none without a GPU.
+    /// signals it hands back for the test to drive; none without a GPU, or a
+    /// panic where `GUIDO_GPU_REQUIRED` is set (`Headless::new_or_skip`).
     pub fn new<P: 'static>(
         build: impl Fn(Asked<T>) -> (Container, P) + 'static,
     ) -> Option<(Self, P)> {
