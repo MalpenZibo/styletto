@@ -7,8 +7,6 @@ use std::time::Instant;
 use guido::prelude::*;
 use guido::testing::Headless;
 
-use crate::testing::headless;
-
 /// What a tree asks its owner, in order.
 pub type Asked<T> = Rc<RefCell<Vec<T>>>;
 
@@ -25,7 +23,7 @@ impl<T: 'static> Mounted<T> {
     pub fn new<P: 'static>(
         build: impl Fn(Asked<T>) -> (Container, P) + 'static,
     ) -> Option<(Self, P)> {
-        let mut h = headless()?;
+        let mut h = Headless::new_or_skip()?;
         let asked = Asked::default();
         let probe = Rc::new(Cell::new(None));
         let (log, seen) = (asked.clone(), probe.clone());

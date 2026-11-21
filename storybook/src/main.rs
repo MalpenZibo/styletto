@@ -2,8 +2,6 @@ mod chrome;
 mod shot;
 mod stories;
 mod system;
-#[cfg(test)]
-mod testing;
 
 use guido::prelude::*;
 

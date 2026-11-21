@@ -1117,8 +1117,8 @@ mod tests {
     use std::cell::Cell;
     use std::rc::Rc;
 
-    use crate::testing::headless;
     use guido::prelude::*;
+    use guido::testing::Headless;
     use styletto::theme::palette::{Scheme, parse_hex};
     use styletto::theme::presets::{Mode, THEMES, ThemeChoice};
     use styletto::ui::{Density, Material};
@@ -1151,7 +1151,7 @@ mod tests {
 
     #[test]
     fn the_light_card_edits_the_light_palette_only() {
-        let Some(mut h) = headless() else {
+        let Some(mut h) = Headless::new_or_skip() else {
             return;
         };
         let probe = Rc::new(Cell::new(None));
@@ -1200,7 +1200,7 @@ mod tests {
 
     #[test]
     fn a_light_colour_leaves_the_dark_one() {
-        let Some(mut h) = headless() else {
+        let Some(mut h) = Headless::new_or_skip() else {
             return;
         };
         let probe = Rc::new(Cell::new(None));
@@ -1236,7 +1236,7 @@ mod tests {
 
     #[test]
     fn the_page_keeps_the_sides_apart() {
-        let Some(mut h) = headless() else {
+        let Some(mut h) = Headless::new_or_skip() else {
             return;
         };
         BOUND.with_borrow_mut(Vec::clear);
@@ -1282,7 +1282,7 @@ mod tests {
 
     #[test]
     fn a_setting_does_not_rebuild_the_page() {
-        let Some(mut h) = headless() else {
+        let Some(mut h) = Headless::new_or_skip() else {
             return;
         };
         let built = Rc::new(Cell::new(0));
@@ -1314,7 +1314,7 @@ mod tests {
 
     #[test]
     fn a_setting_keeps_the_scroll() {
-        let Some(mut h) = headless() else {
+        let Some(mut h) = Headless::new_or_skip() else {
             return;
         };
         let probe = Rc::new(Cell::new(None));
