@@ -62,7 +62,8 @@ pub(crate) const BODY_CONTRAST: f32 = 7.0;
 /// The contrast `dim` keeps: WCAG's floor for large text and for what is not
 /// text, which is all `dim` carries, and of a control, as a switch's knob.
 pub(crate) const DIM_CONTRAST: f32 = 3.0;
-/// What `text`, `sub` and `dim` reach, in that order.
+/// What `text`, `sub` and `dim` reach on all of a text's grounds, in that
+/// order; `text` reaches [`BODY_CONTRAST`] on a solid island besides.
 const FLOORS: [f32; 3] = [TEXT_CONTRAST, TEXT_CONTRAST, DIM_CONTRAST];
 /// The contrast a hue's text keeps on a see-through island, whatever shows
 /// through: `dim`'s. 4.5:1 there would turn the hues of a dark theme to
@@ -303,9 +304,8 @@ pub(crate) fn over(top: Color, below: Color) -> Color {
 
 /// `text`, `sub` and `dim` reaching their `floors` on all of `grounds`:
 /// `text` mixed toward `extreme`, the others toward `text`, each as little
-/// as gets it there. Only a see-through island's text is moved so, as it
-/// always was; a scheme's is shaded instead, keeping its hue
-/// ([`Scheme::readable`]).
+/// as gets it there. What a see-through island does to its text: with
+/// black or white showing through, the text goes the same way.
 fn lifted(
     [text, sub, dim]: [Color; 3],
     extreme: Color,
@@ -502,7 +502,9 @@ impl Scheme {
         let grounds = self.grounds();
         let floor = |name, floor| if kept(name) { 0.0 } else { floor };
         // `text` is shaded, not mixed toward black or white: it keeps its
-        // hue, as a hue's text does, where mixing would grey it.
+        // hue, as a hue's text does, where mixing would grey it. On a
+        // background where not even black or white reaches 7:1 it becomes
+        // that, the nearest it can come.
         let text = if kept("text") {
             self.text
         } else {
@@ -511,8 +513,8 @@ impl Scheme {
                     && lowest(text, grounds) >= TEXT_CONTRAST
             })
         };
-        let sub = lift(self.sub, text, grounds, floor("sub", TEXT_CONTRAST));
-        let dim = lift(self.dim, text, grounds, floor("dim", DIM_CONTRAST));
+        let sub = lift(self.sub, text, grounds, floor("sub", FLOORS[1]));
+        let dim = lift(self.dim, text, grounds, floor("dim", FLOORS[2]));
         let mut scheme = Self {
             text,
             sub,

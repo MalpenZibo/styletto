@@ -202,7 +202,9 @@ blue its `sub`; Kanagawa Lotus's is its darker ink, `lotusInk2`. Where none
 reads well enough, `Scheme::readable` works one out, and does the same for a
 theme from a seed: `text` moved in lightness, in Oklab, keeping its hue as a
 hue's text does, `sub` and `dim` mixed toward `text`, each as little as
-gets it there. Colours set in `[appearance.dark]` and `[appearance.light]` are
+gets it there (Day's blue is darkened a little so). On a background where
+not even black or white reaches 7:1, `text` goes all the way to the one it
+moves toward. Colours set in `[appearance.dark]` and `[appearance.light]` are
 used as given, and the text they leave to the source is made to read again
 on a `background` set there; a hue's text left to the source follows its
 fill.

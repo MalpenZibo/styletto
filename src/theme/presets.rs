@@ -286,7 +286,14 @@ mod tests {
         for (theme, flavor) in [(TOKYO_NIGHT, "Day"), (EVERFOREST, "Light")] {
             let flavor = theme.flavors.iter().find(|f| f.name == flavor).unwrap();
             let scheme = flavor.scheme(flavor.accent);
-            assert_ne!(scheme.sub, scheme.text, "{} {}", theme.name, flavor.name);
+            // A level apart: `text` reads at least 1:1 more on the island.
+            let [text, sub] = [scheme.text, scheme.sub].map(|ink| contrast(ink, scheme.background));
+            assert!(
+                text >= sub + 1.0,
+                "{} {}: {text:.2} and {sub:.2}",
+                theme.name,
+                flavor.name
+            );
         }
     }
 
