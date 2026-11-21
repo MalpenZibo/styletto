@@ -841,17 +841,15 @@ fn bind_hex(
 }
 
 /// The colour a scheme's `name` is drawn in, from its palette: an
-/// on-colour or a hue's text left unsaid is the one worked out for it.
-fn drawn(palette: &Palette, name: &str) -> Color {
-    let name = match name {
-        "background" => "island".to_string(),
-        name => name.replace(' ', "_"),
-    };
+/// on-colour or a hue's text left unsaid is the one worked out for it. The
+/// palette names every colour as the scheme does but `background`, which it
+/// draws as `island`. `None` for a name the palette doesn't know.
+fn drawn(palette: &Palette, name: &str) -> Option<Color> {
+    let name = if name == "background" { "island" } else { name };
     palette
         .named()
         .into_iter()
         .find_map(|(named, color)| (named == name).then_some(color))
-        .unwrap_or(Color::TRANSPARENT)
 }
 
 /// Every colour one side's scheme says, by name, as a hex to edit (an
@@ -877,9 +875,16 @@ fn palette_fields(a: Appearance, light: bool, generation: RwSignal<u32>) -> Vec<
                         .height(space::S4.px())
                         .corners(radius::pill(space::S4.px()))
                         .border(stroke::HAIRLINE, t.colors.line)
-                        .background(move || palette.with(|palette| drawn(palette, name))),
+                        .background(move || {
+                            palette
+                                .with(|palette| drawn(palette, name).unwrap_or(Color::TRANSPARENT))
+                        }),
                 )
-                .child(container().width(space::S20.px()).child(caption(name)))
+                .child(
+                    container()
+                        .width(space::S20.px())
+                        .child(caption(name.replace('_', " "))),
+                )
                 .child(
                     container()
                         .width(fill())
@@ -1113,12 +1118,30 @@ mod tests {
     use styletto::theme::presets::{Mode, THEMES, ThemeChoice};
     use styletto::ui::{Density, Material};
 
-    use super::{Appearance, Source, bind_hex, palette_fields, themes};
+    use super::{Appearance, Source, bind_hex, drawn, palette_fields, themes};
 
     thread_local! {
         /// Every colour field built, as `bind_hex` makes them.
         pub static BOUND: std::cell::RefCell<Vec<(usize, &'static str, RwSignal<String>)>> =
             std::cell::RefCell::default();
+    }
+
+    #[test]
+    fn every_colour_listed_shows_its_own() {
+        // A name the palette doesn't know would show as nothing.
+        for theme in THEMES {
+            for light in [false, true] {
+                let scheme = ThemeChoice::of(theme).scheme_of(light);
+                let palette = scheme.palette();
+                for (name, set) in scheme.named() {
+                    let shown = drawn(&palette, name);
+                    assert!(shown.is_some(), "{name} shows nothing");
+                    if set.is_some() {
+                        assert_eq!(shown, set, "{name} shows another colour");
+                    }
+                }
+            }
+        }
     }
 
     #[test]

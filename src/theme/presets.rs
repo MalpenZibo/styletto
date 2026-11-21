@@ -3,9 +3,9 @@
 
 use guido::prelude::*;
 
-use super::palette::{Fill, Palette, Scheme};
 #[cfg(test)]
 use super::palette::{Hue, HueColors, TEXT_CONTRAST, contrast};
+use super::palette::{Palette, Scheme, SchemeHue};
 
 mod catppuccin;
 mod dracula;
@@ -60,13 +60,13 @@ pub struct Flavor {
 
 impl Flavor {
     pub fn scheme(&self, accent: usize) -> Scheme {
-        let fill = |hex: u32| Fill::new(Color::from_hex(hex));
+        let fill = |hex: u32| SchemeHue::new(Color::from_hex(hex));
         Scheme {
             background: Color::from_hex(self.island),
             text: Color::from_hex(self.text),
             sub: Color::from_hex(self.sub),
             dim: Color::from_hex(self.dim),
-            accent: Fill::new(
+            accent: SchemeHue::new(
                 self.accents
                     .get(accent)
                     .unwrap_or(&self.accents[self.accent])
