@@ -15,7 +15,7 @@ use styletto::foundations::tokens::{icon as icon_box, size as space, tile};
 use styletto::primitives::island;
 use styletto::{Icon, centered_row, icon, ui};
 
-use super::{CPU_LEVELS, PANEL, TEMP_LEVELS};
+use super::{CPU_LEVELS, TEMP_LEVELS, panel};
 use crate::stories::story::Ctx;
 
 pub fn tiles(ctx: &Ctx) -> Container {
@@ -52,7 +52,7 @@ pub fn tiles(ctx: &Ctx) -> Container {
     };
 
     container()
-        .width(PANEL)
+        .width(panel())
         .layout(Flex::column().spacing(space::S2.px()))
         .child(
             container()
@@ -124,7 +124,7 @@ pub fn slider_rows(ctx: &Ctx) -> Container {
     let muted = ctx.bool("Muted", false);
     let opened = ctx.action_with::<&'static str>("open");
     container()
-        .width(PANEL)
+        .width(panel())
         .layout(Flex::column().spacing(space::S1.px()))
         .child(
             slider_row(
@@ -171,7 +171,7 @@ pub fn list_pages(ctx: &Ctx) -> Container {
     let push = move |page: Page| stack.update(|s| s.push(page));
 
     island::paint(container())
-        .width(PANEL)
+        .width(panel())
         .padding(space::S3.px())
         .corners(tokens::radius::shape(tokens::radius::around(
             tokens::radius::SMALL.px(),
@@ -286,7 +286,7 @@ pub fn power_menu(ctx: &Ctx) -> Container {
         row(name).icon(kind).on_click(move || chosen(name))
     };
     island::paint(container())
-        .width(PANEL)
+        .width(panel())
         .padding(space::S3.px())
         .corners(tokens::radius::shape(tokens::radius::around(
             tokens::radius::SMALL.px(),
@@ -312,7 +312,7 @@ pub fn cards(ctx: &Ctx) -> Container {
     let cpu_figure = move || format!("{:.0}%", cpu.get());
     let temp_figure = move || format!("{:.0}°", temp.get());
     container()
-        .width(PANEL)
+        .width(panel())
         .layout(Flex::column().spacing(space::S4.px()))
         .child(
             container()
@@ -356,7 +356,7 @@ pub fn notifications(ctx: &Ctx) -> Container {
         "14m",
     );
     container()
-        .width(PANEL)
+        .width(panel())
         .layout(Flex::column().spacing(space::S2.px()))
         .child(
             notification_group("Messages")
@@ -403,7 +403,7 @@ pub fn scrolling_list(ctx: &Ctx) -> Container {
     let count = ctx.number("Devices", 0.0..=DEVICES.len() as f32, DEVICES.len() as f32);
     let t = ui();
     island::paint(container())
-        .width(PANEL)
+        .width(panel())
         .padding(space::S3.px())
         .corners(tokens::radius::shape(tokens::radius::around(
             tokens::radius::SMALL.px(),
@@ -413,7 +413,7 @@ pub fn scrolling_list(ctx: &Ctx) -> Container {
         .child(page_header("Bluetooth").trailing(toggle(true)))
         .child(section("Nearby"))
         .child(
-            scroll_list(space::S60.px())
+            scroll_list(space::scaled(space::S60.px()))
                 .reserve_gutter(lane)
                 .children(move || {
                     DEVICES[..count.get() as usize]

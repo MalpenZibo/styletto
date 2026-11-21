@@ -86,7 +86,11 @@ A step reads its value with `.px()` in the current `Ui`.
 | `tokens::tile` | `XSMALL` `SMALL` `MEDIUM` `LARGE` `XLARGE` `XXLARGE` | 16 24 32 40 48 64 |
 
 Up to `S8` a size step is space and follows the density; past it, it is a
-layout length and stays. A tile step also sets its corners, the icon on it
+layout length and stays. A length an app lays out with, a panel's width or
+a list's height before it scrolls, follows the density through
+`size::scaled(length)`: ×0.875 compact, ×1.25 comfortable
+(`Density::scale`), about as much as what a panel holds grows, so it keeps
+its proportions. A tile step also sets its corners, the icon on it
 and the letter of an initial; an icon step sets the stroke of a ring.
 
 Corners: a box is a squircle (`radius::shape`, or `Radius::corners`), a pill
