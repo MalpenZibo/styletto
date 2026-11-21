@@ -467,6 +467,32 @@ mod tests {
     }
 
     #[test]
+    fn a_wide_tile_lights_the_part_a_press_would_reach() {
+        let Some((mut m, ())) = Mounted::<()>::new(|_| {
+            let wifi = tile(Icon::Wifi, "Wi-Fi").on_open(|| {});
+            (container().width(200.0).child(wifi), ())
+        }) else {
+            return;
+        };
+        let middle = icon_box();
+        // A point of the body clear of its title.
+        let body = (190.0, middle);
+        let start = std::time::Instant::now();
+        let settled = |n: u64| start + std::time::Duration::from_secs(n);
+        m.step_at(settled(1));
+        let rest = m.pixel(body.0, body.1);
+
+        // On the body, the body lights up: its press opens.
+        m.send_at(Event::mouse_move(150.0, middle), settled(2));
+        m.step_at(settled(3));
+        assert_ne!(m.pixel(body.0, body.1), rest);
+        // On the icon box, only the box does: its press toggles.
+        m.send_at(Event::mouse_move(middle, middle), settled(4));
+        m.step_at(settled(5));
+        assert_eq!(m.pixel(body.0, body.1), rest);
+    }
+
+    #[test]
     fn a_press_on_a_small_tile_asks_for_the_opposite() {
         let Some((mut m, active)) = Mounted::<bool>::new(|log| {
             let active = create_signal(false);

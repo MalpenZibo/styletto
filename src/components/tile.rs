@@ -84,6 +84,9 @@ pub fn tile(
             hovered(t.colors.surface2)
         }
     };
+    // Where the pointer is on the icon box, a press toggles: the box lights
+    // up and the body, whose press opens, stays at rest.
+    let over_box = create_signal(false);
     let icon_box = pressable(
         toggled(
             container()
@@ -96,6 +99,7 @@ pub fn tile(
         motion::PRESS_SCALE_INNER,
     )
     .layout(Flex::column().center())
+    .on_hover(move |inside| over_box.set(inside))
     .on_click(toggle)
     .child(icons::icon(icon, Size::Md.icon(), ink));
 
@@ -134,8 +138,16 @@ pub fn tile(
     // a row that stretches its children gives the tiles in it the height of
     // the tallest. The corners stay those of `height()`, as the neighbours'.
     //
-    // Under the pointer the body lights up as a small tile does.
+    // Under the pointer the body lights up as a small tile does, unless the
+    // pointer is on the icon box.
     let body = active_fill(active, t.colors.surface);
+    let body_lifted = move || {
+        if over_box.get() {
+            body()
+        } else {
+            hovered(body())
+        }
+    };
     pressable(
         toggled(
             container()
@@ -143,7 +155,7 @@ pub fn tile(
                 .corners(shape(active, height(), radius::MEDIUM.px()).transition(motion::spring()))
                 .overflow(Overflow::Hidden),
             body,
-            move || hovered(body()),
+            body_lifted,
         ),
         motion::PRESS_SCALE_WIDE,
     )
