@@ -78,7 +78,7 @@ pub fn bar_pill(ctx: &Ctx) -> Container {
                         .child(pill_text(name).active(on).bold(true))
                         .child(icon(kind, icon_box::SMALL.px(), move || {
                             if on() {
-                                t.colors.on_accent
+                                t.colors.accent.on
                             } else {
                                 t.colors.sub
                             }

@@ -27,8 +27,8 @@ pub fn dot(
 }
 
 /// An icon on a tinted squircle, heading an alert. `color` draws the icon
-/// and tints the squircle: a hue as text, such as `danger_text`, so the
-/// icon reads.
+/// and tints the squircle: a hue as text, such as `colors.danger.text`, so
+/// the icon reads.
 #[component]
 pub fn icon_tile(#[prop(required)] icon: Icon, #[prop(required)] color: Color) -> impl Widget {
     container()

@@ -222,7 +222,7 @@ pub fn active_fill(active: Signal<bool>) -> impl Fn() -> Color + Copy + 'static 
     let t = ui();
     move || {
         if active.get() {
-            t.colors.accent
+            t.colors.accent.fill
         } else {
             t.colors.surface
         }
@@ -234,7 +234,7 @@ pub fn active_ink(active: Signal<bool>) -> impl Fn() -> Color + Copy + 'static {
     let t = ui();
     move || {
         if active.get() {
-            t.colors.on_accent
+            t.colors.accent.on
         } else {
             t.colors.text
         }
@@ -312,11 +312,11 @@ mod tests {
         // as they read when solid.
         let mut palette = ThemeChoice::default().palette_of(true);
         palette.dim = Color::from_hex(0xa0a0a0);
-        palette.warning_text = palette.danger;
+        palette.warning.text = palette.danger.fill;
         assert_eq!(Ui::new(palette).colors, palette);
         let glass = Ui::new(palette).with_material(Material::Glass).colors;
         assert!(glass.dim.luminance() < palette.dim.luminance());
-        assert!(glass.warning_text.luminance() < palette.warning_text.luminance());
+        assert!(glass.warning.text.luminance() < palette.warning.text.luminance());
         assert_eq!(
             glass.unreadable(Color::BLACK).map(|(role, _)| role),
             Some("dim")

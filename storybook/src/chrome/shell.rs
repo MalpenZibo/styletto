@@ -198,7 +198,7 @@ fn sidebar(
                 .child(icon(
                     group_icon(group),
                     icon_box::SMALL.px(),
-                    t.colors.accent_text,
+                    t.colors.accent.text,
                 ))
                 .child(
                     typed(group, ty::TITLE_XSMALL.em())

@@ -80,7 +80,7 @@ pub fn sparkline(samples: Signal<Vec<f32>>, slots: usize) -> Sparkline {
         slots,
         top: None,
         height: size::S8.px(),
-        color: ui().colors.accent,
+        color: ui().colors.accent.fill,
         stroke: stroke::RING,
     }
 }

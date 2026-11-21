@@ -10,8 +10,9 @@ use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
 use crate::foundations::tokens::size as space;
 use crate::foundations::tokens::{radius, stroke};
-use crate::foundations::typography::{LABEL_SMALL, Typeset};
+use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
+use crate::primitives::text::figure_text;
 use crate::ui::ui;
 
 fn height() -> f32 {
@@ -123,7 +124,7 @@ pub fn slider(
     let filled = container()
         .width(reach.transition(motion::tactile()))
         .height(fill())
-        .background(t.colors.accent);
+        .background(t.colors.accent.fill);
     // A cut through the track in the island's colour: it reads on the empty
     // part as much as the track reads on the island, and on the fill as much
     // as the fill does, in any theme, and stays as quiet as the track.
@@ -169,22 +170,17 @@ pub fn slider(
                     })
                     .transition(motion::tactile()),
                 )
-                .child(
-                    text(move || format!("{}%", shown.get().round()))
-                        .typeset(LABEL_SMALL.em().tabular())
-                        .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-                        .color(
-                            (move || {
-                                if inside.get() {
-                                    t.colors.on_accent
-                                } else {
-                                    t.colors.sub
-                                }
-                            })
-                            .transition(motion::color()),
-                        )
-                        .nowrap(),
-                ),
+                .child(figure_text(
+                    move || format!("{}%", shown.get().round()),
+                    LABEL_SMALL,
+                    move || {
+                        if inside.get() {
+                            t.colors.accent.on
+                        } else {
+                            t.colors.sub
+                        }
+                    },
+                )),
         );
     let track_height = move || if active.get() { height() } else { thin() };
     let track = container()

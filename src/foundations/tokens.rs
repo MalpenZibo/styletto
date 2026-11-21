@@ -246,8 +246,19 @@ pub mod opacity {
 
 /// How far a glow spreads around what it lights.
 pub mod glow {
+    use guido::prelude::{Color, Shadow};
+
+    use super::tint;
+
     pub const SMALL: f32 = 4.0;
     pub const MEDIUM: f32 = 8.0;
+
+    /// A glow `spread` wide around what lights up in a hue: its fill at
+    /// [`tint::MEDIUM`], nothing when there is none. A tag's and a card's.
+    pub(crate) fn halo(fill: Option<Color>, spread: f32) -> Shadow {
+        let color = fill.map_or(Color::TRANSPARENT, |fill| fill.with_alpha(tint::MEDIUM));
+        Shadow::new((0.0, 0.0), spread, 0.0, color)
+    }
 }
 
 /// How strongly a hue tints what it fills or lights: the alpha its fill is

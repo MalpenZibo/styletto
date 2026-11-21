@@ -6,9 +6,9 @@ use guido::prelude::*;
 
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
-use crate::foundations::motion;
-use crate::foundations::typography::Typeset;
 use crate::primitives::layout::centered_row;
+use crate::primitives::text::figure_text;
+use crate::theme::palette::Hue;
 use crate::ui::ui;
 
 /// How a value stands: as it should, well, worrying, or alarming.
@@ -23,6 +23,16 @@ pub enum Level {
 }
 
 impl Level {
+    /// The hue it is drawn in, none while normal.
+    pub fn hue(self) -> Option<Hue> {
+        match self {
+            Level::Normal => None,
+            Level::Good => Some(Hue::Success),
+            Level::Warn => Some(Hue::Warning),
+            Level::Alert => Some(Hue::Danger),
+        }
+    }
+
     /// Where `value` stands when high is bad, as a temperature: an alert at
     /// `alert` or above, a warning at `warn` or above.
     pub fn of(value: f32, warn: f32, alert: f32) -> Self {
@@ -51,13 +61,8 @@ impl Level {
 /// The ink of `level`, for an icon or a figure: the text's while normal,
 /// else its hue as text.
 pub fn level_ink(level: Level) -> Color {
-    let t = ui();
-    match level {
-        Level::Normal => t.colors.text,
-        Level::Good => t.colors.success_text,
-        Level::Warn => t.colors.warning_text,
-        Level::Alert => t.colors.danger_text,
-    }
+    let c = ui().colors;
+    c.ink(level.hue())
 }
 
 /// The icons of a value's levels, each with the value it starts from, in
@@ -144,11 +149,11 @@ pub fn level_indicator(
         .child(move || kind.get().map(|kind| icons::icon(kind, size.icon(), ink)))
         .child(move || {
             percent.get().then(|| {
-                text(move || format!("{}%", value.get().round().max(0.0)))
-                    .typeset(size.label().em().tabular())
-                    .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-                    .color(ink.transition(motion::color()))
-                    .nowrap()
+                figure_text(
+                    move || format!("{}%", value.get().round().max(0.0)),
+                    size.label(),
+                    ink,
+                )
             })
         })
 }

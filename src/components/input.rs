@@ -64,9 +64,9 @@ pub fn password_field(
     let t = ui();
     let ring = move || {
         if refused.get() {
-            t.colors.danger
+            t.colors.danger.fill
         } else {
-            t.colors.accent.with_alpha(0.7)
+            t.colors.accent.fill.with_alpha(0.7)
         }
     };
     let submit = container().child(move || {
@@ -78,7 +78,7 @@ pub fn password_field(
                 .child(
                     spinning(Icon::Refresh)
                         .size(icon_box::SMALL)
-                        .color(t.colors.accent_text),
+                        .color(t.colors.accent.text),
                 )
                 .into_any()
         } else {

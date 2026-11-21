@@ -82,7 +82,7 @@ pub fn notification(
         .visible(urgent)
         .width(stroke::BOLD)
         .height(fill())
-        .background(t.colors.danger);
+        .background(t.colors.danger.fill);
 
     container()
         .width(fill())

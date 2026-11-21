@@ -146,13 +146,18 @@ on it and its hue as text. An on-colour left unset is worked out to reach a
 4.5:1 contrast.
 
 Components read the `Palette` derived from it: `island`, `surface`,
-`surface2`, `line`, `text`, `sub`, `dim`, each fill with its `on_*` and its
-`*_text`, and `ripple`.
+`surface2`, `line`, `text`, `sub`, `dim`, the four hues `accent`, `success`,
+`warning` and `danger`, and `ripple`. Each hue is a `HueColors`: its `fill`,
+the colour `on` it and its `text`; `palette.hue(Hue::Danger)` reads one by
+its `Hue` (`Scheme::fill(hue)` its theme's colours), `Hue::ALL` lists the
+four and `hue.name()` names one. `palette.ink(hue)` is the hue as text, or
+`text` without one (`None`), what a component toned or left neutral writes
+in.
 
-A fill is what paints a surface, a bar, a ring or a border; `on_*` is the
-text on that fill; `accent_text`, `success_text`, `warning_text` and
-`danger_text` are the hue as text or an icon on the island, `surface` and
-`surface2`, at 4.5:1 on all three (3:1 on a see-through island, below).
+A hue's `fill` is what paints a surface, a bar, a ring or a border; `on` is
+the text on that fill; `text` is the hue as text or an icon on the island,
+`surface` and `surface2`, at 4.5:1 on all three (3:1 on a see-through
+island, below).
 Unless the theme or the config sets one,
 it is the fill moved in lightness only, in Oklab, with its hue and chroma
 kept (as far as sRGB holds them), just as far as it must to read: a fill
@@ -171,8 +176,8 @@ fill.
 
 On a see-through island the text is adjusted again: `Ui::colors` holds it
 as dark or as light as it must be to read with the island's opposite showing
-through, black behind a light island or white behind a dark one. Each
-`*_text` is moved the same way, in lightness only, but to 3:1, the floor
+through, black behind a light island or white behind a dark one. Each hue's
+`text` is moved the same way, in lightness only, but to 3:1, the floor
 `dim` has (WCAG's for icons and large text), not 4.5:1: with white behind
 dark glass, a hue that reads at 4.5:1 is so light it is all but white, as
 light as the text, and a warning no longer looks like one. Where not even
@@ -215,7 +220,8 @@ motion = "full"          # reduced, none
 sans = "Inter"
 mono = "JetBrains Mono"
 
-# Any colour of either side, set over the source; "_" for a space.
+# Any colour of either side, set over the source; "_" for a space. A hue's
+# are its name, on_ before it and _text after it: danger, on_danger, danger_text.
 [appearance.dark]
 accent = "#ff79c6"
 on_accent = "#1a1b26"
@@ -272,7 +278,7 @@ The modules of `components`:
 |---|---|
 | `button` | buttons, with a label, an icon or both, on and off as a tile is; the bar's pills; `pressable` |
 | `toggle`, `slider`, `input` | a switch, a slider and a slider row (to 100%, or past it to a max; a wheel notch moves it by a step, 5% unless set), text and password fields |
-| `list` | rows (a checked one marks the choice in use; one in a `Tone`, warning or danger, has its title, icon, hover and press in that hue), sections, empty states, page headers with a subtitle, pages that slide, a list that scrolls past a height with the theme's scrollbar |
+| `list` | rows (a checked one marks the choice in use; one in a tag's `Tone`, as warning or danger, has its title, icon, hover and press in that hue), sections, empty states, page headers with a subtitle, pages that slide, a list that scrolls past a height with the theme's scrollbar |
 | `tile` | quick-settings tiles, wide and small; a wide one's subtitle takes a second line when it needs one, and tiles side by side in a `Flex::row()` are as tall as the tallest |
 | `tag` | read-only pills for a state, tinted by a `Tone` (neutral, accent, success, warning, danger), glowing if asked |
 | `badge` | dots, icon tiles |
@@ -287,14 +293,15 @@ Its `Variant` (`Neutral`, `Accent`, `Danger`) sets its colour and its `Fill`
 how it rests: `Solid` in the variant's fill (`surface` for a neutral one)
 with the ink on it, `Ghost` clear until hovered, its ink the hue as text.
 `active` turns it on, as a tile: filled with the accent, its ink
-`on_accent`, whatever its variant and fill; a toggle is a neutral or
+`accent.on`, whatever its variant and fill; a toggle is a neutral or
 ghost button with `active` (a solid accent one is filled with the accent
 already, and looks the same on and off). Hovered, a neutral fill steps to the next surface and a hue
 brightens; disabled, on or off, it fades and takes no press.
 
 A tag shows and takes no press. Its `Tone` tints it at `tint::STRONG`
 (`surface` while neutral), and `Tone::ink()` is the colour for what it
-holds: `text` while neutral, else the hue as text. With `glow` a toned tag
+holds: `text` while neutral, else the hue as text. `Tone::hue()` is its
+`Hue`, none while neutral; a list row takes the same `Tone`. With `glow` a toned tag
 lights around it, as the island's privacy tag does.
 
 ```rust
@@ -310,8 +317,9 @@ tag().tone(Tone::Warning).glow(true).child(icon(Icon::Mic, size, Tone::Warning.i
 The app decides a level, with its own thresholds, and styletto draws it:
 `Level::of(value, warn, alert)` when high is bad, `Level::below(value, warn,
 alert)` when low is, and `Level::Good` for better than normal, a battery
-charging. `level_ink` is `text` while normal, else `success_text`,
-`warning_text` or `danger_text`; a card's tint and glow take the fill.
+charging. `Level::hue()` is its `Hue`: success, warning or danger, none
+while normal. `level_ink` is `text` while normal, else that hue's `text`; a
+card's tint and glow take its `fill`.
 
 The indicator's sets of icons are data, each icon from the value it starts
 at: `Levels::BATTERY` rounds its bars up, a bar staying while there is

@@ -5,6 +5,30 @@ use guido::prelude::*;
 
 use super::presets::ThemeChoice;
 
+/// One of the four hues a theme sets a fill for.
+#[derive(Clone, Copy, Debug, PartialEq, Eq, Hash)]
+pub enum Hue {
+    Accent,
+    Success,
+    Warning,
+    Danger,
+}
+
+impl Hue {
+    pub const ALL: [Hue; 4] = [Hue::Accent, Hue::Success, Hue::Warning, Hue::Danger];
+
+    /// Its fill's name, in a [`Scheme`] and a [`Palette`]: `accent` and the
+    /// rest.
+    pub const fn name(self) -> &'static str {
+        match self {
+            Hue::Accent => "accent",
+            Hue::Success => "success",
+            Hue::Warning => "warning",
+            Hue::Danger => "danger",
+        }
+    }
+}
+
 /// A colour a surface can be painted with, the one that reads on it, and
 /// its hue as text.
 #[derive(Clone, Copy, Debug, PartialEq)]
@@ -13,7 +37,7 @@ pub struct Fill {
     /// Derived by [`Scheme::on`] when `None`.
     pub on: Option<Color>,
     /// The hue as text or an icon on the island. Worked out from `color`
-    /// when `None`: see [`Palette::accent_text`].
+    /// when `None`: see [`HueColors::text`].
     pub text: Option<Color>,
 }
 
@@ -57,6 +81,23 @@ pub struct Scheme {
     pub danger: Fill,
 }
 
+/// A hue's colours in the [`Palette`].
+#[derive(Clone, Copy, Debug, PartialEq)]
+pub struct HueColors {
+    /// What paints a surface, a bar, a ring or a border.
+    pub fill: Color,
+    /// The text and icons on `fill`.
+    pub on: Color,
+    /// The hue as text or an icon on the island, `surface` and `surface2`,
+    /// at 4.5:1 on all three. Unless a theme or a config sets it, the fill
+    /// itself moved in lightness only, hue and chroma kept, as far as it
+    /// must to read: the fill where it already does. On a see-through
+    /// island ([`Ui::colors`](crate::Ui::colors)) it keeps 3:1 whatever
+    /// shows through, as `dim` does: 4.5:1 there would turn it near white
+    /// on dark glass.
+    pub text: Color,
+}
+
 /// The colours the components read.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Palette {
@@ -69,26 +110,10 @@ pub struct Palette {
     pub text: Color,
     pub sub: Color,
     pub dim: Color,
-    pub accent: Color,
-    pub on_accent: Color,
-    /// The accent as text or an icon on the island, `surface` and
-    /// `surface2`, at 4.5:1 on all three. Unless a theme or a config sets
-    /// it, the accent itself moved in lightness only, hue and chroma kept,
-    /// as far as it must to read: the accent where it already does. On a
-    /// see-through island ([`Ui::colors`](crate::Ui::colors)) it keeps 3:1
-    /// whatever shows through, as `dim` does: 4.5:1 there would turn it
-    /// near white on dark glass. The other `*_text` are the same for their
-    /// hues.
-    pub accent_text: Color,
-    pub success: Color,
-    pub on_success: Color,
-    pub success_text: Color,
-    pub warning: Color,
-    pub on_warning: Color,
-    pub warning_text: Color,
-    pub danger: Color,
-    pub on_danger: Color,
-    pub danger_text: Color,
+    pub accent: HueColors,
+    pub success: HueColors,
+    pub warning: HueColors,
+    pub danger: HueColors,
     /// The ripple of a press.
     pub ripple: Color,
 }
@@ -100,8 +125,34 @@ impl Default for Palette {
 }
 
 impl Palette {
-    /// Every colour with its name, in the order a picker lists them.
+    /// What reads as text in `hue`: the hue as text, or `text` without one.
+    pub fn ink(&self, hue: Option<Hue>) -> Color {
+        hue.map_or(self.text, |hue| self.hue(hue).text)
+    }
+
+    /// The colours of `hue`.
+    pub fn hue(&self, hue: Hue) -> HueColors {
+        match hue {
+            Hue::Accent => self.accent,
+            Hue::Success => self.success,
+            Hue::Warning => self.warning,
+            Hue::Danger => self.danger,
+        }
+    }
+
+    fn hue_mut(&mut self, hue: Hue) -> &mut HueColors {
+        match hue {
+            Hue::Accent => &mut self.accent,
+            Hue::Success => &mut self.success,
+            Hue::Warning => &mut self.warning,
+            Hue::Danger => &mut self.danger,
+        }
+    }
+
+    /// Every colour with its name, in the order a picker lists them: a
+    /// hue's as `accent`, `on_accent` and `accent_text`.
     pub fn named(&self) -> [(&'static str, Color); 20] {
+        let [a, s, w, d] = [self.accent, self.success, self.warning, self.danger];
         [
             ("island", self.island),
             ("surface", self.surface),
@@ -110,29 +161,19 @@ impl Palette {
             ("text", self.text),
             ("sub", self.sub),
             ("dim", self.dim),
-            ("accent", self.accent),
-            ("on_accent", self.on_accent),
-            ("accent_text", self.accent_text),
-            ("success", self.success),
-            ("on_success", self.on_success),
-            ("success_text", self.success_text),
-            ("warning", self.warning),
-            ("on_warning", self.on_warning),
-            ("warning_text", self.warning_text),
-            ("danger", self.danger),
-            ("on_danger", self.on_danger),
-            ("danger_text", self.danger_text),
+            ("accent", a.fill),
+            ("on_accent", a.on),
+            ("accent_text", a.text),
+            ("success", s.fill),
+            ("on_success", s.on),
+            ("success_text", s.text),
+            ("warning", w.fill),
+            ("on_warning", w.on),
+            ("warning_text", w.text),
+            ("danger", d.fill),
+            ("on_danger", d.on),
+            ("danger_text", d.text),
             ("ripple", self.ripple),
-        ]
-    }
-
-    /// Each fill with the colour that reads on it.
-    pub fn fills(&self) -> [(&'static str, Color, Color); 4] {
-        [
-            ("Accent", self.accent, self.on_accent),
-            ("Success", self.success, self.on_success),
-            ("Warning", self.warning, self.on_warning),
-            ("Danger", self.danger, self.on_danger),
         ]
     }
 
@@ -179,30 +220,18 @@ impl Palette {
         let island = at(opacity);
         let grounds = island.grounds(worst);
         let [text, sub, dim] = lifted(inks, worst, grounds, floors);
-        let [accent_text, success_text, warning_text, danger_text] = self.hue_texts().map(|ink| {
-            let floor = SEE_THROUGH_HUE_CONTRAST.min(lowest(ink, solid));
-            shade(ink, worst, grounds, floor)
-        });
-        Palette {
+        let mut palette = Palette {
             text,
             sub,
             dim,
-            accent_text,
-            success_text,
-            warning_text,
-            danger_text,
             ..island
+        };
+        for hue in Hue::ALL {
+            let ink = &mut palette.hue_mut(hue).text;
+            let floor = SEE_THROUGH_HUE_CONTRAST.min(lowest(*ink, solid));
+            *ink = shade(*ink, worst, grounds, floor);
         }
-    }
-
-    /// `accent_text`, `success_text`, `warning_text` and `danger_text`.
-    fn hue_texts(&self) -> [Color; 4] {
-        [
-            self.accent_text,
-            self.success_text,
-            self.warning_text,
-            self.danger_text,
-        ]
+        palette
     }
 }
 
@@ -222,10 +251,10 @@ impl Palette {
             ("text", self.text),
             ("sub", self.sub),
             ("dim", self.dim),
-            ("accent_text", self.accent_text),
-            ("success_text", self.success_text),
-            ("warning_text", self.warning_text),
-            ("danger_text", self.danger_text),
+            ("accent_text", self.accent.text),
+            ("success_text", self.success.text),
+            ("warning_text", self.warning.text),
+            ("danger_text", self.danger.text),
         ]
         .into_iter()
         .zip(FLOORS.into_iter().chain([hue; 4]))
@@ -464,9 +493,10 @@ impl Scheme {
             dim,
             ..self
         };
-        for (name, fill) in scheme.fills_mut() {
-            let follows = !kept(&format!("{name} text"))
-                && (kept(name)
+        for hue in Hue::ALL {
+            let fill = scheme.fill_mut(hue);
+            let follows = !kept(&format!("{} text", hue.name()))
+                && (kept(hue.name())
                     || fill
                         .text
                         .is_some_and(|t| lowest(t, grounds) < TEXT_CONTRAST));
@@ -477,14 +507,23 @@ impl Scheme {
         scheme
     }
 
-    /// Each fill by name.
-    fn fills_mut(&mut self) -> [(&'static str, &mut Fill); 4] {
-        [
-            ("accent", &mut self.accent),
-            ("success", &mut self.success),
-            ("warning", &mut self.warning),
-            ("danger", &mut self.danger),
-        ]
+    /// The fill of `hue`.
+    pub fn fill(&self, hue: Hue) -> &Fill {
+        match hue {
+            Hue::Accent => &self.accent,
+            Hue::Success => &self.success,
+            Hue::Warning => &self.warning,
+            Hue::Danger => &self.danger,
+        }
+    }
+
+    fn fill_mut(&mut self, hue: Hue) -> &mut Fill {
+        match hue {
+            Hue::Accent => &mut self.accent,
+            Hue::Success => &mut self.success,
+            Hue::Warning => &mut self.warning,
+            Hue::Danger => &mut self.danger,
+        }
     }
 
     /// The hue of `fill` as text on `grounds`: its own if set, else its
@@ -502,6 +541,14 @@ impl Scheme {
 
     pub fn palette(&self) -> Palette {
         let grounds = self.grounds();
+        let [accent, success, warning, danger] = Hue::ALL.map(|hue| {
+            let fill = *self.fill(hue);
+            HueColors {
+                fill: fill.color,
+                on: self.on(fill),
+                text: self.text_of(fill, grounds),
+            }
+        });
         Palette {
             island: self.background,
             surface: self.tint(SURFACE),
@@ -510,18 +557,10 @@ impl Scheme {
             text: self.text,
             sub: self.sub,
             dim: self.dim,
-            accent: self.accent.color,
-            on_accent: self.on(self.accent),
-            accent_text: self.text_of(self.accent, grounds),
-            success: self.success.color,
-            on_success: self.on(self.success),
-            success_text: self.text_of(self.success, grounds),
-            warning: self.warning.color,
-            on_warning: self.on(self.warning),
-            warning_text: self.text_of(self.warning, grounds),
-            danger: self.danger.color,
-            on_danger: self.on(self.danger),
-            danger_text: self.text_of(self.danger, grounds),
+            accent,
+            success,
+            warning,
+            danger,
             ripple: self.tint(RIPPLE),
         }
     }
@@ -548,24 +587,26 @@ impl Scheme {
     }
 
     /// Every colour by name; an on-colour or a hue's text may be unset.
+    /// A hue's as `accent`, `on accent` and `accent text`.
     pub fn named(&self) -> [(&'static str, Option<Color>); 16] {
+        let [a, s, w, d] = [self.accent, self.success, self.warning, self.danger];
         [
             ("background", Some(self.background)),
             ("text", Some(self.text)),
             ("sub", Some(self.sub)),
             ("dim", Some(self.dim)),
-            ("accent", Some(self.accent.color)),
-            ("on accent", self.accent.on),
-            ("accent text", self.accent.text),
-            ("success", Some(self.success.color)),
-            ("on success", self.success.on),
-            ("success text", self.success.text),
-            ("warning", Some(self.warning.color)),
-            ("on warning", self.warning.on),
-            ("warning text", self.warning.text),
-            ("danger", Some(self.danger.color)),
-            ("on danger", self.danger.on),
-            ("danger text", self.danger.text),
+            ("accent", Some(a.color)),
+            ("on accent", a.on),
+            ("accent text", a.text),
+            ("success", Some(s.color)),
+            ("on success", s.on),
+            ("success text", s.text),
+            ("warning", Some(w.color)),
+            ("on warning", w.on),
+            ("warning text", w.text),
+            ("danger", Some(d.color)),
+            ("on danger", d.on),
+            ("danger text", d.text),
         ]
     }
 
@@ -583,16 +624,16 @@ impl Scheme {
             "sub" => solid(&mut self.sub),
             "dim" => solid(&mut self.dim),
             "accent" => solid(&mut self.accent.color),
-            "success" => solid(&mut self.success.color),
-            "warning" => solid(&mut self.warning.color),
-            "danger" => solid(&mut self.danger.color),
             "on accent" => self.accent.on = color,
-            "on success" => self.success.on = color,
-            "on warning" => self.warning.on = color,
-            "on danger" => self.danger.on = color,
             "accent text" => self.accent.text = color,
+            "success" => solid(&mut self.success.color),
+            "on success" => self.success.on = color,
             "success text" => self.success.text = color,
+            "warning" => solid(&mut self.warning.color),
+            "on warning" => self.warning.on = color,
             "warning text" => self.warning.text = color,
+            "danger" => solid(&mut self.danger.color),
+            "on danger" => self.danger.on = color,
             "danger text" => self.danger.text = color,
             _ => {}
         }
@@ -639,12 +680,7 @@ mod tests {
                     let solid = flavor.scheme(index).palette();
                     let glass = Ui::new(solid).with_material(Material::Glass).colors;
                     for p in [solid, glass] {
-                        for (fill, text) in [
-                            (p.accent, p.accent_text),
-                            (p.success, p.success_text),
-                            (p.warning, p.warning_text),
-                            (p.danger, p.danger_text),
-                        ] {
+                        for HueColors { fill, text, .. } in Hue::ALL.map(|hue| p.hue(hue)) {
                             let ([_, a, b], [_, ta, tb]) = (oklab(fill), oklab(text));
                             let turn = (a * tb - b * ta).atan2(a * ta + b * tb).to_degrees();
                             let kept = ta.hypot(tb) / a.hypot(b);

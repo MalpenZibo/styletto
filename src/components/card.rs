@@ -8,18 +8,14 @@ use crate::foundations::motion;
 use crate::foundations::tokens::{glow, icon as icon_box, radius, size, tint};
 use crate::foundations::typography::{DISPLAY_XSMALL, LABEL_SMALL, Typeset};
 use crate::primitives::layout::centered_row;
+use crate::primitives::text::figure_text;
+use crate::theme::palette::Palette;
 use crate::ui::ui;
 
 /// The hue of a level other than normal, as a card's tint and glow take
-/// it: the fill, not the text.
-fn level_fill(level: Level) -> Color {
-    let t = ui();
-    match level {
-        Level::Normal => t.colors.surface,
-        Level::Good => t.colors.success,
-        Level::Warn => t.colors.warning,
-        Level::Alert => t.colors.danger,
-    }
+/// it: the fill, not the text. None while normal.
+fn level_fill(c: &Palette, level: Level) -> Option<Color> {
+    level.hue().map(|hue| c.hue(hue).fill)
 }
 
 /// Quiet while normal, else the level's ink.
@@ -42,13 +38,7 @@ pub fn level_figure(
     container()
         .layout(centered_row(size::S1.px()))
         .child(icons::icon(icon, icon_box::XSMALL.px(), quiet))
-        .child(
-            text(figure)
-                .typeset(LABEL_SMALL.em().tabular())
-                .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-                .color(quiet.transition(motion::color()))
-                .nowrap(),
-        )
+        .child(figure_text(figure, LABEL_SMALL, quiet))
 }
 
 /// A card that takes its level's colour, fill, glow and label while not
@@ -68,22 +58,19 @@ pub fn stat_card(
         .padding(size::S3.px())
         .corners(radius::MEDIUM.corners())
         .background(
-            (move || match level.get() {
-                Level::Normal => t.colors.surface,
-                Level::Alert => level_fill(Level::Alert).with_alpha(tint::MEDIUM),
-                calmer => level_fill(calmer).with_alpha(tint::SUBTLE),
+            (move || {
+                let level = level.get();
+                let alpha = match level {
+                    Level::Alert => tint::MEDIUM,
+                    _ => tint::SUBTLE,
+                };
+                level_fill(&t.colors, level).map_or(t.colors.surface, |fill| fill.with_alpha(alpha))
             })
             .transition(motion::color()),
         )
         .shadow(
-            (move || {
-                let halo = match level.get() {
-                    Level::Normal => Color::TRANSPARENT,
-                    hot => level_fill(hot).with_alpha(tint::MEDIUM),
-                };
-                Shadow::new((0.0, 0.0), glow::MEDIUM, 0.0, halo)
-            })
-            .transition(motion::color()),
+            (move || glow::halo(level_fill(&t.colors, level.get()), glow::MEDIUM))
+                .transition(motion::color()),
         )
         .layout(Flex::column().spacing(size::S1.px()))
         .child(

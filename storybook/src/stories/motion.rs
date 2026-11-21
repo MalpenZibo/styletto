@@ -297,9 +297,9 @@ pub fn island(ctx: &Ctx) -> Container {
             .shadow(
                 (move || {
                     island::shadow(match glow.get() {
-                        1 => t.colors.accent,
-                        2 => t.colors.success,
-                        3 => t.colors.danger,
+                        1 => t.colors.accent.fill,
+                        2 => t.colors.success.fill,
+                        3 => t.colors.danger.fill,
                         _ => Color::TRANSPARENT,
                     })
                 })

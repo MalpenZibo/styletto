@@ -56,9 +56,9 @@ pub fn field(ctx: &Ctx) -> Container {
             .size(if small.get() { Size::Sm } else { Size::Md })
             .ring(move || {
                 if refused.get() {
-                    t.colors.danger
+                    t.colors.danger.fill
                 } else {
-                    t.colors.accent.with_alpha(0.7)
+                    t.colors.accent.fill.with_alpha(0.7)
                 }
             })
             .child(icon(Icon::Search, icon_box::SMALL.px(), t.colors.dim))
@@ -69,7 +69,7 @@ pub fn field(ctx: &Ctx) -> Container {
                         .color(t.colors.text)
                         .placeholder("Search apps".to_string())
                         .placeholder_color(t.colors.sub)
-                        .cursor_color(t.colors.accent_text)
+                        .cursor_color(t.colors.accent.text)
                         .on_submit(move |value| submitted(value.to_string())),
                 ),
             )
@@ -109,7 +109,7 @@ pub fn password_field(ctx: &Ctx) -> Container {
                         .color(t.colors.text)
                         .placeholder("Password".to_string())
                         .placeholder_color(t.colors.sub)
-                        .cursor_color(t.colors.accent_text)
+                        .cursor_color(t.colors.accent.text)
                         .readonly(held)
                         .on_submit(submitted.clone()),
                 ),
