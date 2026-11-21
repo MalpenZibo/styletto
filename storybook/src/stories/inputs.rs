@@ -156,7 +156,8 @@ mod tests {
             });
             h.configure(id, 200, 100, 1.0);
             h.step();
-            let handed = probe.take()?;
+            // Only a missing GPU skips a test; a tree that was not built fails.
+            let handed = probe.take().expect("the tree was built");
             Some((Self { h, id, asked }, handed))
         }
 
@@ -279,6 +280,9 @@ mod tests {
 
         assert_eq!(m.notch(true), [52.0]);
         assert_eq!(m.notch(false), [50.0]);
+        // A sideways scroll moves nothing.
+        let sideways = Event::scroll(100.0, 8.0, 1.0, 0.0, ScrollSource::Wheel);
+        assert_eq!(m.send(sideways), Vec::<f32>::new());
         // A fraction is rounded, to 1 at least.
         step.set(2.6);
         m.step();

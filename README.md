@@ -282,8 +282,9 @@ Its `Variant` (`Neutral`, `Accent`, `Danger`) sets its colour and its `Fill`
 how it rests: `Solid` in the variant's fill (`surface` for a neutral one)
 with the ink on it, `Ghost` clear until hovered, its ink the hue as text.
 `active` turns it on, as a tile: filled with the accent, its ink
-`on_accent`, whatever its variant and fill; a toggle is a button with
-`active`. Hovered, a neutral fill steps to the next surface and a hue
+`on_accent`, whatever its variant and fill; a toggle is a neutral or
+ghost button with `active` (a solid accent one is filled with the accent
+already, and looks the same on and off). Hovered, a neutral fill steps to the next surface and a hue
 brightens; disabled, on or off, it fades and takes no press.
 
 A tag shows and takes no press. Its `Tone` tints it at `tint::STRONG`

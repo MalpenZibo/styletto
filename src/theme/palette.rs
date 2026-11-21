@@ -249,8 +249,6 @@ fn away(text: Color, ground: Color) -> Color {
 /// How finely a colour is searched for.
 const STEPS: u16 = 100;
 
-/// `top` painted over the opaque `below`, the channels mixed as they are
-/// stored, as the renderer blends them.
 /// The alphas of a scheme's tints: a control's resting and hovered fills, a
 /// line, a press's ripple.
 const SURFACE: f32 = 0.065;
@@ -258,6 +256,8 @@ const SURFACE2: f32 = 0.11;
 const LINE: f32 = 0.08;
 const RIPPLE: f32 = 0.16;
 
+/// `top` painted over the opaque `below`, the channels mixed as they are
+/// stored, as the renderer blends them.
 fn over(top: Color, below: Color) -> Color {
     below.mix(top.with_alpha(1.0), top.a)
 }

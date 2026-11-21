@@ -210,6 +210,10 @@ pub fn slider(
         })
         .on_mouse_up(move |_, _| dragging.set(None))
         .on_scroll(move |_, dy, _| {
+            // A sideways scroll moves nothing: `signum` would call it down.
+            if dy == 0.0 {
+                return;
+            }
             // From what is shown: a value past a maximum lowered under it
             // steps down from the maximum.
             let max = max.get_untracked();
