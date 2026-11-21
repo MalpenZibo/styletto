@@ -13,6 +13,7 @@ use crate::foundations::tokens::{opacity, stroke};
 use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::typed;
+use crate::theme::palette::Hue;
 use crate::ui::ui;
 
 /// What a button does, by its colour: anything, the main thing, or what
@@ -23,6 +24,17 @@ pub enum Variant {
     Neutral,
     Accent,
     Danger,
+}
+
+impl Variant {
+    /// Its hue, none while neutral.
+    fn hue(self) -> Option<Hue> {
+        match self {
+            Variant::Neutral => None,
+            Variant::Accent => Some(Hue::Accent),
+            Variant::Danger => Some(Hue::Danger),
+        }
+    }
 }
 
 /// How a button sits at rest.
@@ -49,7 +61,7 @@ pub fn hovered(color: Color) -> Color {
 /// A pill with a label, an icon before it, or only the icon in a circle.
 ///
 /// While `active` it is on, as a tile is: filled with the accent, its
-/// content in `on_accent`, whatever its variant and fill. Disabled, on or
+/// content in `accent.on`, whatever its variant and fill. Disabled, on or
 /// off, it fades and takes no press.
 #[component]
 pub fn button(
@@ -70,25 +82,20 @@ pub fn button(
     let size = size.get_untracked();
     // While off: the fill at rest, hovered, and the ink on both. A neutral
     // fill steps to the next surface, a hue brightens.
-    let off = move || match (fill.get(), variant.get()) {
-        (Fill::Solid, Variant::Neutral) => (c.surface, c.surface2, c.text),
-        (Fill::Solid, Variant::Accent) => (c.accent, hovered(c.accent), c.on_accent),
-        (Fill::Solid, Variant::Danger) => (c.danger, hovered(c.danger), c.on_danger),
-        (Fill::Ghost, variant) => (
+    let off = move || match (fill.get(), variant.get().hue().map(|hue| c.hue(hue))) {
+        (Fill::Solid, None) => (c.surface, c.surface2, c.text),
+        (Fill::Solid, Some(hue)) => (hue.fill, hovered(hue.fill), hue.on),
+        (Fill::Ghost, hue) => (
             Color::TRANSPARENT,
             c.surface,
-            match variant {
-                Variant::Neutral => c.text,
-                Variant::Accent => c.accent_text,
-                Variant::Danger => c.danger_text,
-            },
+            hue.map_or(c.text, |hue| hue.text),
         ),
     };
     let lit = move |on: Color, off: Color| if active.get() { on } else { off };
     pressable(
         sized(label, size)
-            .background((move || lit(c.accent, off().0)).transition(toggling(active)))
-            .when_hovered(move |s| s.background(move || lit(hovered(c.accent), off().1))),
+            .background((move || lit(c.accent.fill, off().0)).transition(toggling(active)))
+            .when_hovered(move |s| s.background(move || lit(hovered(c.accent.fill), off().1))),
         motion::PRESS_SCALE,
     )
     .enabled(enabled)
@@ -97,7 +104,7 @@ pub fn button(
     .children(content(
         label,
         icon,
-        move || lit(c.on_accent, off().2),
+        move || lit(c.accent.on, off().2),
         size,
     ))
 }
@@ -193,7 +200,13 @@ pub fn pill(
 ) -> impl Widget {
     let t = ui();
     let size = Size::Sm;
-    let fill = move |rest: Color| if active.get() { t.colors.accent } else { rest };
+    let fill = move |rest: Color| {
+        if active.get() {
+            t.colors.accent.fill
+        } else {
+            rest
+        }
+    };
     pill_box(size)
         .background((move || fill(Color::TRANSPARENT)).transition(motion::hover()))
         .when_hovered(move |s| s.background(move || fill(t.colors.surface2)))
@@ -230,7 +243,7 @@ pub fn pill_text(
     );
     let shown = move |color: Color| {
         if active.get() {
-            t.colors.on_accent
+            t.colors.accent.on
         } else {
             color
         }

@@ -6,6 +6,7 @@ use std::rc::Rc;
 use guido::prelude::*;
 
 use crate::components::button::{Fill, button};
+use crate::components::tag::Tone;
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
@@ -14,15 +15,6 @@ use crate::foundations::typography::{LABEL_MEDIUM, TITLE_XSMALL, Typeset};
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::{caption, label, overline};
 use crate::ui::ui;
-
-/// What a row's action risks, for the rows to think twice about.
-#[derive(Clone, Copy, Debug, PartialEq, Eq)]
-pub enum Tone {
-    /// It needs care: it can be undone, at a cost.
-    Warning,
-    /// It ends something: a session, a connection, what was saved.
-    Danger,
-}
 
 /// A list row: icon, title, subtitle and a trailing widget, each optional.
 #[component]
@@ -36,21 +28,17 @@ pub fn row(
     /// the trailing widget.
     checked: bool,
     /// Draws the title and the icon in the tone's hue as text, and tints the
-    /// hover and the press with it. The subtitle, the selection and the
-    /// trailing widget keep their colours.
-    tone: Option<Tone>,
+    /// hover and the press with it, as a row whose action needs care
+    /// (`Warning`) or ends something (`Danger`). The subtitle, the
+    /// selection and the trailing widget keep their colours.
+    tone: Tone,
     #[prop(default = true)] enabled: bool,
     #[prop(slot)] trailing: (),
     #[prop(callback)] on_click: (),
 ) -> impl Widget {
     let t = ui();
     let selected = move || selected.get() || checked.get();
-    let hue = move || {
-        tone.get().map(|tone| match tone {
-            Tone::Warning => t.colors.warning_text,
-            Tone::Danger => t.colors.danger_text,
-        })
-    };
+    let hue = move || tone.get().hue().map(|hue| t.colors.hue(hue).text);
     // With a tone, the hover and the ripple are `surface` and `ripple` with
     // the hue in place of their white or black, as faint: a hue is never
     // brighter than white nor darker than black, so the hovered title reads
@@ -104,7 +92,7 @@ pub fn row(
         .child(move || {
             checked
                 .get()
-                .then(|| icons::icon(Icon::Check, icon_box::SMALL.px(), t.colors.accent_text))
+                .then(|| icons::icon(Icon::Check, icon_box::SMALL.px(), t.colors.accent.text))
         })
 }
 

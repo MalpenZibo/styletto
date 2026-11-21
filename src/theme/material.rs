@@ -162,7 +162,7 @@ fn color_of(rgb: Rgb) -> Color {
 #[cfg(all(test, feature = "material"))]
 mod tests {
     use super::*;
-    use crate::theme::palette::TEXT_CONTRAST;
+    use crate::theme::palette::{Hue, HueColors, TEXT_CONTRAST};
 
     const VARIANTS: [Variant; 9] = [
         Variant::TonalSpot,
@@ -181,14 +181,15 @@ mod tests {
         for variant in VARIANTS {
             for contrast in [Contrast::Standard, Contrast::Medium, Contrast::High] {
                 for scheme in schemes(Color::from_hex(0x6750a4), variant, contrast) {
-                    for (fill, color, on) in scheme.palette().fills() {
-                        let ratio = crate::theme::palette::contrast(color, on);
+                    let palette = scheme.palette();
+                    for hue in Hue::ALL {
+                        let HueColors { fill, on, .. } = *palette.hue(hue);
+                        let ratio = crate::theme::palette::contrast(fill, on);
                         assert!(
                             ratio >= TEXT_CONTRAST,
-                            "{variant:?} {contrast:?} {fill}: {ratio:.2}"
+                            "{variant:?} {contrast:?} {hue:?}: {ratio:.2}"
                         );
                     }
-                    let palette = scheme.palette();
                     assert_eq!(
                         palette.unreadable(palette.island),
                         None,

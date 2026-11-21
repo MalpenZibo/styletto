@@ -5,7 +5,7 @@ use guido::prelude::*;
 
 use super::palette::{Fill, Palette, Scheme};
 #[cfg(test)]
-use super::palette::{TEXT_CONTRAST, contrast};
+use super::palette::{Hue, HueColors, TEXT_CONTRAST, contrast};
 
 mod catppuccin;
 mod dracula;
@@ -240,12 +240,12 @@ mod tests {
                 for (index, accent) in flavor.accents.iter().enumerate() {
                     let scheme = flavor.scheme(index);
                     let palette = scheme.palette();
-                    for (role, fill, on) in [
-                        (accent.name, palette.accent, palette.on_accent),
-                        ("success", palette.success, palette.on_success),
-                        ("warning", palette.warning, palette.on_warning),
-                        ("danger", palette.danger, palette.on_danger),
-                    ] {
+                    for hue in Hue::ALL {
+                        let HueColors { fill, on, .. } = *palette.hue(hue);
+                        let role = match hue {
+                            Hue::Accent => accent.name,
+                            hue => hue.name(),
+                        };
                         let ratio = contrast(fill, on);
                         if ratio < worst.0 {
                             worst = (ratio, format!("{} {} {role}", theme.name, flavor.name));
@@ -292,7 +292,7 @@ mod tests {
         assert_eq!(scheme.sub, Color::from_hex(mocha.sub));
         assert_eq!(scheme.dim, Color::from_hex(mocha.dim));
         let palette = scheme.palette();
-        assert_eq!(palette.accent_text, palette.accent);
-        assert_eq!(palette.danger_text, palette.danger);
+        assert_eq!(palette.accent.text, palette.accent.fill);
+        assert_eq!(palette.danger.text, palette.danger.fill);
     }
 }

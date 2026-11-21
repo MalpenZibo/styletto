@@ -39,7 +39,7 @@ pub fn toggle(
         .background(
             (move || {
                 if on.get() {
-                    t.colors.accent
+                    t.colors.accent.fill
                 } else {
                     t.colors.surface2
                 }

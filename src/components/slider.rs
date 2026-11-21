@@ -123,7 +123,7 @@ pub fn slider(
     let filled = container()
         .width(reach.transition(motion::tactile()))
         .height(fill())
-        .background(t.colors.accent);
+        .background(t.colors.accent.fill);
     // A cut through the track in the island's colour: it reads on the empty
     // part as much as the track reads on the island, and on the fill as much
     // as the fill does, in any theme, and stays as quiet as the track.
@@ -176,7 +176,7 @@ pub fn slider(
                         .color(
                             (move || {
                                 if inside.get() {
-                                    t.colors.on_accent
+                                    t.colors.accent.on
                                 } else {
                                     t.colors.sub
                                 }

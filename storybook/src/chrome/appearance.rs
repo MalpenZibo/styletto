@@ -24,7 +24,7 @@ use styletto::foundations::typography::Typeset;
 use styletto::primitives::island as look;
 use styletto::primitives::text::{caption, typed};
 use styletto::theme::material::{self, Contrast};
-use styletto::theme::palette::{Palette, Scheme, parse_hex, to_hex};
+use styletto::theme::palette::{Hue, Palette, Scheme, parse_hex, to_hex};
 use styletto::theme::presets::{Mode, THEMES, ThemeChoice};
 use styletto::ui::{Density, Fonts, Material, Motion, Shape};
 use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
@@ -726,7 +726,7 @@ fn side(a: Appearance, light: bool, custom: bool, generation: RwSignal<u32>) -> 
         .background(t.colors.surface)
         .border(stroke::RING, move || {
             if a.light() == light {
-                t.colors.accent
+                t.colors.accent.fill
             } else {
                 Color::TRANSPARENT
             }
@@ -1052,14 +1052,19 @@ fn texts() -> Container {
 /// density keeps every name on its line.
 fn fills() -> Container {
     let t = ui();
-    let swatch = |(name, color, on): (&'static str, Color, Color)| {
+    let swatch = |hue: Hue| {
+        let colors = t.colors.hue(hue);
         container()
             .width(fill())
             .padding([space::S1.px(), space::S2.px()])
             .corners(radius::SMALL.corners())
-            .background(color)
+            .background(colors.fill)
             .layout(Flex::row().main_alignment(MainAlignment::Center))
-            .child(typed(name, ty::LABEL_SMALL.em()).color(on).nowrap())
+            .child(
+                typed(format!("{hue:?}"), ty::LABEL_SMALL.em())
+                    .color(colors.on)
+                    .nowrap(),
+            )
     };
     let pair = |a: Container, b: Container| {
         container()
@@ -1068,7 +1073,7 @@ fn fills() -> Container {
             .child(a)
             .child(b)
     };
-    let [accent, success, warning, danger] = t.colors.fills().map(swatch);
+    let [accent, success, warning, danger] = Hue::ALL.map(swatch);
     container()
         .width(fill())
         .layout(Flex::column().spacing(space::S1.px()))
@@ -1088,9 +1093,9 @@ fn levels() -> Container {
         .child(
             container().layout(centered_row(space::S2.px())).children(
                 [
-                    (0.64, ui().colors.success),
-                    (0.24, ui().colors.warning),
-                    (0.09, ui().colors.danger),
+                    (0.64, ui().colors.success.fill),
+                    (0.24, ui().colors.warning.fill),
+                    (0.09, ui().colors.danger.fill),
                 ]
                 .map(|(value, color)| ring(value).color(color).size(icon_box::SMALL)),
             ),
@@ -1150,16 +1155,16 @@ mod tests {
         let after = a.colors.get_untracked();
         assert_eq!(after[1].accent.color, parse_hex("#ff0000").unwrap());
         assert_eq!(after[0], before[0], "the dark palette moved");
-        assert_eq!(a.palette().accent, parse_hex("#ff0000").unwrap());
+        assert_eq!(a.palette().accent.fill, parse_hex("#ff0000").unwrap());
         a.choose(|c| c.mode = Mode::Dark);
         h.step();
         assert_eq!(
-            a.palette().accent,
+            a.palette().accent.fill,
             before[0].accent.color,
             "dark mode shows the edit"
         );
         assert_eq!(
-            a.ui().colors.accent,
+            a.ui().colors.accent.fill,
             before[0].accent.color,
             "the ui shows the edit"
         );
@@ -1244,7 +1249,7 @@ mod tests {
             before[0],
             "the dark palette moved on the switch"
         );
-        assert_eq!(a.palette().accent, before[0].accent.color);
+        assert_eq!(a.palette().accent.fill, before[0].accent.color);
     }
 
     #[test]

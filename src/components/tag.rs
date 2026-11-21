@@ -8,6 +8,7 @@ use crate::foundations::control::Size;
 use crate::foundations::motion;
 use crate::foundations::tokens::{glow as spread, tint};
 use crate::primitives::layout::centered_row;
+use crate::theme::palette::Hue;
 use crate::ui::ui;
 
 /// The hue a tag is tinted with.
@@ -23,38 +24,38 @@ pub enum Tone {
 }
 
 impl Tone {
-    /// The hue's fill, none while neutral.
-    fn hue(self) -> Option<Color> {
-        let c = ui().colors;
+    /// Its hue, none while neutral.
+    pub fn hue(self) -> Option<Hue> {
         match self {
             Tone::Neutral => None,
-            Tone::Accent => Some(c.accent),
-            Tone::Success => Some(c.success),
-            Tone::Warning => Some(c.warning),
-            Tone::Danger => Some(c.danger),
+            Tone::Accent => Some(Hue::Accent),
+            Tone::Success => Some(Hue::Success),
+            Tone::Warning => Some(Hue::Warning),
+            Tone::Danger => Some(Hue::Danger),
         }
     }
 
     /// What a tag in this tone is filled with: `surface` while neutral,
     /// else the hue's fill at [`tint::STRONG`].
     pub fn tint(self) -> Color {
+        let c = ui().colors;
         self.hue()
-            .map_or_else(|| ui().colors.surface, |hue| hue.with_alpha(tint::STRONG))
+            .map_or(c.surface, |hue| c.hue(hue).fill.with_alpha(tint::STRONG))
     }
 
     /// The colour for what a tag in this tone holds, its icons and its text:
-    /// `text` while neutral, else the hue as text (`accent_text` and the
-    /// rest), which reads on the tint.
+    /// `text` while neutral, else the hue as text, which reads on the tint.
     pub fn ink(self) -> Color {
         let c = ui().colors;
-        match self {
-            Tone::Neutral => c.text,
-            Tone::Accent => c.accent_text,
-            Tone::Success => c.success_text,
-            Tone::Warning => c.warning_text,
-            Tone::Danger => c.danger_text,
-        }
+        self.hue().map_or(c.text, |hue| c.hue(hue).text)
     }
+}
+
+/// A glow `spread` wide around what lights up in a hue: its fill at
+/// [`tint::MEDIUM`], nothing when there is none.
+pub(crate) fn halo(fill: Option<Color>, spread: f32) -> Shadow {
+    let color = fill.map_or(Color::TRANSPARENT, |fill| fill.with_alpha(tint::MEDIUM));
+    Shadow::new((0.0, 0.0), spread, 0.0, color)
 }
 
 /// A pill holding its children in a centred row, tinted by its tone. It
@@ -71,17 +72,15 @@ pub fn tag(
     glow: bool,
     #[prop(children)] children: (),
 ) -> impl Widget {
+    let c = ui().colors;
     let size = size.get_untracked();
-    let halo = move || match tone.get().hue() {
-        Some(hue) if glow.get() => hue.with_alpha(tint::MEDIUM),
-        _ => Color::TRANSPARENT,
+    let lit = move || {
+        let hue = tone.get().hue().filter(|_| glow.get());
+        hue.map(|hue| c.hue(hue).fill)
     };
     pill_box(size)
         .background((move || tone.get().tint()).transition(motion::color()))
-        .shadow(
-            (move || Shadow::new((0.0, 0.0), spread::SMALL, 0.0, halo()))
-                .transition(motion::color()),
-        )
+        .shadow((move || halo(lit(), spread::SMALL)).transition(motion::color()))
         .layout(centered_row(size.gap()))
         .children(children)
 }

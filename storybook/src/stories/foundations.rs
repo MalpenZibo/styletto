@@ -11,6 +11,7 @@ use styletto::foundations::tokens::{radius, size, stroke};
 use styletto::foundations::typography as ty;
 use styletto::primitives::island;
 use styletto::primitives::text::{caption, typed};
+use styletto::theme::palette::Hue;
 use styletto::{Icon, centered_row, icon, provide_ui, ui};
 
 use super::{ICON_SIZES, ICON_STEPS};
@@ -20,7 +21,6 @@ use crate::stories::story::Ctx;
 /// reads on it, and each hue as text on the island.
 pub fn colors(_: &Ctx) -> Container {
     let c = ui().colors;
-    let texts = [c.accent_text, c.success_text, c.warning_text, c.danger_text];
     container()
         .layout(Flex::column().spacing(size::S6.px()))
         .child(grid(
@@ -42,21 +42,24 @@ pub fn colors(_: &Ctx) -> Container {
         .child(
             container()
                 .layout(centered_row(size::S3.px()))
-                .children(c.fills().into_iter().map(|(name, fill, on)| {
+                .children(Hue::ALL.map(|hue| {
+                    let colors = c.hue(hue);
                     container()
                         .padding([size::S2.px(), size::S4.px()])
                         .corners(radius::SMALL.corners())
-                        .background(fill)
-                        .child(typed(name, ty::LABEL_MEDIUM.em()).color(on))
+                        .background(colors.fill)
+                        .child(typed(format!("{hue:?}"), ty::LABEL_MEDIUM.em()).color(colors.on))
                 })),
         )
-        .child(container().layout(centered_row(size::S3.px())).children(
-            c.fills().into_iter().zip(texts).map(|((name, _, _), ink)| {
-                container()
-                    .padding([size::S2.px(), size::S4.px()])
-                    .child(typed(name, ty::LABEL_MEDIUM.em()).color(ink))
-            }),
-        ))
+        .child(
+            container()
+                .layout(centered_row(size::S3.px()))
+                .children(Hue::ALL.map(|hue| {
+                    container().padding([size::S2.px(), size::S4.px()]).child(
+                        typed(format!("{hue:?}"), ty::LABEL_MEDIUM.em()).color(c.hue(hue).text),
+                    )
+                })),
+        )
 }
 
 const CATEGORIES: &[&str] = &["Display", "Title", "Label", "Body", "Micro", "Mono"];
@@ -171,7 +174,7 @@ pub fn scale(_: &Ctx) -> Container {
                         .width(step)
                         .height(size::S3.px())
                         .corners(radius::XSMALL.corners())
-                        .background(t.colors.accent),
+                        .background(t.colors.accent.fill),
                 )
         }))
 }
@@ -240,11 +243,11 @@ pub fn controls(_: &Ctx) -> Container {
                 .child(
                     tag()
                         .size(control)
-                        .child(icon(Icon::Download, control.icon(), t.colors.accent_text))
+                        .child(icon(Icon::Download, control.icon(), t.colors.accent.text))
                         .child(
                             typed("12", control.label().em())
                                 .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-                                .color(t.colors.accent_text)
+                                .color(t.colors.accent.text)
                                 .nowrap(),
                         ),
                 )
@@ -257,7 +260,7 @@ pub fn icons(ctx: &Ctx) -> Container {
     let t = ui();
     let color = move || {
         if colored.get() {
-            t.colors.accent_text
+            t.colors.accent.text
         } else {
             t.colors.text
         }

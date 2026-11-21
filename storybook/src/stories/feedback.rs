@@ -25,9 +25,9 @@ pub fn progress(ctx: &Ctx) -> Container {
     let t = ui();
     let fraction = move || value.get() / 100.0;
     let color = move || match value.get() {
-        v if v <= 15.0 => t.colors.danger,
-        v if v <= 30.0 => t.colors.warning,
-        _ => t.colors.accent,
+        v if v <= 15.0 => t.colors.danger.fill,
+        v if v <= 30.0 => t.colors.warning.fill,
+        _ => t.colors.accent.fill,
     };
     container()
         .layout(
@@ -114,7 +114,7 @@ pub fn rolling(ctx: &Ctx) -> Container {
         .child(
             roll::rolling(move || format!("{:.0}%", value.get()))
                 .look(ty::DISPLAY_XSMALL.em())
-                .color(t.colors.accent_text),
+                .color(t.colors.accent.text),
         )
 }
 
@@ -233,9 +233,9 @@ pub fn badges(ctx: &Ctx) -> Container {
             MARK,
             dot(move || {
                 if urgent.get() {
-                    t.colors.danger
+                    t.colors.danger.fill
                 } else {
-                    t.colors.accent
+                    t.colors.accent.fill
                 }
             }),
         ))
@@ -256,7 +256,7 @@ pub fn badges(ctx: &Ctx) -> Container {
         .child(labelled(
             "alert",
             MARK,
-            icon_tile(Icon::Battery, t.colors.danger_text),
+            icon_tile(Icon::Battery, t.colors.danger.text),
         ))
         .child(labelled("initial", MARK, initial(name)))
         .child(labelled(
@@ -264,7 +264,7 @@ pub fn badges(ctx: &Ctx) -> Container {
             MARK,
             spinning(Icon::Refresh)
                 .size(icon_box::MEDIUM)
-                .color(t.colors.accent_text),
+                .color(t.colors.accent.text),
         ))
 }
 
@@ -398,7 +398,7 @@ pub fn pictures(ctx: &Ctx) -> Container {
                 artwork()
                     .source(found.get().then(|| svg(COVER_SVG)))
                     .size(size)
-                    .fallback(app_icon(Icon::Music, t.colors.accent).size(size))
+                    .fallback(app_icon(Icon::Music, t.colors.accent.fill).size(size))
             }),
         ))
 }

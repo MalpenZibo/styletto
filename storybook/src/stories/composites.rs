@@ -3,10 +3,11 @@ use styletto::components::button::{Fill, button};
 use styletto::components::card::{level_figure, stat_card};
 use styletto::components::level::Level;
 use styletto::components::list::{
-    Tone, back, empty, page_header, pages, row, scroll_list, section, separator,
+    back, empty, page_header, pages, row, scroll_list, section, separator,
 };
 use styletto::components::notification::{app_icon, notification, notification_group};
 use styletto::components::slider::slider_row;
+use styletto::components::tag::Tone;
 use styletto::components::tile::{small_tile, tile};
 use styletto::components::toggle::toggle;
 use styletto::foundations::control::Size;
@@ -276,7 +277,7 @@ const TONES: &[&str] = &["None", "Warning", "Danger"];
 pub fn power_menu(ctx: &Ctx) -> Container {
     let tone = ctx.choice("Tone", TONES, 2);
     let chosen = ctx.action_with::<&'static str>("power");
-    let tone = move || [None, Some(Tone::Warning), Some(Tone::Danger)][tone.get()];
+    let tone = move || [Tone::Neutral, Tone::Warning, Tone::Danger][tone.get()];
     let item = |name: &'static str, kind: Icon| {
         let chosen = chosen.clone();
         row(name).icon(kind).on_click(move || chosen(name))
@@ -352,7 +353,7 @@ pub fn notifications(ctx: &Ctx) -> Container {
             notification_group("Messages")
                 .count(2usize)
                 .folded(folded)
-                .lead(app_icon(Icon::Bell, t.colors.accent).size(tile::XSMALL))
+                .lead(app_icon(Icon::Bell, t.colors.accent.fill).size(tile::XSMALL))
                 .on_toggle(move || folded.set(!folded.get_untracked()))
                 .child(first)
                 .child(
@@ -367,7 +368,7 @@ pub fn notifications(ctx: &Ctx) -> Container {
                 .body("8% left. Plug in the charger.")
                 .time("now")
                 .urgent(urgent)
-                .lead(app_icon(Icon::Battery, t.colors.danger))
+                .lead(app_icon(Icon::Battery, t.colors.danger.fill))
                 .on_dismiss(move || dismissed("battery")),
         )
 }

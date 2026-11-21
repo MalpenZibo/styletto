@@ -235,7 +235,6 @@ mod tests {
     use guido::prelude::Color;
 
     use super::*;
-    use crate::theme::palette::Palette;
 
     fn config(toml: &str) -> UiConfig {
         toml::from_str(toml).unwrap()
@@ -291,13 +290,11 @@ mod tests {
         let palette = light.palette();
         // Set by hand, it stays as given even where it doesn't read.
         assert_eq!(light.danger.text, Some(Color::from_hex(0xff8080)));
-        assert_eq!(palette.danger_text, Color::from_hex(0xff8080));
+        assert_eq!(palette.danger.text, Color::from_hex(0xff8080));
         // Left to the source, it is the new fill darkened until it reads.
-        assert_ne!(palette.warning_text, palette.warning);
-        let reading = Palette {
-            danger_text: palette.text,
-            ..palette
-        };
+        assert_ne!(palette.warning.text, palette.warning.fill);
+        let mut reading = palette;
+        reading.danger.text = palette.text;
         assert_eq!(reading.unreadable(palette.island), None);
         // A text tone of the source's own follows a fill set over it.
         let mut source = UiConfig::default().scheme(true);
