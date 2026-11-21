@@ -98,9 +98,25 @@ or a circle is round (`radius::pill(height)`). A box around another takes
 `radius::around(inner, padding)`, so the curves stay concentric.
 
 Fixed values: `stroke::HAIRLINE` 1, `RING` 1.5, `BOLD` 2, `HEAVY` 3;
-`opacity::DISABLED` 0.4, `RING` 0.7 (a field's ring in the accent);
-`glow::SMALL` 4, `MEDIUM` 8; `scrollbar::WIDTH` 4, `HOVER_WIDTH` 8,
-`MARGIN` 2, `MIN_HANDLE` 24, the same in every density.
+`opacity::DISABLED` 0.4, `RING` 0.7 (a field's ring in the accent),
+`STACKED` 0.6 (a share of `surface`'s alpha, for the edge below a folded
+group of notifications), `HALO` 0.5 (a share of the glow's alpha, for the
+island's halo); `glow::SMALL` 4, `MEDIUM` 8, `LARGE` 16 (the island's
+halo); `scrollbar::WIDTH` 4, `HOVER_WIDTH` 8, `MARGIN` 2,
+`MIN_HANDLE` 24, the same in every density.
+
+A fill lights up by a `lift` step. Under the pointer, an opaque one moves
+`HOVER` 0.12 toward white and a translucent one gains `HOVER_ALPHA` 0.06 of
+alpha. An app icon's tile runs from `SHEEN` 0.15 lighter than its colour to
+as much darker.
+
+A `shade` step is the alpha of the black (`palette::SHADE`) that sinks a
+box into a fill, as the box behind an active quick tile's icon: `REST`
+0.13, `HOVER` 0.2.
+
+The island's `shadow` is that black at `ALPHA` 0.3, `DROP` 4 below it,
+blurred by `BLUR` 12. Around a state worth seeing its halo starts
+`HALO_INSET` 4 inside the edge.
 
 A hue tints what it fills or lights at a `tint` step, the alpha of its fill
 over the island: `SUBTLE` 0.12 a card's wash while it warns or does well,
@@ -155,7 +171,9 @@ the colour `on` it and its `text`; `palette.hue(Hue::Danger)` reads one by
 its `Hue` (`Scheme::fill(hue)` its theme's colours), `Hue::ALL` lists the
 four and `hue.name()` names one. `palette.ink(hue)` is the hue as text, or
 `text` without one (`None`), what a component toned or left neutral writes
-in.
+in. Three colours are the same in every theme: `palette::KNOB`, a switch's
+knob, and `palette::ON_APP`, an app's icon on its own colour, both white;
+and `palette::SHADE`, the black of a shadow or of a box sunk into a fill.
 
 A hue's `fill` is what paints a surface, a bar, a ring or a border; `on` is
 the text on that fill; `text` is the hue as text or an icon on the island,

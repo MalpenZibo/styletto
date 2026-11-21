@@ -7,9 +7,10 @@ use crate::components::button::{hovered, pressable, toggled};
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
-use crate::foundations::tokens::{radius, size};
+use crate::foundations::tokens::{radius, shade, size};
 use crate::foundations::typography::{LABEL_MEDIUM, LABEL_SMALL, Typeset};
 use crate::primitives::layout::centered_row;
+use crate::theme::palette;
 use crate::ui::{active_fill, active_ink, flip, ui};
 
 fn icon_box() -> f32 {
@@ -71,14 +72,14 @@ pub fn tile(
 
     let rest = move || {
         if active.get() {
-            Color::BLACK.with_alpha(0.13)
+            palette::SHADE.with_alpha(shade::REST)
         } else {
             t.colors.surface2
         }
     };
     let lifted = move || {
         if active.get() {
-            Color::BLACK.with_alpha(0.2)
+            palette::SHADE.with_alpha(shade::HOVER)
         } else {
             hovered(t.colors.surface2)
         }

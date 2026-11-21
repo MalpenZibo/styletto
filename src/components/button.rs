@@ -7,7 +7,7 @@ use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
 use crate::foundations::tokens::radius;
-use crate::foundations::tokens::{opacity, stroke};
+use crate::foundations::tokens::{lift, opacity, stroke};
 use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::typed;
@@ -50,9 +50,9 @@ pub enum Fill {
 /// A fill one step brighter: more opaque if translucent, else lighter.
 pub fn hovered(color: Color) -> Color {
     if color.a < 1.0 {
-        color.with_alpha((color.a + 0.06).min(1.0))
+        color.with_alpha((color.a + lift::HOVER_ALPHA).min(1.0))
     } else {
-        color.lighter(0.12)
+        color.lighter(lift::HOVER)
     }
 }
 
