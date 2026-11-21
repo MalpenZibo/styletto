@@ -4,7 +4,7 @@
 use guido::prelude::*;
 
 #[cfg(test)]
-use super::palette::{Hue, HueColors, TEXT_CONTRAST, contrast};
+use super::palette::{BODY_CONTRAST, Hue, HueColors, TEXT_CONTRAST, contrast};
 use super::palette::{Palette, Scheme, SchemeHue};
 
 mod catppuccin;
@@ -264,21 +264,36 @@ mod tests {
 
     #[test]
     fn every_text_reads() {
-        // The text, and every hue as text with each of the accents.
+        // The text, and every hue as text with each of the accents; and the
+        // text at 7:1 on the island.
         for theme in THEMES {
             for flavor in theme.flavors {
                 for (index, accent) in flavor.accents.iter().enumerate() {
                     let palette = flavor.scheme(index).palette();
-                    assert_eq!(
-                        palette.unreadable(palette.island),
-                        None,
-                        "{} {} {}",
-                        theme.name,
-                        flavor.name,
-                        accent.name
-                    );
+                    let name = format!("{} {} {}", theme.name, flavor.name, accent.name);
+                    assert_eq!(palette.unreadable(palette.island), None, "{name}");
+                    let body = contrast(palette.text, palette.island);
+                    assert!(body >= BODY_CONTRAST, "{name}: text at {body:.2}");
                 }
             }
+        }
+    }
+
+    #[test]
+    fn a_light_theme_keeps_two_levels_of_text() {
+        // Their own text only just read: held to 7:1, it leaves `sub` room
+        // to be lighter than it.
+        for (theme, flavor) in [(TOKYO_NIGHT, "Day"), (EVERFOREST, "Light")] {
+            let flavor = theme.flavors.iter().find(|f| f.name == flavor).unwrap();
+            let scheme = flavor.scheme(flavor.accent);
+            // A level apart: `text` reads at least 1:1 more on the island.
+            let [text, sub] = [scheme.text, scheme.sub].map(|ink| contrast(ink, scheme.background));
+            assert!(
+                text >= sub + 1.0,
+                "{} {}: {text:.2} and {sub:.2}",
+                theme.name,
+                flavor.name
+            );
         }
     }
 

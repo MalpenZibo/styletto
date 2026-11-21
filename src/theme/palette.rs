@@ -55,10 +55,15 @@ impl SchemeHue {
 /// The contrast a text keeps on everything it can sit on: WCAG's AA for
 /// body text.
 pub(crate) const TEXT_CONTRAST: f32 = 4.5;
+/// The contrast `text` keeps on the island besides: WCAG's AAA for body
+/// text. At 4.5:1 a light theme's text only just reads, and leaves `sub`
+/// no room to be a second, lighter level.
+pub(crate) const BODY_CONTRAST: f32 = 7.0;
 /// The contrast `dim` keeps: WCAG's floor for large text and for what is not
 /// text, which is all `dim` carries, and of a control, as a switch's knob.
 pub(crate) const DIM_CONTRAST: f32 = 3.0;
-/// What `text`, `sub` and `dim` reach, in that order.
+/// What `text`, `sub` and `dim` reach on all of a text's grounds, in that
+/// order; `text` reaches [`BODY_CONTRAST`] on a solid island besides.
 const FLOORS: [f32; 3] = [TEXT_CONTRAST, TEXT_CONTRAST, DIM_CONTRAST];
 /// The contrast a hue's text keeps on a see-through island, whatever shows
 /// through: `dim`'s. 4.5:1 there would turn the hues of a dark theme to
@@ -299,7 +304,8 @@ pub(crate) fn over(top: Color, below: Color) -> Color {
 
 /// `text`, `sub` and `dim` reaching their `floors` on all of `grounds`:
 /// `text` mixed toward `extreme`, the others toward `text`, each as little
-/// as gets it there.
+/// as gets it there. What a see-through island does to its text: with
+/// black or white showing through, the text goes the same way.
 fn lifted(
     [text, sub, dim]: [Color; 3],
     extreme: Color,
@@ -329,7 +335,12 @@ fn lift(ink: Color, toward: Color, grounds: [Color; 3], floor: f32) -> Color {
 /// white would grey the hue: in Oklab the lightness moves alone, and the
 /// hue looks the same all the way.
 fn shade(ink: Color, toward: Color, grounds: [Color; 3], floor: f32) -> Color {
-    if lowest(ink, grounds) >= floor {
+    shade_until(ink, toward, |shaded| lowest(shaded, grounds) >= floor)
+}
+
+/// [`shade`], as little as makes `reads` true.
+fn shade_until(ink: Color, toward: Color, reads: impl Fn(Color) -> bool) -> Color {
+    if reads(ink) {
         return ink;
     }
     let [from, a, b] = oklab(ink);
@@ -337,7 +348,7 @@ fn shade(ink: Color, toward: Color, grounds: [Color; 3], floor: f32) -> Color {
     (1..=STEPS)
         .map(|step| from + (to - from) * step as f32 / STEPS as f32)
         .map(|lightness| in_gamut(lightness, a, b).with_alpha(ink.a))
-        .find(|&shaded| lowest(shaded, grounds) >= floor)
+        .find(|&shaded| reads(shaded))
         .unwrap_or(toward)
 }
 
@@ -475,8 +486,9 @@ impl Scheme {
     }
 
     /// The scheme with `text` and `sub` reaching 4.5:1 and `dim` 3:1 on the
-    /// island and a control's fills. A colour short of it is mixed toward
-    /// `text`, and `text` toward black or white, as little as gets it there.
+    /// island and a control's fills, and `text` 7:1 on the island. A colour
+    /// short of it is mixed toward `text`, and `text` moved in lightness
+    /// toward black or white, its hue kept, as little as gets it there.
     /// A theme's own colours are kept where they already read; a hue's
     /// text that doesn't is left to be worked out from its fill.
     pub fn readable(self) -> Self {
@@ -488,19 +500,21 @@ impl Scheme {
     /// follows its fill when the fill is kept: it is worked out again.
     pub(crate) fn readable_but(self, kept: impl Fn(&str) -> bool) -> Self {
         let grounds = self.grounds();
-        let floors = [0, 1, 2].map(|i| {
-            if kept(["text", "sub", "dim"][i]) {
-                0.0
-            } else {
-                FLOORS[i]
-            }
-        });
-        let [text, sub, dim] = lifted(
-            [self.text, self.sub, self.dim],
-            away(self.text, self.background),
-            grounds,
-            floors,
-        );
+        let floor = |name, floor| if kept(name) { 0.0 } else { floor };
+        // `text` is shaded, not mixed toward black or white: it keeps its
+        // hue, as a hue's text does, where mixing would grey it. On a
+        // background where not even black or white reaches 7:1 it becomes
+        // that, the nearest it can come.
+        let text = if kept("text") {
+            self.text
+        } else {
+            shade_until(self.text, away(self.text, self.background), |text| {
+                contrast(text, grounds[0]) >= BODY_CONTRAST
+                    && lowest(text, grounds) >= TEXT_CONTRAST
+            })
+        };
+        let sub = lift(self.sub, text, grounds, floor("sub", FLOORS[1]));
+        let dim = lift(self.dim, text, grounds, floor("dim", FLOORS[2]));
         let mut scheme = Self {
             text,
             sub,

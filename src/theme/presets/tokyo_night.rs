@@ -82,8 +82,14 @@ pub const TOKYO_NIGHT: Theme = Theme {
             name: "Day",
             light: true,
             island: 0xe1e2e7,
-            text: 0x3760bf,
-            sub: 0x6172b0,
+            // Day's own foreground, a medium blue, only just reads as body
+            // text: the text is Tokyo Night Light's, the VS Code theme's
+            // "Editor Foreground" (its README's palette, enkia/
+            // tokyo-night-vscode-theme), and Day's blue is the second level,
+            // darkened toward the text as far as it must to read on a
+            // control's fills.
+            text: 0x343b58,
+            sub: 0x3760bf,
             dim: 0x68709a,
             success: 0x587539,
             warning: 0x8c6c3e,

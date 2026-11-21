@@ -191,19 +191,28 @@ kept (as far as sRGB holds them), just as far as it must to read: a fill
 that already reads is its own text, and a pale one turns deeper, not grey.
 
 `text` is body text and `sub` secondary text (captions, placeholders, small
-labels): both reach 4.5:1 on the island and on `surface` and `surface2`.
-`dim` is for icons, dividers and large text, never small text, and reaches
-3:1. A preset takes these from the theme's own colours for text, not from
-its borders or overlays; where none reads well enough, `Scheme::readable`
-mixes the nearest toward `text` until it does, and does the same for a theme
-from a seed. Colours set in `[appearance.dark]` and `[appearance.light]` are
+labels): both reach 4.5:1 on the island and on `surface` and `surface2`,
+and `text` 7:1 on the island besides (WCAG's AAA), so that it reads at a
+glance and leaves `sub` room to be a second, lighter level. `dim` is for
+icons, dividers and large text, never small text, and reaches 3:1. A preset
+takes these from the theme's own colours for text, not from its borders or
+overlays, and a darker text tone the theme declares where its own only just
+reads: Tokyo Night Day's text is Tokyo Night Light's foreground, and Day's
+blue its `sub`; Kanagawa Lotus's is its darker ink, `lotusInk2`. Where none
+reads well enough, `Scheme::readable` works one out, and does the same for a
+theme from a seed: `text` moved in lightness, in Oklab, keeping its hue as a
+hue's text does, `sub` and `dim` mixed toward `text`, each as little as
+gets it there (Day's blue is darkened a little so). On a background where
+not even black or white reaches 7:1, `text` goes all the way to the one it
+moves toward. Colours set in `[appearance.dark]` and `[appearance.light]` are
 used as given, and the text they leave to the source is made to read again
 on a `background` set there; a hue's text left to the source follows its
 fill.
 
 On a see-through island the text is adjusted again: `Ui::colors` holds it
 as dark or as light as it must be to read with the island's opposite showing
-through, black behind a light island or white behind a dark one. Each hue's
+through, black behind a light island or white behind a dark one, to the
+4.5:1 of every ground there, not to the 7:1 it has on a solid one. Each hue's
 `text` is moved the same way, in lightness only, but to 3:1, the floor
 `dim` has (WCAG's for icons and large text), not 4.5:1: with white behind
 dark glass, a hue that reads at 4.5:1 is so light it is all but white, as
