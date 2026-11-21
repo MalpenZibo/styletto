@@ -29,10 +29,11 @@ impl Hue {
     }
 }
 
-/// A colour a surface can be painted with, the one that reads on it, and
-/// its hue as text.
+/// A hue as a [`Scheme`] sets it: the colour a surface can be painted
+/// with, the one that reads on it, and the hue as text. The [`Palette`]
+/// holds what is drawn of it, as [`HueColors`].
 #[derive(Clone, Copy, Debug, PartialEq)]
-pub struct Fill {
+pub struct SchemeHue {
     pub color: Color,
     /// Derived by [`Scheme::on`] when `None`.
     pub on: Option<Color>,
@@ -41,7 +42,7 @@ pub struct Fill {
     pub text: Option<Color>,
 }
 
-impl Fill {
+impl SchemeHue {
     pub const fn new(color: Color) -> Self {
         Self {
             color,
@@ -75,10 +76,10 @@ pub struct Scheme {
     pub sub: Color,
     /// Icons, dividers and large text; never small text.
     pub dim: Color,
-    pub accent: Fill,
-    pub success: Fill,
-    pub warning: Fill,
-    pub danger: Fill,
+    pub accent: SchemeHue,
+    pub success: SchemeHue,
+    pub warning: SchemeHue,
+    pub danger: SchemeHue,
 }
 
 /// A hue's colours in the [`Palette`].
@@ -442,7 +443,7 @@ impl Scheme {
 
     /// The colour that reads on `fill`: the background or the text if one
     /// reaches 4.5:1, else the best of them, black and white.
-    pub fn on(&self, fill: Fill) -> Color {
+    pub fn on(&self, fill: SchemeHue) -> Color {
         let best = |candidates: &[Color]| {
             candidates
                 .iter()
@@ -495,7 +496,7 @@ impl Scheme {
         };
         for hue in Hue::ALL {
             let fill = scheme.fill_mut(hue);
-            let follows = !kept(&format!("{} text", hue.name()))
+            let follows = !kept(&format!("{}_text", hue.name()))
                 && (kept(hue.name())
                     || fill
                         .text
@@ -507,8 +508,8 @@ impl Scheme {
         scheme
     }
 
-    /// The fill of `hue`.
-    pub fn fill(&self, hue: Hue) -> &Fill {
+    /// What the scheme sets for `hue`.
+    pub fn fill(&self, hue: Hue) -> &SchemeHue {
         match hue {
             Hue::Accent => &self.accent,
             Hue::Success => &self.success,
@@ -517,7 +518,7 @@ impl Scheme {
         }
     }
 
-    fn fill_mut(&mut self, hue: Hue) -> &mut Fill {
+    fn fill_mut(&mut self, hue: Hue) -> &mut SchemeHue {
         match hue {
             Hue::Accent => &mut self.accent,
             Hue::Success => &mut self.success,
@@ -528,7 +529,7 @@ impl Scheme {
 
     /// The hue of `fill` as text on `grounds`: its own if set, else its
     /// colour shaded until it reads.
-    fn text_of(&self, fill: Fill, grounds: [Color; 3]) -> Color {
+    fn text_of(&self, fill: SchemeHue, grounds: [Color; 3]) -> Color {
         fill.text.unwrap_or_else(|| {
             shade(
                 fill.color,
@@ -587,7 +588,9 @@ impl Scheme {
     }
 
     /// Every colour by name; an on-colour or a hue's text may be unset.
-    /// A hue's as `accent`, `on accent` and `accent text`.
+    /// A hue's as `accent`, `on_accent` and `accent_text`: the names of a
+    /// config file's `[appearance.dark]` and `[appearance.light]`, and of
+    /// [`Palette::named`], where `background` is drawn as `island`.
     pub fn named(&self) -> [(&'static str, Option<Color>); 16] {
         let [a, s, w, d] = [self.accent, self.success, self.warning, self.danger];
         [
@@ -596,22 +599,22 @@ impl Scheme {
             ("sub", Some(self.sub)),
             ("dim", Some(self.dim)),
             ("accent", Some(a.color)),
-            ("on accent", a.on),
-            ("accent text", a.text),
+            ("on_accent", a.on),
+            ("accent_text", a.text),
             ("success", Some(s.color)),
-            ("on success", s.on),
-            ("success text", s.text),
+            ("on_success", s.on),
+            ("success_text", s.text),
             ("warning", Some(w.color)),
-            ("on warning", w.on),
-            ("warning text", w.text),
+            ("on_warning", w.on),
+            ("warning_text", w.text),
             ("danger", Some(d.color)),
-            ("on danger", d.on),
-            ("danger text", d.text),
+            ("on_danger", d.on),
+            ("danger_text", d.text),
         ]
     }
 
-    /// Sets `name` to `color`. A fill's own colour can't be unset; an unknown
-    /// name changes nothing.
+    /// Sets `name`, one of [`named`](Self::named)'s, to `color`. A hue's own
+    /// colour can't be unset; an unknown name changes nothing.
     pub fn with(mut self, name: &str, color: Option<Color>) -> Self {
         let solid = |slot: &mut Color| {
             if let Some(color) = color {
@@ -624,17 +627,17 @@ impl Scheme {
             "sub" => solid(&mut self.sub),
             "dim" => solid(&mut self.dim),
             "accent" => solid(&mut self.accent.color),
-            "on accent" => self.accent.on = color,
-            "accent text" => self.accent.text = color,
+            "on_accent" => self.accent.on = color,
+            "accent_text" => self.accent.text = color,
             "success" => solid(&mut self.success.color),
-            "on success" => self.success.on = color,
-            "success text" => self.success.text = color,
+            "on_success" => self.success.on = color,
+            "success_text" => self.success.text = color,
             "warning" => solid(&mut self.warning.color),
-            "on warning" => self.warning.on = color,
-            "warning text" => self.warning.text = color,
+            "on_warning" => self.warning.on = color,
+            "warning_text" => self.warning.text = color,
             "danger" => solid(&mut self.danger.color),
-            "on danger" => self.danger.on = color,
-            "danger text" => self.danger.text = color,
+            "on_danger" => self.danger.on = color,
+            "danger_text" => self.danger.text = color,
             _ => {}
         }
         self
@@ -668,6 +671,21 @@ mod tests {
     use super::*;
     use crate::theme::presets::THEMES;
     use crate::ui::{Material, Ui};
+
+    #[test]
+    fn every_name_sets_the_colour_it_names() {
+        // Each colour set by its name reads back under that name, and moves
+        // no other: a name `with` misses would be silently ignored.
+        let scheme = Scheme::default();
+        let new = Color::from_hex(0x123456);
+        for (name, _) in scheme.named() {
+            let set = scheme.with(name, Some(new)).named();
+            for ((other, before), (_, after)) in scheme.named().into_iter().zip(set) {
+                let want = if other == name { Some(new) } else { before };
+                assert_eq!(after, want, "{name} set {other}");
+            }
+        }
+    }
 
     #[test]
     fn a_hue_as_text_keeps_its_hue() {

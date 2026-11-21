@@ -13,8 +13,8 @@ use crate::theme::palette::{Scheme, parse_hex};
 use crate::theme::presets::{Mode, Side, THEMES, Theme, ThemeChoice};
 use crate::ui::{Density, Fonts, Material, Motion, Shape, Ui};
 
-/// Colours by [`Scheme::named`] name, `_` for a space ("on_accent"), as
-/// `#rrggbb` or `#rrggbbaa`.
+/// Colours by [`Scheme::named`] name ("on_accent"), as `#rrggbb` or
+/// `#rrggbbaa`.
 pub type Colors = BTreeMap<String, String>;
 
 /// The source of the colours is one of `theme`, `seed` and `wallpaper`: the
@@ -210,7 +210,7 @@ fn set(scheme: &mut Scheme, colors: &Colors, side: &str) {
     }
     let mut kept = Vec::new();
     for (name, hex) in colors {
-        let name = name.trim().to_lowercase().replace('_', " ");
+        let name = name.trim().to_lowercase();
         if !scheme.named().iter().any(|(known, _)| *known == name) {
             log::warn!("appearance.{side}: no colour {name:?}");
             continue;

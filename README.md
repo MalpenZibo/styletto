@@ -141,10 +141,12 @@ are the common ones, already coloured.
 
 ## Colours
 
-A theme sets a `Scheme`: `background`, `text`, `sub`, `dim`, and four fills
-(`accent`, `success`, `warning`, `danger`), each with the colour that reads
-on it and its hue as text. An on-colour left unset is worked out to reach a
-4.5:1 contrast.
+A theme sets a `Scheme`: `background`, `text`, `sub`, `dim`, and four hues
+(`accent`, `success`, `warning`, `danger`), each a `SchemeHue`: its fill
+`color`, the colour that reads `on` it and its `text`. An on-colour left
+unset is worked out to reach a 4.5:1 contrast. `Scheme::named()` lists its
+colours by the names of the config file (`background`, `on_accent`,
+`accent_text`, ...) and `Scheme::with(name, colour)` sets one by that name.
 
 Components read the `Palette` derived from it: `island`, `surface`,
 `surface2`, `line`, `text`, `sub`, `dim`, the four hues `accent`, `success`,
@@ -221,8 +223,9 @@ motion = "full"          # reduced, none
 sans = "Inter"
 mono = "JetBrains Mono"
 
-# Any colour of either side, set over the source; "_" for a space. A hue's
-# are its name, on_ before it and _text after it: danger, on_danger, danger_text.
+# Any colour of either side, by its Scheme::named() name, set over the source.
+# A hue's are its name, on_ before it and _text after it: danger, on_danger,
+# danger_text.
 [appearance.dark]
 accent = "#ff79c6"
 on_accent = "#1a1b26"

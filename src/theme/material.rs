@@ -27,7 +27,7 @@ use material_colors::quantize::{Quantizer, QuantizerCelebi};
 use material_colors::score::Score;
 
 #[cfg(feature = "material")]
-use crate::theme::palette::{Fill, Scheme};
+use crate::theme::palette::{Scheme, SchemeHue};
 
 /// How the scheme spreads the seed over its roles.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -88,7 +88,7 @@ pub fn schemes(seed: Color, variant: Variant, contrast: Contrast) -> [Scheme; 2]
 #[cfg(feature = "material")]
 fn scheme(seed: Rgb, variant: Variant, contrast: Contrast, light: bool) -> Scheme {
     let m = DynamicScheme::by_variant(seed, &mcu(variant), !light, Some(contrast.level()));
-    let paired = |color: Rgb, on: Rgb| Fill {
+    let paired = |color: Rgb, on: Rgb| SchemeHue {
         color: color_of(color),
         on: Some(color_of(on)),
         text: None,
