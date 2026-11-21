@@ -303,7 +303,9 @@ pub(crate) fn over(top: Color, below: Color) -> Color {
 
 /// `text`, `sub` and `dim` reaching their `floors` on all of `grounds`:
 /// `text` mixed toward `extreme`, the others toward `text`, each as little
-/// as gets it there.
+/// as gets it there. Only a see-through island's text is moved so, as it
+/// always was; a scheme's is shaded instead, keeping its hue
+/// ([`Scheme::readable`]).
 fn lifted(
     [text, sub, dim]: [Color; 3],
     extreme: Color,
@@ -498,22 +500,19 @@ impl Scheme {
     /// follows its fill when the fill is kept: it is worked out again.
     pub(crate) fn readable_but(self, kept: impl Fn(&str) -> bool) -> Self {
         let grounds = self.grounds();
-        let floor = |i: usize| {
-            if kept(["text", "sub", "dim"][i]) {
-                0.0
-            } else {
-                FLOORS[i]
-            }
-        };
+        let floor = |name, floor| if kept(name) { 0.0 } else { floor };
         // `text` is shaded, not mixed toward black or white: it keeps its
         // hue, as a hue's text does, where mixing would grey it.
-        let text = shade_until(self.text, away(self.text, self.background), |text| {
-            kept("text")
-                || (contrast(text, grounds[0]) >= BODY_CONTRAST
-                    && lowest(text, grounds) >= TEXT_CONTRAST)
-        });
-        let sub = lift(self.sub, text, grounds, floor(1));
-        let dim = lift(self.dim, text, grounds, floor(2));
+        let text = if kept("text") {
+            self.text
+        } else {
+            shade_until(self.text, away(self.text, self.background), |text| {
+                contrast(text, grounds[0]) >= BODY_CONTRAST
+                    && lowest(text, grounds) >= TEXT_CONTRAST
+            })
+        };
+        let sub = lift(self.sub, text, grounds, floor("sub", TEXT_CONTRAST));
+        let dim = lift(self.dim, text, grounds, floor("dim", DIM_CONTRAST));
         let mut scheme = Self {
             text,
             sub,
