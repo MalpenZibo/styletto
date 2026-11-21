@@ -239,9 +239,13 @@ pub mod stroke {
     pub const HEAVY: f32 = 3.0;
 }
 
+/// The alpha of a whole control or of a stroke. A hue's wash over the
+/// island is a [`tint`] step instead.
 pub mod opacity {
     /// A disabled control.
     pub const DISABLED: f32 = 0.4;
+    /// A field's ring in the accent, softened so it frames what is typed.
+    pub const RING: f32 = 0.7;
 }
 
 /// How far a glow spreads around what it lights.
