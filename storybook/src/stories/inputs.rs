@@ -5,7 +5,7 @@ use styletto::components::input::{field as frame, password_field as secret};
 use styletto::components::slider::slider as quick_slider;
 use styletto::components::toggle::toggle as switch;
 use styletto::foundations::control::Size;
-use styletto::foundations::tokens::{icon as icon_box, size as space};
+use styletto::foundations::tokens::{icon as icon_box, opacity, size as space};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
 use styletto::primitives::text::label;
@@ -58,7 +58,7 @@ pub fn field(ctx: &Ctx) -> Container {
                 if refused.get() {
                     t.colors.danger.fill
                 } else {
-                    t.colors.accent.fill.with_alpha(0.7)
+                    t.colors.accent.fill.with_alpha(opacity::RING)
                 }
             })
             .child(icon(Icon::Search, icon_box::SMALL.px(), t.colors.dim))

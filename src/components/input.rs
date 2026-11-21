@@ -66,7 +66,7 @@ pub fn password_field(
         if refused.get() {
             t.colors.danger.fill
         } else {
-            t.colors.accent.fill.with_alpha(0.7)
+            t.colors.accent.fill.with_alpha(opacity::RING)
         }
     };
     let submit = container().child(move || {
