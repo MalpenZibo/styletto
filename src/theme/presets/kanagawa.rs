@@ -52,7 +52,10 @@ pub const KANAGAWA: Theme = Theme {
             name: "Lotus",
             light: true,
             island: 0xf2ecbc,
-            text: 0x545464,
+            // lotusInk2, the darker of Lotus's two inks: kanagawa.nvim's
+            // themes.lua gives it to text as `fg_dim` and to the floats' and
+            // the popup menu's `fg`. lotusInk1, its `fg`, reads at 5:1 only.
+            text: 0x43436c,
             sub: 0x8a8980,
             dim: 0x8a8980,
             success: 0x6f894e,

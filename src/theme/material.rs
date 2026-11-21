@@ -162,7 +162,7 @@ fn color_of(rgb: Rgb) -> Color {
 #[cfg(all(test, feature = "material"))]
 mod tests {
     use super::*;
-    use crate::theme::palette::{Hue, HueColors, TEXT_CONTRAST};
+    use crate::theme::palette::{BODY_CONTRAST, Hue, HueColors, TEXT_CONTRAST};
 
     const VARIANTS: [Variant; 9] = [
         Variant::TonalSpot,
@@ -194,6 +194,11 @@ mod tests {
                         palette.unreadable(palette.island),
                         None,
                         "{variant:?} {contrast:?}"
+                    );
+                    let body = crate::theme::palette::contrast(palette.text, palette.island);
+                    assert!(
+                        body >= BODY_CONTRAST,
+                        "{variant:?} {contrast:?}: text at {body:.2}"
                     );
                 }
             }
