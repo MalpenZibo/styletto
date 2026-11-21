@@ -56,8 +56,8 @@ impl SchemeHue {
 /// body text.
 pub(crate) const TEXT_CONTRAST: f32 = 4.5;
 /// The contrast `dim` keeps: WCAG's floor for large text and for what is not
-/// text, which is all `dim` carries.
-const DIM_CONTRAST: f32 = 3.0;
+/// text, which is all `dim` carries, and of a control, as a switch's knob.
+pub(crate) const DIM_CONTRAST: f32 = 3.0;
 /// What `text`, `sub` and `dim` reach, in that order.
 const FLOORS: [f32; 3] = [TEXT_CONTRAST, TEXT_CONTRAST, DIM_CONTRAST];
 /// The contrast a hue's text keeps on a see-through island, whatever shows
@@ -98,14 +98,6 @@ pub struct HueColors {
     /// on dark glass.
     pub text: Color,
 }
-
-/// A switch's knob, white in every theme as a real switch's is, on the
-/// accent and off it.
-pub const KNOB: Color = Color::WHITE;
-
-/// An app's icon on its own colour (an `app_icon`), which no theme sets:
-/// white, as app icons are.
-pub const ON_APP: Color = Color::WHITE;
 
 /// The black of a shadow, or laid over a fill to sink a box into it, in
 /// every theme: at a [`shade`](crate::foundations::tokens::shade) step or
@@ -193,7 +185,7 @@ impl Palette {
 
     /// What a text can sit on: the island, as it shows over `backdrop`, and
     /// a control's fills over it.
-    fn grounds(&self, backdrop: Color) -> [Color; 3] {
+    pub(crate) fn grounds(&self, backdrop: Color) -> [Color; 3] {
         let island = over(self.island, backdrop);
         [
             island,
@@ -301,7 +293,7 @@ const RIPPLE: f32 = 0.16;
 
 /// `top` painted over the opaque `below`, the channels mixed as they are
 /// stored, as the renderer blends them.
-fn over(top: Color, below: Color) -> Color {
+pub(crate) fn over(top: Color, below: Color) -> Color {
     below.mix(top.with_alpha(1.0), top.a)
 }
 
@@ -436,6 +428,21 @@ fn luminance(color: Color) -> f32 {
     0.2126 * linear(color.r) + 0.7152 * linear(color.g) + 0.0722 * linear(color.b)
 }
 
+/// Of `inks`, the one with the most contrast on `ground`.
+fn clearest(ground: Color, inks: &[Color]) -> Color {
+    inks.iter()
+        .copied()
+        .max_by(|a, b| contrast(ground, *a).total_cmp(&contrast(ground, *b)))
+        .expect("an ink to choose from")
+}
+
+/// Black or white, whichever has the more contrast on `ground`, picked as
+/// [`Scheme::on`] picks: the glyph on an app's own colour, which no theme
+/// sets.
+pub(crate) fn black_or_white(ground: Color) -> Color {
+    clearest(ground, &[Color::BLACK, Color::WHITE])
+}
+
 /// WCAG's contrast ratio, 1 to 21.
 pub fn contrast(a: Color, b: Color) -> f32 {
     let (a, b) = (luminance(a), luminance(b));
@@ -457,19 +464,12 @@ impl Scheme {
     /// The colour that reads on `fill`: the background or the text if one
     /// reaches 4.5:1, else the best of them, black and white.
     pub fn on(&self, fill: SchemeHue) -> Color {
-        let best = |candidates: &[Color]| {
-            candidates
-                .iter()
-                .copied()
-                .max_by(|a, b| contrast(fill.color, *a).total_cmp(&contrast(fill.color, *b)))
-                .unwrap_or(self.text)
-        };
         fill.on.unwrap_or_else(|| {
-            let own = best(&[self.background, self.text]);
+            let own = clearest(fill.color, &[self.background, self.text]);
             if contrast(fill.color, own) >= TEXT_CONTRAST {
                 own
             } else {
-                best(&[self.background, self.text, Color::BLACK, Color::WHITE])
+                clearest(fill.color, &[own, Color::BLACK, Color::WHITE])
             }
         })
     }
@@ -697,6 +697,16 @@ mod tests {
                 let want = if other == name { Some(new) } else { before };
                 assert_eq!(after, want, "{name} set {other}");
             }
+        }
+    }
+
+    #[test]
+    fn an_app_glyph_is_whichever_of_black_and_white_reads_more() {
+        // Catppuccin Mocha's light blue takes black, Latte's deep one white.
+        // (Black reaches 10:1 on the first, white 2.1:1; on the second,
+        // white 4.9:1 and black 4.3:1.)
+        for (app, glyph) in [(0x89b4fa, Color::BLACK), (0x1e66f5, Color::WHITE)] {
+            assert_eq!(black_or_white(Color::from_hex(app)), glyph);
         }
     }
 

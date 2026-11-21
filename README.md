@@ -171,9 +171,15 @@ the colour `on` it and its `text`; `palette.hue(Hue::Danger)` reads one by
 its `Hue` (`Scheme::fill(hue)` its theme's colours), `Hue::ALL` lists the
 four and `hue.name()` names one. `palette.ink(hue)` is the hue as text, or
 `text` without one (`None`), what a component toned or left neutral writes
-in. Three colours are the same in every theme: `palette::KNOB`, a switch's
-knob, and `palette::ON_APP`, an app's icon on its own colour, both white;
-and `palette::SHADE`, the black of a shadow or of a box sunk into a fill.
+in. One colour is the same in every theme: `palette::SHADE`, the black of a
+shadow or of a box sunk into a fill.
+
+Two inks are worked out where they are drawn, as Material 3 does. A
+switch's knob is `accent.on` while on, and `sub` while off: as `sub` reads
+on `surface2`, the track, it keeps the 3:1 WCAG asks of a control even in a
+hovered or chosen row, which tints the track again. An app's icon
+(`app_icon`) draws its glyph in black or white, whichever has the more
+contrast on the app's colour.
 
 A hue's `fill` is what paints a surface, a bar, a ring or a border; `on` is
 the text on that fill; `text` is the hue as text or an icon on the island,

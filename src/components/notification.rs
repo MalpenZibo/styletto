@@ -205,5 +205,9 @@ pub fn app_icon(
             GradientDirection::Diagonal,
         ))
         .layout(Flex::column().center())
-        .child(icons::icon(icon, tile.icon(), palette::ON_APP))
+        .child(icons::icon(
+            icon,
+            tile.icon(),
+            palette::black_or_white(color),
+        ))
 }
