@@ -30,6 +30,15 @@ const STEP: f32 = 5.0;
 /// Where the mark goes, and the maximum past which it shows.
 const FULL: f32 = 100.0;
 
+/// `value` if it is a positive finite number, else `default`.
+fn positive_or(value: f32, default: f32) -> f32 {
+    if value.is_finite() && value > 0.0 {
+        value
+    } else {
+        default
+    }
+}
+
 #[component]
 pub fn slider(
     /// A percentage, 0 to `max`. Past `max`, it is drawn at `max`.
@@ -57,25 +66,9 @@ pub fn slider(
     };
     // Every read of the max goes through this: a bad one would divide by
     // zero or make a clamp panic.
-    let max = create_memo(move || {
-        let max = max.get();
-        if max.is_finite() && max > 0.0 {
-            max
-        } else {
-            FULL
-        }
-    })
-    .into_signal();
+    let max = create_memo(move || positive_or(max.get(), FULL)).into_signal();
     // Whole, as the values it steps between are.
-    let step = create_memo(move || {
-        let step = step.get();
-        if step.is_finite() && step > 0.0 {
-            step.round().max(1.0)
-        } else {
-            STEP
-        }
-    })
-    .into_signal();
+    let step = create_memo(move || positive_or(step.get(), STEP).round().max(1.0)).into_signal();
     let bounds = create_widget_ref();
     let hovered = create_signal(false);
     // While dragging, show where the pointer put it, not the owner's answer.

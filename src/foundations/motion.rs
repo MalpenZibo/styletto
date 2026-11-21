@@ -168,10 +168,16 @@ fn still<W: Widget + 'static>(content: W) -> Result<Container, W> {
     }
 }
 
+/// Whether things move: only with full motion. Reduced motion fades and
+/// changes colour, but nothing grows, springs or shakes.
+pub fn moves() -> bool {
+    with_ui(|u| u.motion) == Motion::Full
+}
+
 /// A horizontal shake for a refused press or a wrong password: play
 /// `shake().played_by(count)` on a translate, bumping `count`.
 pub fn shake() -> Keyframes<Translate> {
-    if with_ui(|u| u.motion) != Motion::Full {
+    if !moves() {
         return Keyframes::new(420.0)
             .at(0.0, Translate::NONE)
             .at(1.0, Translate::NONE);

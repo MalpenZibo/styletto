@@ -181,12 +181,10 @@ fn sidebar(
     // group reads as one and not as one more story.
     let t = ui();
     let mut start = 0;
-    while start < STORIES.len() {
-        let group = STORIES[start].group;
-        let end = STORIES[start..]
-            .iter()
-            .position(|story| story.group != group)
-            .map_or(STORIES.len(), |len| start + len);
+    for group in STORIES.chunk_by(|a, b| a.group == b.group) {
+        let (first, end) = (start, start + group.len());
+        start = end;
+        let group = group[0].group;
         rows.push(
             container()
                 .padding([
@@ -208,7 +206,7 @@ fn sidebar(
                 )
                 .into_any(),
         );
-        let stories = (start..end).map(|index| {
+        let stories = (first..end).map(|index| {
             row(STORIES[index].name)
                 .selected(move || !theming.get() && selected.get() == index)
                 .on_click(move || {
@@ -237,7 +235,6 @@ fn sidebar(
                 )
                 .into_any(),
         );
-        start = end;
     }
 
     container()

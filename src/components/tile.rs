@@ -162,7 +162,7 @@ pub fn small_tile(
             .corners(shape(on, height(), radius::MEDIUM.px()).transition(motion::spring()))
             .background(paint.transition(motion::color()))
             .when_hovered(move |s| s.background(move || hovered(paint()))),
-        0.95,
+        motion::PRESS_SCALE,
     )
     .layout(Flex::column().center())
     .on_click(flip(on, on_toggle))
