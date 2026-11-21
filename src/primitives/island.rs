@@ -17,7 +17,8 @@ use guido::prelude::*;
 
 use crate::foundations::control::Size;
 use crate::foundations::motion::{self, arriving};
-use crate::foundations::tokens::stroke;
+use crate::foundations::tokens::{self, stroke};
+use crate::theme::palette;
 use crate::ui::ui;
 
 const BORDER: f32 = stroke::HAIRLINE;
@@ -98,10 +99,17 @@ pub fn edge(shape: Container) -> Container {
 /// The shadow an island casts, with a ring and a halo of `glow` for a state
 /// worth seeing.
 pub fn shadow(glow: Color) -> Shadows {
+    let drop = palette::SHADE.with_alpha(tokens::shadow::ALPHA);
+    let halo = glow.scale_alpha(tokens::opacity::HALO);
     Shadows::new([
-        Shadow::new((0.0, 4.0), 12.0, 0.0, Color::BLACK.with_alpha(0.3)),
+        Shadow::new((0.0, tokens::shadow::DROP), tokens::shadow::BLUR, 0.0, drop),
         Shadow::new((0.0, 0.0), 0.0, stroke::HAIRLINE, glow),
-        Shadow::new((0.0, 0.0), 16.0, -4.0, glow.with_alpha(glow.a * 0.5)),
+        Shadow::new(
+            (0.0, 0.0),
+            tokens::glow::LARGE,
+            -tokens::shadow::HALO_INSET,
+            halo,
+        ),
     ])
 }
 

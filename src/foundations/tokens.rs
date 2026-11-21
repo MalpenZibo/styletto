@@ -1,6 +1,6 @@
 //! The scales every component is built from. [`px`](Space::px) reads a
 //! step in the current [`Ui`](crate::ui::Ui), shifted for density or shape.
-//! Strokes, opacities and glows are fixed.
+//! The rest are fixed.
 
 use guido::prelude::Corners;
 
@@ -239,13 +239,20 @@ pub mod stroke {
     pub const HEAVY: f32 = 3.0;
 }
 
-/// The alpha of a whole control or of a stroke. A hue's wash over the
-/// island is a [`tint`] step instead.
+/// The alpha of a whole control or of a stroke, or the share of a colour's
+/// alpha it is drawn with. A hue's wash over the island is a [`tint`] step
+/// instead.
 pub mod opacity {
     /// A disabled control.
     pub const DISABLED: f32 = 0.4;
     /// A field's ring in the accent, softened so it frames what is typed.
     pub const RING: f32 = 0.7;
+    /// The edge below a folded group of notifications, for the ones stacked
+    /// behind: a share of `surface`'s alpha.
+    pub const STACKED: f32 = 0.6;
+    /// The island's halo around a state worth seeing: a share of the glow's
+    /// alpha.
+    pub const HALO: f32 = 0.5;
 }
 
 /// How far a glow spreads around what it lights.
@@ -256,6 +263,8 @@ pub mod glow {
 
     pub const SMALL: f32 = 4.0;
     pub const MEDIUM: f32 = 8.0;
+    /// The island's halo around a state worth seeing.
+    pub const LARGE: f32 = 16.0;
 
     /// A glow `spread` wide around what lights up in a hue: its fill at
     /// [`tint::MEDIUM`], nothing when there is none. A tag's and a card's.
@@ -275,6 +284,45 @@ pub mod tint {
     pub const MEDIUM: f32 = 0.15;
     /// Behind a small mark's ink: a tag, an alert's tile.
     pub const STRONG: f32 = 0.2;
+}
+
+/// How far a fill's colour moves to light it up: toward white
+/// (`Color::lighter`), or toward opaque if it is translucent; a sheen moves
+/// it both ways.
+pub mod lift {
+    /// An opaque fill under the pointer.
+    pub const HOVER: f32 = 0.12;
+    /// The alpha a translucent fill gains under the pointer, in place of
+    /// [`HOVER`].
+    pub const HOVER_ALPHA: f32 = 0.06;
+    /// An app icon's tile: its colour this much lighter at one corner, as
+    /// much darker (`Color::darker`) at the other.
+    pub const SHEEN: f32 = 0.15;
+}
+
+/// The alpha of the black ([`palette::SHADE`](crate::theme::palette::SHADE))
+/// laid over a fill to sink a box into it: the box behind an active quick
+/// tile's icon.
+pub mod shade {
+    /// At rest.
+    pub const REST: f32 = 0.13;
+    /// Under the pointer.
+    pub const HOVER: f32 = 0.2;
+}
+
+/// What the island casts, the same in every density: a black shadow below
+/// it and, around a state worth seeing, a ring ([`stroke::HAIRLINE`]) and a
+/// halo ([`glow::LARGE`], at [`opacity::HALO`]) in that state's glow.
+pub mod shadow {
+    /// How far below the island the shadow falls.
+    pub const DROP: f32 = 4.0;
+    /// How far the shadow blurs.
+    pub const BLUR: f32 = 12.0;
+    /// The alpha of its black
+    /// ([`palette::SHADE`](crate::theme::palette::SHADE)).
+    pub const ALPHA: f32 = 0.3;
+    /// How far inside the island's edge the halo starts.
+    pub const HALO_INSET: f32 = 4.0;
 }
 
 /// A scrollbar's measures. It shows where a list is rather than taking room

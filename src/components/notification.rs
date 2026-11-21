@@ -6,9 +6,12 @@ use crate::components::button::{Fill, button};
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon, icon};
 use crate::foundations::motion;
-use crate::foundations::tokens::{TileSize, icon as icon_box, radius, size as space, stroke, tile};
+use crate::foundations::tokens::{
+    TileSize, icon as icon_box, lift, opacity, radius, size as space, stroke, tile,
+};
 use crate::foundations::typography::{BODY_SMALL, LABEL_MEDIUM, LABEL_XSMALL, Typeset};
 use crate::primitives::layout::centered_row;
+use crate::theme::palette;
 use crate::ui::ui;
 
 /// One notification. The sender is the caller's to show, as a lead or a
@@ -147,7 +150,7 @@ pub fn notification_group(
                 icon(kind, icon_box::XSMALL.px(), t.colors.dim)
             })
         });
-    let edge = t.colors.surface.with_alpha(t.colors.surface.a * 0.6);
+    let edge = t.colors.surface.scale_alpha(opacity::STACKED);
     container()
         .width(fill())
         .layout(Flex::column())
@@ -197,10 +200,10 @@ pub fn app_icon(
         .height(size)
         .corners(tile.radius().corners())
         .gradient(LinearGradient::new(
-            color.lighter(0.15),
-            color.darker(0.15),
+            color.lighter(lift::SHEEN),
+            color.darker(lift::SHEEN),
             GradientDirection::Diagonal,
         ))
         .layout(Flex::column().center())
-        .child(icons::icon(icon, tile.icon(), Color::WHITE))
+        .child(icons::icon(icon, tile.icon(), palette::ON_APP))
 }

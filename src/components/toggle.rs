@@ -6,6 +6,7 @@ use crate::foundations::control::Size;
 use crate::foundations::motion;
 use crate::foundations::tokens::radius;
 use crate::foundations::tokens::{opacity, size};
+use crate::theme::palette;
 use crate::ui::{active_fill, flip, ui};
 
 fn height() -> f32 {
@@ -46,7 +47,7 @@ pub fn toggle(
                 .width(knob())
                 .height(knob())
                 .corners(radius::pill(knob()))
-                .background(Color::WHITE)
+                .background(palette::KNOB)
                 .translate(
                     (move || {
                         let x = if active.get() {

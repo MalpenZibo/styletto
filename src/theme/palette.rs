@@ -99,6 +99,19 @@ pub struct HueColors {
     pub text: Color,
 }
 
+/// A switch's knob, white in every theme as a real switch's is, on the
+/// accent and off it.
+pub const KNOB: Color = Color::WHITE;
+
+/// An app's icon on its own colour (an `app_icon`), which no theme sets:
+/// white, as app icons are.
+pub const ON_APP: Color = Color::WHITE;
+
+/// The black of a shadow, or laid over a fill to sink a box into it, in
+/// every theme: at a [`shade`](crate::foundations::tokens::shade) step or
+/// the island's [`shadow`](crate::foundations::tokens::shadow) alpha.
+pub const SHADE: Color = Color::BLACK;
+
 /// The colours the components read.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Palette {
