@@ -5,7 +5,7 @@ use styletto::components::input::{field as frame, password_field as secret};
 use styletto::components::slider::slider as quick_slider;
 use styletto::components::toggle::toggle as switch;
 use styletto::foundations::control::Size;
-use styletto::foundations::tokens::{icon as icon_box, opacity, size as space};
+use styletto::foundations::tokens::{icon as icon_box, size as space};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
 use styletto::primitives::text::label;
@@ -54,13 +54,7 @@ pub fn field(ctx: &Ctx) -> Container {
         let submitted = submitted.clone();
         frame()
             .size(if small.get() { Size::Sm } else { Size::Md })
-            .ring(move || {
-                if refused.get() {
-                    t.colors.danger.fill
-                } else {
-                    t.colors.accent.fill.with_alpha(opacity::RING)
-                }
-            })
+            .refused(refused)
             .child(icon(Icon::Search, icon_box::SMALL.px(), t.colors.dim))
             .child(
                 container().width(fill()).child(
@@ -123,8 +117,13 @@ pub fn password_field(ctx: &Ctx) -> Container {
 
 #[cfg(test)]
 mod tests {
+    use std::time::{Duration, Instant};
+
     use guido::prelude::*;
+    use styletto::components::input::field;
     use styletto::components::slider::{Slider, slider};
+    use styletto::foundations::tokens::opacity;
+    use styletto::ui;
 
     use crate::stories::mounted::{Asked, Mounted};
 
@@ -294,5 +293,52 @@ mod tests {
             [m.notch(true), m.notch(true), m.notch(true)].concat(),
             [74.0, 94.0, 114.0]
         );
+    }
+
+    #[test]
+    fn a_field_is_ringed_in_the_accent_and_refused_in_danger() {
+        let Some((mut m, (refused, own))) = Mounted::<()>::new(|_| {
+            let c = ui().colors;
+            let refused = create_signal(false);
+            let own = create_signal(Some(Color::rgb(0.0, 1.0, 0.0)));
+            // The field, the rule's two rings set by hand beside it, and a
+            // field with a ring of its own.
+            let row = container()
+                .width(200.0)
+                .layout(Flex::row())
+                .child(field().refused(refused))
+                .child(field().ring(c.accent.fill.with_alpha(opacity::RING)))
+                .child(field().ring(c.danger.fill))
+                .child(field().refused(refused).ring(own));
+            (row, (refused, own))
+        }) else {
+            return;
+        };
+        // The middle of each one's top edge, once the ring's change has
+        // played.
+        let rings = |m: &mut Mounted<()>, at: Instant| {
+            m.step_at(at);
+            m.step_at(at + Duration::from_secs(2));
+            [0, 1, 2, 3].map(|index| m.pixel(25.0 + index as f32 * 50.0, 0.0))
+        };
+        let start = Instant::now();
+
+        let [field, accent, danger, green] = rings(&mut m, start);
+        assert_ne!(accent, danger);
+        assert_eq!(field, accent);
+
+        refused.set(true);
+        let [field, _, _, kept] = rings(&mut m, start + Duration::from_secs(3));
+        assert_eq!(field, danger);
+        // A ring the caller set is kept through a refusal, and `None` hands
+        // it back to the rule.
+        assert_eq!(kept, green);
+        own.set(None);
+        let [.., handed_back] = rings(&mut m, start + Duration::from_secs(6));
+        assert_eq!(handed_back, danger);
+
+        refused.set(false);
+        let [field, ..] = rings(&mut m, start + Duration::from_secs(9));
+        assert_eq!(field, accent);
     }
 }

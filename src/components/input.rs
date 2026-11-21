@@ -11,11 +11,17 @@ use crate::foundations::tokens::{icon as icon_box, opacity, size as space, strok
 use crate::primitives::layout::centered_row;
 use crate::ui::ui;
 
-/// A pill on the surface holding a field and its trailing widgets.
+/// A pill on the surface holding a field and its trailing widgets, ringed in
+/// the accent, or in `danger` once refused.
 #[component]
 pub fn field(
-    /// The ring inside its edge.
-    ring: Color,
+    /// The last answer was refused and nothing new is typed: the ring turns
+    /// `danger`.
+    refused: bool,
+    /// A ring of the caller's own inside its edge, in place of the accent's
+    /// or `danger`'s: `refused` then leaves it alone. A closure giving
+    /// `None` hands the ring back to the rule.
+    ring: Option<Color>,
     #[prop(default = Size::Lg)] size: Size,
     /// A trailing button the pill's end hugs.
     #[prop(slot)]
@@ -24,6 +30,15 @@ pub fn field(
 ) -> impl Widget {
     let t = ui();
     let size = size.get_untracked();
+    let ring = move || {
+        ring.get().unwrap_or_else(|| {
+            if refused.get() {
+                t.colors.danger.fill
+            } else {
+                t.colors.accent.fill.with_alpha(opacity::RING)
+            }
+        })
+    };
     let (height, padding) = (size.height(), size.inline());
     let end = if trailing.is_some() {
         space::S1.px()
@@ -36,7 +51,7 @@ pub fn field(
         .corners(radius::pill(height))
         .background(t.colors.surface)
         .shadow(
-            (move || Shadow::new((0.0, 0.0), 0.0, stroke::RING, ring.get()).inset())
+            (move || Shadow::new((0.0, 0.0), 0.0, stroke::RING, ring()).inset())
                 .transition(motion::color()),
         )
         .padding([0.0, end, 0.0, padding])
@@ -45,8 +60,8 @@ pub fn field(
         .children(trailing)
 }
 
-/// A password field: the ring turns red on a refusal; the end button
-/// submits, or spins while checking.
+/// A password field: a [`field`], ringed in `danger` on a refusal; the end
+/// button submits, or spins while checking.
 #[component]
 pub fn password_field(
     /// The last answer was refused and nothing new is typed.
@@ -62,13 +77,6 @@ pub fn password_field(
     #[prop(children)] children: (),
 ) -> impl Widget {
     let t = ui();
-    let ring = move || {
-        if refused.get() {
-            t.colors.danger.fill
-        } else {
-            t.colors.accent.fill.with_alpha(opacity::RING)
-        }
-    };
     let submit = container().child(move || {
         if busy.get() {
             container()
@@ -96,7 +104,7 @@ pub fn password_field(
             (move || if held.get() { opacity::DISABLED } else { 1.0 }).transition(motion::hover()),
         )
         .child(
-            field().ring(ring).children(children).trailing(
+            field().refused(refused).children(children).trailing(
                 container()
                     .layout(centered_row(space::S1.px()))
                     .children(extra)
