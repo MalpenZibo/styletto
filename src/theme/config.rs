@@ -6,7 +6,7 @@
 use std::collections::BTreeMap;
 
 use guido::prelude::FontFamily;
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
 use crate::theme::material::{Contrast, Variant};
 use crate::theme::palette::{Scheme, parse_hex};
@@ -20,38 +20,67 @@ pub type Colors = BTreeMap<String, String>;
 /// The source of the colours is one of `theme`, `seed` and `wallpaper`: the
 /// default theme when none is set, the wallpaper then the seed when more
 /// than one is. `dark` and `light` are set over it, whichever it is.
-#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+///
+/// Written back (`toml::to_string(&config)`, or JSON, or another format that
+/// names its fields), it leaves out every field at its default, so it holds
+/// only what was chosen.
+/// Its keys are at the top level: the app puts them under whatever table it
+/// keeps them in.
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 #[serde(default)]
 pub struct UiConfig {
     /// One of [`THEMES`] by name.
+    #[serde(skip_serializing_if = "is_default")]
     pub theme: Option<String>,
+    #[serde(skip_serializing_if = "is_default")]
     pub dark_flavor: Option<String>,
+    #[serde(skip_serializing_if = "is_default")]
     pub light_flavor: Option<String>,
     /// Set on each side whose flavour has it.
+    #[serde(skip_serializing_if = "is_default")]
     pub accent: Option<String>,
     /// Both sides worked out from this colour. Needs the `material` feature.
+    #[serde(skip_serializing_if = "is_default")]
     pub seed: Option<String>,
     /// Both sides worked out from this image. Needs the `wallpaper` feature.
+    #[serde(skip_serializing_if = "is_default")]
     pub wallpaper: Option<String>,
     /// How a seed or a wallpaper spreads over the roles.
+    #[serde(skip_serializing_if = "is_default")]
     pub variant: Variant,
+    #[serde(skip_serializing_if = "is_default")]
     pub contrast: Contrast,
+    #[serde(skip_serializing_if = "is_default")]
     pub mode: Mode,
+    #[serde(skip_serializing_if = "is_default")]
     pub dark: Colors,
+    #[serde(skip_serializing_if = "is_default")]
     pub light: Colors,
+    #[serde(skip_serializing_if = "is_default")]
     pub fonts: FontsConfig,
+    #[serde(skip_serializing_if = "is_default")]
     pub density: Density,
+    #[serde(skip_serializing_if = "is_default")]
     pub shape: Shape,
+    #[serde(skip_serializing_if = "is_default")]
     pub material: Material,
+    #[serde(skip_serializing_if = "is_default")]
     pub motion: Motion,
 }
 
 /// A family by name, or the system's when unset.
-#[derive(Clone, Debug, Default, PartialEq, Deserialize)]
+#[derive(Clone, Debug, Default, PartialEq, Deserialize, Serialize)]
 #[serde(default)]
 pub struct FontsConfig {
+    #[serde(skip_serializing_if = "is_default")]
     pub sans: Option<String>,
+    #[serde(skip_serializing_if = "is_default")]
     pub mono: Option<String>,
+}
+
+/// Whether a value is its type's default, and so left out when written.
+fn is_default<T: Default + PartialEq>(value: &T) -> bool {
+    *value == T::default()
 }
 
 impl UiConfig {
@@ -343,6 +372,43 @@ mod tests {
             Contrast::High,
         );
         assert_eq!(c.schemes(), made);
+    }
+
+    #[test]
+    fn the_default_writes_nothing() {
+        assert_eq!(toml::to_string(&UiConfig::default()).unwrap(), "");
+    }
+
+    #[test]
+    fn a_key_at_its_default_is_not_written() {
+        let c = config(
+            "mode = \"auto\"\ndensity = \"default\"\nvariant = \"tonal-spot\"\n\
+             shape = \"round\"\n[fonts]\n[dark]",
+        );
+        assert_eq!(toml::to_string(&c).unwrap(), "shape = \"round\"\n");
+    }
+
+    #[test]
+    fn what_is_written_reads_back_the_same() {
+        let tables = [
+            // Every key at once, the tables among the values when written.
+            "theme = \"catppuccin\"\ndark_flavor = \"macchiato\"\nlight_flavor = \"latte\"\n\
+             accent = \"peach\"\nseed = \"#6750a4\"\nwallpaper = \"~/Pictures/w.jpg\"\n\
+             variant = \"fruit-salad\"\ncontrast = \"high\"\nmode = \"light\"\n\
+             density = \"compact\"\nshape = \"round\"\nmaterial = \"glass\"\n\
+             motion = \"reduced\"\n[dark]\naccent = \"#ff79c6\"\non_accent = \"#1a1b26\"\n\
+             [light]\ndanger_text = \"#a00000cc\"\n[fonts]\nsans = \"Inter\"\nmono = \"Iosevka\"",
+            // The other values of each choice, and one font of two.
+            "variant = \"vibrant\"\ncontrast = \"medium\"\nmode = \"dark\"\n\
+             density = \"comfortable\"\nshape = \"square\"\nmaterial = \"translucent\"\n\
+             motion = \"none\"\n[fonts]\nmono = \"JetBrains Mono\"",
+        ];
+        for table in tables {
+            let c = config(table);
+            assert_ne!(c, UiConfig::default(), "{table}");
+            let written = toml::to_string(&c).unwrap();
+            assert_eq!(config(&written), c, "{written}");
+        }
     }
 
     #[test]

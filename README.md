@@ -57,7 +57,7 @@ row("Wi-Fi")
 
 | Feature | Adds |
 |---|---|
-| `serde` | `theme::config::UiConfig`, read from an `[appearance]` table |
+| `serde` | `theme::config::UiConfig`, read from an `[appearance]` table and written back |
 | `material` | themes worked out from a seed colour |
 | `wallpaper` | themes worked out from an image (implies `material`) |
 
@@ -257,6 +257,25 @@ accent_text = "#ff92d0" # the accent as text; worked out from accent if unset
 
 [appearance.light]
 background = "#fdf6e3"
+```
+
+`UiConfig` is also `Serialize`, so an app that lets the user change these can
+write the choice back with its own format crate (`toml::to_string(&config)`).
+It writes only what differs from the defaults, with its keys at the top level
+so the app can put them under any table:
+
+```toml
+theme = "catppuccin"
+dark_flavor = "macchiato"
+accent = "peach"
+density = "compact"
+material = "glass"
+
+[dark]
+accent = "#ff79c6"
+
+[fonts]
+sans = "Inter"
 ```
 
 ## Motion

@@ -33,7 +33,7 @@ use crate::theme::palette::{Scheme, SchemeHue};
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize),
+    derive(serde::Deserialize, serde::Serialize),
     serde(rename_all = "kebab-case")
 )]
 pub enum Variant {
@@ -53,7 +53,7 @@ pub enum Variant {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize),
+    derive(serde::Deserialize, serde::Serialize),
     serde(rename_all = "lowercase")
 )]
 pub enum Contrast {
