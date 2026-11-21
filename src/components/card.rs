@@ -2,19 +2,20 @@
 
 use guido::prelude::*;
 
-use crate::components::level::{Level, figure_text, level_ink};
-use crate::components::tag::halo;
+use crate::components::level::{Level, level_ink};
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
 use crate::foundations::tokens::{glow, icon as icon_box, radius, size, tint};
 use crate::foundations::typography::{DISPLAY_XSMALL, LABEL_SMALL, Typeset};
 use crate::primitives::layout::centered_row;
+use crate::primitives::text::figure_text;
+use crate::theme::palette::Palette;
 use crate::ui::ui;
 
 /// The hue of a level other than normal, as a card's tint and glow take
 /// it: the fill, not the text. None while normal.
-fn level_fill(level: Level) -> Option<Color> {
-    level.hue().map(|hue| ui().colors.hue(hue).fill)
+fn level_fill(c: &Palette, level: Level) -> Option<Color> {
+    level.hue().map(|hue| c.hue(hue).fill)
 }
 
 /// Quiet while normal, else the level's ink.
@@ -63,11 +64,14 @@ pub fn stat_card(
                     Level::Alert => tint::MEDIUM,
                     _ => tint::SUBTLE,
                 };
-                level_fill(level).map_or(t.colors.surface, |fill| fill.with_alpha(alpha))
+                level_fill(&t.colors, level).map_or(t.colors.surface, |fill| fill.with_alpha(alpha))
             })
             .transition(motion::color()),
         )
-        .shadow((move || halo(level_fill(level.get()), glow::MEDIUM)).transition(motion::color()))
+        .shadow(
+            (move || glow::halo(level_fill(&t.colors, level.get()), glow::MEDIUM))
+                .transition(motion::color()),
+        )
         .layout(Flex::column().spacing(size::S1.px()))
         .child(
             container()

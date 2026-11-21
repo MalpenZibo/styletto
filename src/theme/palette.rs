@@ -131,12 +131,12 @@ impl Palette {
     }
 
     /// The colours of `hue`.
-    pub fn hue(&self, hue: Hue) -> &HueColors {
+    pub fn hue(&self, hue: Hue) -> HueColors {
         match hue {
-            Hue::Accent => &self.accent,
-            Hue::Success => &self.success,
-            Hue::Warning => &self.warning,
-            Hue::Danger => &self.danger,
+            Hue::Accent => self.accent,
+            Hue::Success => self.success,
+            Hue::Warning => self.warning,
+            Hue::Danger => self.danger,
         }
     }
 
@@ -680,7 +680,7 @@ mod tests {
                     let solid = flavor.scheme(index).palette();
                     let glass = Ui::new(solid).with_material(Material::Glass).colors;
                     for p in [solid, glass] {
-                        for HueColors { fill, text, .. } in Hue::ALL.map(|hue| *p.hue(hue)) {
+                        for HueColors { fill, text, .. } in Hue::ALL.map(|hue| p.hue(hue)) {
                             let ([_, a, b], [_, ta, tb]) = (oklab(fill), oklab(text));
                             let turn = (a * tb - b * ta).atan2(a * ta + b * tb).to_degrees();
                             let kept = ta.hypot(tb) / a.hypot(b);

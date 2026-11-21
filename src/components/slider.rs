@@ -5,7 +5,6 @@
 use guido::prelude::*;
 
 use crate::components::button::{Fill, button};
-use crate::components::level::figure_text;
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
@@ -13,6 +12,7 @@ use crate::foundations::tokens::size as space;
 use crate::foundations::tokens::{radius, stroke};
 use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
+use crate::primitives::text::figure_text;
 use crate::ui::ui;
 
 fn height() -> f32 {

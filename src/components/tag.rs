@@ -8,7 +8,7 @@ use crate::foundations::control::Size;
 use crate::foundations::motion;
 use crate::foundations::tokens::{glow as spread, tint};
 use crate::primitives::layout::centered_row;
-use crate::theme::palette::Hue;
+use crate::theme::palette::{Hue, Palette};
 use crate::ui::ui;
 
 /// The hue a tag is tinted with.
@@ -38,7 +38,10 @@ impl Tone {
     /// What a tag in this tone is filled with: `surface` while neutral,
     /// else the hue's fill at [`tint::STRONG`].
     pub fn tint(self) -> Color {
-        let c = ui().colors;
+        self.tint_in(&ui().colors)
+    }
+
+    fn tint_in(self, c: &Palette) -> Color {
         self.hue()
             .map_or(c.surface, |hue| c.hue(hue).fill.with_alpha(tint::STRONG))
     }
@@ -46,16 +49,8 @@ impl Tone {
     /// The colour for what a tag in this tone holds, its icons and its text:
     /// `text` while neutral, else the hue as text, which reads on the tint.
     pub fn ink(self) -> Color {
-        let c = ui().colors;
-        c.ink(self.hue())
+        ui().colors.ink(self.hue())
     }
-}
-
-/// A glow `spread` wide around what lights up in a hue: its fill at
-/// [`tint::MEDIUM`], nothing when there is none. A tag's and a card's.
-pub(crate) fn halo(fill: Option<Color>, spread: f32) -> Shadow {
-    let color = fill.map_or(Color::TRANSPARENT, |fill| fill.with_alpha(tint::MEDIUM));
-    Shadow::new((0.0, 0.0), spread, 0.0, color)
 }
 
 /// A pill holding its children in a centred row, tinted by its tone. It
@@ -79,8 +74,8 @@ pub fn tag(
         hue.map(|hue| c.hue(hue).fill)
     };
     pill_box(size)
-        .background((move || tone.get().tint()).transition(motion::color()))
-        .shadow((move || halo(lit(), spread::SMALL)).transition(motion::color()))
+        .background((move || tone.get().tint_in(&c)).transition(motion::color()))
+        .shadow((move || spread::halo(lit(), spread::SMALL)).transition(motion::color()))
         .layout(centered_row(size.gap()))
         .children(children)
 }

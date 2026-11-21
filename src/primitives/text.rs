@@ -2,6 +2,7 @@
 
 use guido::prelude::*;
 
+use crate::foundations::motion;
 use crate::foundations::typography::{
     LABEL_MEDIUM, LABEL_SMALL, MICRO_XSMALL, TITLE_SMALL, Type, Typeset,
 };
@@ -38,5 +39,20 @@ pub fn overline<M>(content: impl IntoSignal<String, M>) -> Text {
 pub fn figure<M>(content: impl IntoSignal<String, M>) -> Text {
     typed(content, LABEL_MEDIUM.tabular())
         .color(ui().colors.text)
+        .nowrap()
+}
+
+/// A figure beside its icon (a level's, a slider's): set in `kind`,
+/// emphasised, its digits tabular, its box trimmed to the capitals, in
+/// `ink`.
+pub(crate) fn figure_text<M>(
+    content: impl IntoSignal<String, M>,
+    kind: Type,
+    ink: impl Fn() -> Color + 'static,
+) -> Text {
+    text(content)
+        .typeset(kind.em().tabular())
+        .text_box(TextEdge::Cap, TextEdge::Alphabetic)
+        .color(ink.transition(motion::color()))
         .nowrap()
 }

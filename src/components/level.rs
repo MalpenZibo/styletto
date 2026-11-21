@@ -6,9 +6,8 @@ use guido::prelude::*;
 
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
-use crate::foundations::motion;
-use crate::foundations::typography::{Type, Typeset};
 use crate::primitives::layout::centered_row;
+use crate::primitives::text::figure_text;
 use crate::theme::palette::Hue;
 use crate::ui::ui;
 
@@ -64,21 +63,6 @@ impl Level {
 pub fn level_ink(level: Level) -> Color {
     let c = ui().colors;
     c.ink(level.hue())
-}
-
-/// A figure beside its icon (a level's, a slider's): set in `kind`,
-/// emphasised, its digits tabular, its box trimmed to the capitals, in
-/// `ink`.
-pub(crate) fn figure_text<M>(
-    content: impl IntoSignal<String, M>,
-    kind: Type,
-    ink: impl Fn() -> Color + 'static,
-) -> Text {
-    text(content)
-        .typeset(kind.em().tabular())
-        .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-        .color(ink.transition(motion::color()))
-        .nowrap()
 }
 
 /// The icons of a value's levels, each with the value it starts from, in

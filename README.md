@@ -149,7 +149,10 @@ Components read the `Palette` derived from it: `island`, `surface`,
 `surface2`, `line`, `text`, `sub`, `dim`, the four hues `accent`, `success`,
 `warning` and `danger`, and `ripple`. Each hue is a `HueColors`: its `fill`,
 the colour `on` it and its `text`; `palette.hue(Hue::Danger)` reads one by
-its `Hue`, and `Hue::ALL` lists the four.
+its `Hue` (`Scheme::fill(hue)` its theme's colours), `Hue::ALL` lists the
+four and `hue.name()` names one. `palette.ink(hue)` is the hue as text, or
+`text` without one (`None`), what a component toned or left neutral writes
+in.
 
 A hue's `fill` is what paints a surface, a bar, a ring or a border; `on` is
 the text on that fill; `text` is the hue as text or an icon on the island,

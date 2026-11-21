@@ -241,7 +241,7 @@ mod tests {
                     let scheme = flavor.scheme(index);
                     let palette = scheme.palette();
                     for hue in Hue::ALL {
-                        let HueColors { fill, on, .. } = *palette.hue(hue);
+                        let HueColors { fill, on, .. } = palette.hue(hue);
                         let role = match hue {
                             Hue::Accent => accent.name,
                             hue => hue.name(),

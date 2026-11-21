@@ -85,11 +85,7 @@ pub fn button(
     let off = move || match (fill.get(), variant.get().hue().map(|hue| c.hue(hue))) {
         (Fill::Solid, None) => (c.surface, c.surface2, c.text),
         (Fill::Solid, Some(hue)) => (hue.fill, hovered(hue.fill), hue.on),
-        (Fill::Ghost, hue) => (
-            Color::TRANSPARENT,
-            c.surface,
-            hue.map_or(c.text, |hue| hue.text),
-        ),
+        (Fill::Ghost, _) => (Color::TRANSPARENT, c.surface, c.ink(variant.get().hue())),
     };
     let lit = move |on: Color, off: Color| if active.get() { on } else { off };
     pressable(

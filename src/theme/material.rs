@@ -183,7 +183,7 @@ mod tests {
                 for scheme in schemes(Color::from_hex(0x6750a4), variant, contrast) {
                     let palette = scheme.palette();
                     for hue in Hue::ALL {
-                        let HueColors { fill, on, .. } = *palette.hue(hue);
+                        let HueColors { fill, on, .. } = palette.hue(hue);
                         let ratio = crate::theme::palette::contrast(fill, on);
                         assert!(
                             ratio >= TEXT_CONTRAST,
