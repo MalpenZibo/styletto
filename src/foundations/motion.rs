@@ -2,6 +2,7 @@
 //! movement reads alike. Presets follow the current [`Motion`]: reduced
 //! turns springs into fades, off makes changes instant.
 
+use std::cell::Cell;
 use std::time::Duration;
 
 use guido::prelude::*;
@@ -77,6 +78,33 @@ pub fn hover() -> Transition {
 
 pub fn color() -> Transition {
     easing(COLOR_MS)
+}
+
+/// How a fill that turns on and off moves, as a toggling button's or a
+/// tile's: a hover at [`hover`], a change of state at [`color`].
+///
+/// `rest` and `hovered` give the fill of the state it is in now. A change
+/// from either is a hover; from anything else, the other state's fill, it
+/// is a change of state. Told apart by the colours, not by whether the
+/// state changed since the last change: a change of state that leaves the
+/// fill as it was (a solid accent button's) starts no change to see it, and
+/// would be taken for one by the next hover.
+pub fn toggling(
+    rest: impl Fn() -> Color + 'static,
+    hovered: impl Fn() -> Color + 'static,
+) -> impl Fn(Segment<Color>) -> Transition + 'static {
+    let (hover, toggle) = (hover(), color());
+    // Where the fill last went: where this change starts, unless it cut
+    // that one short.
+    let last = Cell::new(None);
+    move |segment| {
+        let left = last.replace(Some(segment.to)).unwrap_or(segment.from);
+        if left == rest() || left == hovered() {
+            hover.clone()
+        } else {
+            toggle.clone()
+        }
+    }
 }
 
 /// How a value of a view coming and going moves: in with `enter`, out with

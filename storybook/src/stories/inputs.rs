@@ -123,71 +123,13 @@ pub fn password_field(ctx: &Ctx) -> Container {
 
 #[cfg(test)]
 mod tests {
-    use std::cell::{Cell, RefCell};
-    use std::rc::Rc;
-    use std::time::Instant;
-
     use guido::prelude::*;
-    use guido::testing::Headless;
     use styletto::components::slider::{Slider, slider};
 
-    /// What a slider asks its owner, in order.
-    type Asked = Rc<RefCell<Vec<f32>>>;
-
-    /// A slider's tree mounted headless, 200 wide, with what it asked.
-    struct Mounted {
-        h: Headless,
-        id: SurfaceId,
-        asked: Asked,
-    }
-
-    impl Mounted {
-        /// The tree `build` makes from the log of what is asked, and the
-        /// signals it hands back for the test to drive; none without a GPU.
-        fn new<P: 'static>(build: impl Fn(Asked) -> (Container, P) + 'static) -> Option<(Self, P)> {
-            let mut h = Headless::new()?;
-            let asked = Asked::default();
-            let probe = Rc::new(Cell::new(None));
-            let (log, seen) = (asked.clone(), probe.clone());
-            let id = h.surface(SurfaceConfig::new(), move || {
-                let (tree, handed) = build(log.clone());
-                seen.set(Some(handed));
-                tree
-            });
-            h.configure(id, 200, 100, 1.0);
-            h.step();
-            // Only a missing GPU skips a test; a tree that was not built fails.
-            let handed = probe.take().expect("the tree was built");
-            Some((Self { h, id, asked }, handed))
-        }
-
-        /// Sends `event`, steps, and gives what it asked.
-        fn send(&mut self, event: Event) -> Vec<f32> {
-            self.h.event_at(self.id, event, Instant::now());
-            self.h.step();
-            self.asked.borrow_mut().drain(..).collect()
-        }
-
-        /// A wheel notch, up or down.
-        fn notch(&mut self, up: bool) -> Vec<f32> {
-            let dy = if up { -1.0 } else { 1.0 };
-            self.send(Event::scroll(100.0, 8.0, 0.0, dy, ScrollSource::Wheel))
-        }
-
-        /// A press and a release at `x`, giving what the press asked.
-        fn press(&mut self, x: f32) -> Vec<f32> {
-            let asked = self.send(Event::mouse_down(x, 8.0, MouseButton::Left));
-            self.send(Event::mouse_up(x, 8.0, MouseButton::Left));
-            asked
-        }
-
-        fn step(&mut self) {
-            self.h.step();
-        }
-    }
+    use crate::stories::mounted::{Asked, Mounted};
 
     /// A slider whose owner takes every value at once.
-    fn taking(value: RwSignal<f32>, log: Asked) -> Slider {
+    fn taking(value: RwSignal<f32>, log: Asked<f32>) -> Slider {
         slider(value).on_change(move |v| {
             value.set(v);
             log.borrow_mut().push(v);
@@ -196,7 +138,7 @@ mod tests {
 
     #[test]
     fn wheel_notches_add_up_while_the_owner_answers() {
-        let Some((mut m, value)) = Mounted::new(|log| {
+        let Some((mut m, value)) = Mounted::<f32>::new(|log| {
             // An owner that answers only when the test says so.
             let value = create_signal(60.0);
             let slider = slider(value).on_change(move |v| log.borrow_mut().push(v));
@@ -232,7 +174,7 @@ mod tests {
 
     #[test]
     fn a_notch_steps_from_the_level_an_owner_snaps_to() {
-        let Some((mut m, ())) = Mounted::new(|log| {
+        let Some((mut m, ())) = Mounted::<f32>::new(|log| {
             // A backlight of 16 levels: it takes the one nearest the ask.
             let value = create_signal(40.0);
             let slider = slider(value).on_change(move |v: f32| {
@@ -255,7 +197,7 @@ mod tests {
 
     #[test]
     fn a_change_from_outside_ends_the_wheels_run() {
-        let Some((mut m, value)) = Mounted::new(|log| {
+        let Some((mut m, value)) = Mounted::<f32>::new(|log| {
             // An owner that answers only when the test says so.
             let value = create_signal(60.0);
             let slider = slider(value).on_change(move |v| log.borrow_mut().push(v));
@@ -280,7 +222,7 @@ mod tests {
 
     #[test]
     fn wheel_and_press_reach_the_max() {
-        let Some((mut m, max)) = Mounted::new(|log| {
+        let Some((mut m, max)) = Mounted::<f32>::new(|log| {
             let (value, max) = (create_signal(140.0), create_signal(150.0));
             (
                 container().width(200.0).child(taking(value, log).max(max)),
@@ -318,7 +260,7 @@ mod tests {
 
     #[test]
     fn a_notch_moves_by_the_step() {
-        let Some((mut m, step)) = Mounted::new(|log| {
+        let Some((mut m, step)) = Mounted::<f32>::new(|log| {
             let (value, step) = (create_signal(50.0), create_signal(2.0));
             let slider = taking(value, log).max(150.0).step(step);
             (container().width(200.0).child(slider), step)

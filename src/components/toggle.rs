@@ -6,7 +6,7 @@ use crate::foundations::control::Size;
 use crate::foundations::motion;
 use crate::foundations::tokens::radius;
 use crate::foundations::tokens::{opacity, size};
-use crate::ui::{flip, ui};
+use crate::ui::{active_fill, flip, ui};
 
 fn height() -> f32 {
     Size::Xxs.height()
@@ -21,11 +21,11 @@ fn knob() -> f32 {
     height() - 2.0 * inset()
 }
 
+/// On while `active`, which follows what the owner sets; a press calls
+/// `on_toggle` with the opposite.
 #[component]
 pub fn toggle(
-    /// Follows what the owner sets.
-    #[prop(required)]
-    on: bool,
+    #[prop(required)] active: bool,
     #[prop(default = true)] enabled: bool,
     /// Called with the state a press asks for.
     #[prop(callback)]
@@ -36,20 +36,11 @@ pub fn toggle(
         .width(width())
         .height(height())
         .corners(radius::pill(height()))
-        .background(
-            (move || {
-                if on.get() {
-                    t.colors.accent.fill
-                } else {
-                    t.colors.surface2
-                }
-            })
-            .transition(motion::color()),
-        )
+        .background(active_fill(active, t.colors.surface2).transition(motion::color()))
         .opacity(1.0.transition(motion::hover()))
         .when_disabled(|s| s.opacity(opacity::DISABLED))
         .enabled(enabled)
-        .on_click(flip(on, on_toggle))
+        .on_click(flip(active, on_toggle))
         .child(
             container()
                 .width(knob())
@@ -58,7 +49,7 @@ pub fn toggle(
                 .background(Color::WHITE)
                 .translate(
                     (move || {
-                        let x = if on.get() {
+                        let x = if active.get() {
                             width() - knob() - inset()
                         } else {
                             inset()

@@ -4,6 +4,8 @@ mod feedback;
 mod foundations;
 mod inputs;
 mod motion;
+#[cfg(test)]
+mod mounted;
 pub mod story;
 
 use styletto::Icon;

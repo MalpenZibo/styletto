@@ -1,7 +1,5 @@
-//! Buttons, on and off as a tile is, a round icon button among them, and
-//! the bar's pills.
-
-use std::cell::Cell;
+//! Buttons, an action or a toggle as a tile is, a round icon button among
+//! them, and the bar's pills.
 
 use guido::prelude::*;
 
@@ -14,7 +12,7 @@ use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::typed;
 use crate::theme::palette::Hue;
-use crate::ui::ui;
+use crate::ui::{active_fill, active_ink, ui};
 
 /// What a button does, by its colour: anything, the main thing, or what
 /// can't be undone.
@@ -58,11 +56,26 @@ pub fn hovered(color: Color) -> Color {
     }
 }
 
+/// `base` filled with `rest`, and `lifted` while hovered: the fill of
+/// something that turns on and off, its hover eased quicker than a change of
+/// state ([`motion::toggling`], which needs the same two colours).
+pub(crate) fn toggled(
+    base: Container,
+    rest: impl Fn() -> Color + Copy + 'static,
+    lifted: impl Fn() -> Color + Copy + 'static,
+) -> Container {
+    base.background(rest.transition(motion::toggling(rest, lifted)))
+        .when_hovered(move |s| s.background(lifted))
+}
+
 /// A pill with a label, an icon before it, or only the icon in a circle.
 ///
-/// While `active` it is on, as a tile is: filled with the accent, its
-/// content in `accent.on`, whatever its variant and fill. Disabled, on or
-/// off, it fades and takes no press.
+/// An action takes `on_click`. A toggle takes `active` and `on_toggle`, as
+/// a tile does: while `active` it is on, filled with the accent, its
+/// content in `accent.on`, whatever its variant and fill; a press calls
+/// `on_toggle` with the opposite, and the owner sets `active` to what it
+/// keeps. Given both, a press calls `on_click`, then `on_toggle`. Disabled,
+/// on or off, it fades and takes no press.
 #[component]
 pub fn button(
     label: String,
@@ -76,6 +89,9 @@ pub fn button(
     active: bool,
     #[prop(default = true)] enabled: bool,
     #[prop(callback)] on_click: (),
+    /// Called with the state a press asks for: the opposite of `active`.
+    #[prop(callback)]
+    on_toggle: fn(bool),
 ) -> impl Widget {
     let t = ui();
     let c = t.colors;
@@ -87,37 +103,42 @@ pub fn button(
         (Fill::Solid, Some(hue)) => (hue.fill, hovered(hue.fill), hue.on),
         (Fill::Ghost, _) => (Color::TRANSPARENT, c.surface, c.ink(variant.get().hue())),
     };
-    let lit = move |on: Color, off: Color| if active.get() { on } else { off };
+    let rest = active_fill(active, move || off().0);
+    // On, the accent brightens as a hue does.
+    let lifted = move || {
+        if active.get() {
+            hovered(c.accent.fill)
+        } else {
+            off().1
+        }
+    };
+    // As GTK's toggle button sends `clicked` before `toggled`. The state
+    // asked for is the opposite of the one pressed, read before `on_click`
+    // can change it or close the view it is in.
+    let press = (on_click.is_some() || on_toggle.is_some()).then(|| {
+        Callback::new(move || {
+            let asked = !active.get_untracked();
+            if let Some(on_click) = on_click {
+                on_click.run();
+            }
+            if let Some(on_toggle) = on_toggle {
+                on_toggle.run(asked);
+            }
+        })
+    });
     pressable(
-        sized(label, size)
-            .background((move || lit(c.accent.fill, off().0)).transition(toggling(active)))
-            .when_hovered(move |s| s.background(move || lit(hovered(c.accent.fill), off().1))),
+        toggled(sized(label, size), rest, lifted),
         motion::PRESS_SCALE,
     )
     .enabled(enabled)
-    .on_click(on_click)
+    .on_click(press)
     .layout(centered_row(size.gap()).main_alignment(MainAlignment::Center))
     .children(content(
         label,
         icon,
-        move || lit(c.accent.on, off().2),
+        active_ink(active, move || off().2),
         size,
     ))
-}
-
-/// Eases a fill turning on or off as a tile's, a hover as a button's: a
-/// button that is never turned on keeps its quicker hover.
-fn toggling(active: Signal<bool>) -> impl Fn(Segment<Color>) -> Transition + 'static {
-    let (hover, toggle) = (motion::hover(), motion::color());
-    let was = Cell::new(active.get_untracked());
-    move |_| {
-        let now = active.get_untracked();
-        if was.replace(now) == now {
-            hover.clone()
-        } else {
-            toggle.clone()
-        }
-    }
 }
 
 /// A pill `size` tall: round ends, its content padded in from them. A
@@ -187,7 +208,9 @@ fn content(
 /// hovered.
 #[component]
 pub fn pill(
-    /// Fills it with the accent.
+    /// Fills it with the accent: the one chosen, as a workspace shown. A
+    /// press calls `on_click` and the owner chooses, as with a row's
+    /// `selected`; it is not a toggle.
     active: bool,
     /// A ring inside it, for attention.
     ring: Option<Color>,
@@ -196,16 +219,10 @@ pub fn pill(
 ) -> impl Widget {
     let t = ui();
     let size = Size::Sm;
-    let fill = move |rest: Color| {
-        if active.get() {
-            t.colors.accent.fill
-        } else {
-            rest
-        }
-    };
+    let lifted = active_fill(active, t.colors.surface2);
     pill_box(size)
-        .background((move || fill(Color::TRANSPARENT)).transition(motion::hover()))
-        .when_hovered(move |s| s.background(move || fill(t.colors.surface2)))
+        .background(active_fill(active, Color::TRANSPARENT).transition(motion::hover()))
+        .when_hovered(move |s| s.background(lifted))
         .when_pressed(move |s| s.ripple_with_color(t.colors.ripple))
         .shadow(move || {
             Shadow::new(
@@ -237,18 +254,14 @@ pub fn pill_text(
         LABEL_SMALL.resolve().weight,
         LABEL_SMALL.em().resolve().weight,
     );
-    let shown = move |color: Color| {
-        if active.get() {
-            t.colors.accent.on
-        } else {
-            color
-        }
-    };
+    let lifted = active_ink(active, t.colors.text);
     typed(text, LABEL_SMALL.tabular())
         .font_weight(move || if bold.get() { emphasised } else { regular })
         .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-        .color(move || shown(ink.get().unwrap_or(t.colors.sub)))
-        .when_hovered(move |s| s.color(move || shown(t.colors.text)))
+        .color(active_ink(active, move || {
+            ink.get().unwrap_or(t.colors.sub)
+        }))
+        .when_hovered(move |s| s.color(lifted))
         .nowrap()
         .overflow(TextOverflow::Ellipsis)
 }

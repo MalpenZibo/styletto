@@ -217,38 +217,44 @@ pub(crate) fn with_ui<R>(f: impl Fn(&Ui) -> R) -> R {
     with_context(&f).unwrap_or_else(|| DEFAULT.with(|ui| f(ui)))
 }
 
-/// The accent while `active`, the surface while not.
-pub fn active_fill(active: Signal<bool>) -> impl Fn() -> Color + Copy + 'static {
-    let t = ui();
-    move || {
-        if active.get() {
-            t.colors.accent.fill
-        } else {
-            t.colors.surface
-        }
-    }
+/// The accent while `active`, `off` (a colour, a signal or a closure) while
+/// not: the fill of anything that turns on, as a tile or a toggling button.
+pub fn active_fill<M>(
+    active: Signal<bool>,
+    off: impl IntoSignal<Color, M>,
+) -> impl Fn() -> Color + Copy + 'static {
+    lit(active, with_ui(|ui| ui.colors.accent.fill), off)
 }
 
-/// The ink that reads on [`active_fill`].
-pub fn active_ink(active: Signal<bool>) -> impl Fn() -> Color + Copy + 'static {
-    let t = ui();
-    move || {
-        if active.get() {
-            t.colors.accent.on
-        } else {
-            t.colors.text
-        }
-    }
+/// The ink that reads on [`active_fill`]: `accent.on` while `active`, `off`
+/// while not.
+pub fn active_ink<M>(
+    active: Signal<bool>,
+    off: impl IntoSignal<Color, M>,
+) -> impl Fn() -> Color + Copy + 'static {
+    lit(active, with_ui(|ui| ui.colors.accent.on), off)
 }
 
-/// Asks `on_toggle` for the opposite of `on`.
+/// `on` while `active`, `off` while not. A constant `off` is kept as it is,
+/// with no signal made for it: a pill in a bar takes a few.
+fn lit<M>(
+    active: Signal<bool>,
+    on: Color,
+    off: impl IntoSignal<Color, M>,
+) -> impl Fn() -> Color + Copy + 'static {
+    let off = off.into_prop();
+    // `into_prop` always carries a value: the fallback is never read.
+    move || if active.get() { on } else { off.get_or(on) }
+}
+
+/// Asks `on_toggle` for the opposite of `active`.
 pub(crate) fn flip(
-    on: Signal<bool>,
+    active: Signal<bool>,
     on_toggle: Option<Callback<(bool,)>>,
 ) -> impl Fn() + Copy + 'static {
     move || {
         if let Some(on_toggle) = on_toggle {
-            on_toggle.run(!on.get_untracked());
+            on_toggle.run(!active.get_untracked());
         }
     }
 }
