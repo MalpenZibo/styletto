@@ -64,7 +64,9 @@ tools/shot.sh "Buttons/Button" /tmp/b.png --scale 2 --size 480x240 \
 `key=value` are the keys of the `[appearance]` table (see the README); `--set` sets a story's
 control by its label. The same arguments give the same pixels, so a before/after pair can be
 compared exactly: `magick compare -metric AE before.png after.png null:` prints how many pixels
-differ (0 means none). It needs a GPU adapter; the first run builds in release.
+differ (0 means none). It needs a GPU adapter; the first run builds in release. The
+storybook's headless tests need one too: without it they skip, unless `STYLETTO_REQUIRE_GPU` is
+set, as CI sets it (with Mesa's software Vulkan driver), and then they fail.
 
 ## Git
 

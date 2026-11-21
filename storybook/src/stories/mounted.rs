@@ -7,6 +7,17 @@ use std::time::Instant;
 use guido::prelude::*;
 use guido::testing::Headless;
 
+/// A headless app for a test, none without a GPU adapter: the test then
+/// skips. Where `STYLETTO_REQUIRE_GPU` is set, as CI sets it, a missing
+/// adapter fails instead, so the tests can't quietly stop running.
+pub fn headless() -> Option<Headless> {
+    let h = Headless::new();
+    if h.is_none() && std::env::var_os("STYLETTO_REQUIRE_GPU").is_some() {
+        panic!("no GPU adapter, and STYLETTO_REQUIRE_GPU is set");
+    }
+    h
+}
+
 /// What a tree asks its owner, in order.
 pub type Asked<T> = Rc<RefCell<Vec<T>>>;
 
@@ -23,7 +34,7 @@ impl<T: 'static> Mounted<T> {
     pub fn new<P: 'static>(
         build: impl Fn(Asked<T>) -> (Container, P) + 'static,
     ) -> Option<(Self, P)> {
-        let mut h = Headless::new()?;
+        let mut h = headless()?;
         let asked = Asked::default();
         let probe = Rc::new(Cell::new(None));
         let (log, seen) = (asked.clone(), probe.clone());

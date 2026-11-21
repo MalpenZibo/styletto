@@ -23,8 +23,10 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      # Mesa's software Vulkan driver (lavapipe), so the headless tests have
+      # an adapter to draw with.
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libwayland-dev libxkbcommon-dev
+        run: sudo apt-get update && sudo apt-get install -y libwayland-dev libxkbcommon-dev mesa-vulkan-drivers
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Run clippy
@@ -33,6 +35,9 @@ jobs:
       - name: Run clippy with the default features
         run: cargo clippy --locked -p styletto --all-targets -- -D warnings
       - name: Run tests
+        # Without an adapter a headless test fails here rather than skips.
+        env:
+          STYLETTO_REQUIRE_GPU: 1
         run: cargo test --locked --workspace --all-features
       - name: Build the API documentation
         env:
