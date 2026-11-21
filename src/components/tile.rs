@@ -133,17 +133,9 @@ pub fn tile(
     // it: `height()` unless the subtitle takes two lines. No fixed height, so
     // a row that stretches its children gives the tiles in it the height of
     // the tallest. The corners stay those of `height()`, as the neighbours'.
-    // The body lights up under the pointer as the icon box does, so both
-    // places to press answer it: the next surface while off, the accent
-    // brightened while on.
+    //
+    // Under the pointer the body lights up as a small tile does.
     let body = active_fill(active, t.colors.surface);
-    let body_lifted = move || {
-        if active.get() {
-            hovered(t.colors.accent.fill)
-        } else {
-            t.colors.surface2
-        }
-    };
     pressable(
         toggled(
             container()
@@ -151,7 +143,7 @@ pub fn tile(
                 .corners(shape(active, height(), radius::MEDIUM.px()).transition(motion::spring()))
                 .overflow(Overflow::Hidden),
             body,
-            body_lifted,
+            move || hovered(body()),
         ),
         motion::PRESS_SCALE_WIDE,
     )
