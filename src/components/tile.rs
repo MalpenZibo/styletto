@@ -90,7 +90,7 @@ pub fn tile(
                     }
                 })
             }),
-        0.9,
+        motion::PRESS_SCALE_INNER,
     )
     .layout(Flex::column().center())
     .on_click(toggle)
@@ -136,7 +136,7 @@ pub fn tile(
             .corners(shape(on, height(), radius::MEDIUM.px()).transition(motion::spring()))
             .background(active_fill(on).transition(motion::color()))
             .overflow(Overflow::Hidden),
-        0.97,
+        motion::PRESS_SCALE_WIDE,
     )
     .layout(centered_row(0.0))
     .padding([inset(), 0.0, inset(), inset()])

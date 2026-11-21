@@ -22,8 +22,16 @@ pub const TACTILE_SPRING: SpringConfig = SpringConfig {
     damping: 26.0,
 };
 
-/// How far a button shrinks while pressed, round or a pill.
+/// How far a button (round or a pill) or a small tile shrinks while pressed.
 pub const PRESS_SCALE: f32 = 0.95;
+/// How far a wide surface, as a wide tile, shrinks while pressed: less than
+/// a button, as a few hundredths of a wide box already move its ends a long
+/// way.
+pub const PRESS_SCALE_WIDE: f32 = 0.97;
+/// How far a small target, as a tile's icon box, shrinks while pressed:
+/// more than a button, so its press shows on a small box and reads apart
+/// from the tile around it.
+pub const PRESS_SCALE_INNER: f32 = 0.9;
 
 pub const HOVER_MS: f32 = 150.0;
 pub const COLOR_MS: f32 = 250.0;

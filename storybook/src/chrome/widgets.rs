@@ -2,6 +2,7 @@
 
 use std::path::PathBuf;
 use styletto::components::button::{self, button};
+use styletto::foundations::motion;
 use styletto::foundations::tokens::{radius, size as space, stroke};
 use styletto::primitives::island;
 use styletto::primitives::text::{label, overline};
@@ -25,9 +26,10 @@ pub fn swatch(color: Color, on: impl Fn() -> bool + 'static) -> Container {
                         Color::TRANSPARENT
                     }
                 })
-                .transition(styletto::foundations::motion::hover()),
+                .transition(motion::hover()),
             ),
-        0.85,
+        // A small target: it presses deeper than a button.
+        motion::PRESS_SCALE_INNER,
     )
 }
 

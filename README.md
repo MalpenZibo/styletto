@@ -228,13 +228,18 @@ background = "#fdf6e3"
 ## Motion
 
 `motion::spring()` is the island's spring for every fold and growth,
-`tactile()` the quicker one of a press (a button shrinks to `PRESS_SCALE`,
-0.95), `hover()` and `color()` eased
+`tactile()` the quicker one of a press, `hover()` and `color()` eased
 changes, `easing(ms)` and `springing(config)` custom ones. All follow the
 `Motion` of the `Ui`. `fading(enter, leave)` gives a value one transition
 for a view coming in and another for it going out. `arriving` cross-fades a
 view in, `entering` opens a panel, `shake()` plays a refusal and `armed()`
 ignores presses just after a view appears.
+
+A press (`pressable`) shrinks what it presses to one of three steps: a
+button or a small tile to `PRESS_SCALE` (0.95); a wide surface, as a wide
+tile, to `PRESS_SCALE_WIDE` (0.97), less, as a little already moves its ends
+a long way; a small target, as the icon box in a wide tile, to
+`PRESS_SCALE_INNER` (0.9), more, so its press shows.
 
 ## The island
 

@@ -141,6 +141,8 @@ fn sized(label: Signal<String>, size: Size) -> Container {
 }
 
 /// Shared button behaviour: squish and ripple on press, fade when disabled.
+/// `pressed_scale` is a step of `motion`: [`motion::PRESS_SCALE`],
+/// [`motion::PRESS_SCALE_WIDE`] or [`motion::PRESS_SCALE_INNER`].
 pub fn pressable(base: Container, pressed_scale: f32) -> Container {
     let t = ui();
     base.scale(Scale::NONE.transition(motion::tactile()))
