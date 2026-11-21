@@ -330,6 +330,21 @@ button().icon(Icon::X).fill(Fill::Ghost).size(Size::Sm);
 tag().tone(Tone::Warning).glow(true).child(icon(Icon::Mic, size, Tone::Warning.ink()));
 ```
 
+A text field, `input::field`, is a pill on the surface holding the app's
+`text_input` and a trailing button if given. Its ring is the accent at
+`opacity::RING`, `danger` while `refused` (the last answer was refused and
+nothing new is typed); a ring of the app's own, `.ring(color)`, takes the
+place of both, and a closure giving `None` hands it back to that rule. `password_field` is a field whose end submits, or spins while
+`busy`; `held`, it fades.
+
+```rust
+use styletto::components::input::field;
+
+field().refused(refused).child(text_input(typed));
+// Clear while it sits in a grid, the rule's ring otherwise.
+field().refused(refused).ring(move || in_grid.get().then_some(Color::TRANSPARENT));
+```
+
 The app decides a level, with its own thresholds, and styletto draws it:
 `Level::of(value, warn, alert)` when high is bad, `Level::below(value, warn,
 alert)` when low is, and `Level::Good` for better than normal, a battery
