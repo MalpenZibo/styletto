@@ -23,8 +23,19 @@ jobs:
         with:
           components: rustfmt, clippy
       - uses: Swatinem/rust-cache@v2
+      # Mesa's software Vulkan driver (lavapipe), so the headless tests have
+      # an adapter to draw with.
       - name: Install system dependencies
-        run: sudo apt-get update && sudo apt-get install -y libwayland-dev libxkbcommon-dev
+        run: sudo apt-get update && sudo apt-get install -y libwayland-dev libxkbcommon-dev mesa-vulkan-drivers
+      # Lavapipe only: the loader would otherwise try every Mesa driver first.
+      - name: Point the Vulkan loader at lavapipe
+        run: |
+          icd=$(ls /usr/share/vulkan/icd.d/lvp_icd*.json 2>/dev/null | head -n 1)
+          if [ -z "$icd" ]; then
+            echo "::error::No lavapipe ICD found"
+            exit 1
+          fi
+          echo "VK_ICD_FILENAMES=$icd" >> "$GITHUB_ENV"
       - name: Check formatting
         run: cargo fmt --all -- --check
       - name: Run clippy
@@ -33,6 +44,8 @@ jobs:
       - name: Run clippy with the default features
         run: cargo clippy --locked -p styletto --all-targets -- -D warnings
       - name: Run tests
+        env:
+          GUIDO_GPU_REQUIRED: 1
         run: cargo test --locked --workspace --all-features
       - name: Build the API documentation
         env:
