@@ -43,6 +43,7 @@ pub struct UiConfig {
     #[serde(skip_serializing_if = "is_default")]
     pub seed: Option<String>,
     /// Both sides worked out from this image. Needs the `wallpaper` feature.
+    /// Empty, it is one not chosen yet, and the theme shows meanwhile.
     #[serde(skip_serializing_if = "is_default")]
     pub wallpaper: Option<String>,
     /// How a seed or a wallpaper spreads over the roles.
@@ -167,6 +168,8 @@ impl UiConfig {
             log::warn!("appearance: theme is set beside a wallpaper or a seed, which wins");
         }
         let seed = match (&self.wallpaper, &self.seed) {
+            // Not chosen yet: nothing to read.
+            (Some(path), _) if path.trim().is_empty() => None,
             (Some(path), _) => wallpaper_seed(path),
             (None, Some(hex)) => {
                 let color = parse_hex(hex);
@@ -415,6 +418,14 @@ mod tests {
     fn a_seed_that_is_no_colour_leaves_the_theme() {
         assert_eq!(
             config("seed = \"purple\"").schemes(),
+            UiConfig::default().schemes()
+        );
+    }
+
+    #[test]
+    fn a_wallpaper_not_chosen_yet_leaves_the_theme() {
+        assert_eq!(
+            config("wallpaper = \"\"").schemes(),
             UiConfig::default().schemes()
         );
     }

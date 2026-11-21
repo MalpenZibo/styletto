@@ -1,4 +1,8 @@
 use guido::prelude::*;
+use styletto::components::appearance::{
+    Family, SOURCES, appearance as appearance_panel, color_editor, font_picker, layout_picker,
+    mode_picker, theme_picker,
+};
 use styletto::components::button::{Fill, button};
 use styletto::components::card::{level_figure, stat_card};
 use styletto::components::level::Level;
@@ -14,6 +18,7 @@ use styletto::foundations::control::Size;
 use styletto::foundations::tokens;
 use styletto::foundations::tokens::{icon as icon_box, size as space, tile};
 use styletto::primitives::island;
+use styletto::theme::config::UiConfig;
 use styletto::{Icon, centered_row, icon, ui};
 
 use super::{CPU_LEVELS, TEMP_LEVELS, panel};
@@ -411,6 +416,55 @@ pub fn scrolling_list(ctx: &Ctx) -> Container {
                         .collect::<Vec<_>>()
                 }),
         )
+}
+
+/// Where the panel's colours come from, for its states to be seen.
+const COLOURS: &[&str] = &["Preset", "Seed", "Wallpaper", "Custom"];
+
+/// The families a font list offers, as an app would find them installed.
+fn families() -> Vec<Family> {
+    let family = |name: &str, monospace: bool| Family {
+        name: name.to_string(),
+        monospace,
+        semibold: true,
+    };
+    vec![
+        family("Inter", false),
+        family("Noto Sans", false),
+        family("JetBrains Mono", true),
+    ]
+}
+
+/// The whole panel, or one of the pieces it is built from.
+const PIECES: &[&str] = &["Panel", "Theme", "Mode", "Colour editor", "Fonts", "Layout"];
+
+/// The appearance panel, editing a config of its own: what it chooses
+/// shows in its controls, not in the story's look, which is the canvas's.
+pub fn appearance(ctx: &Ctx) -> Container {
+    let piece = ctx.choice("Piece", PIECES, 0);
+    let colours = ctx.choice("Colours", COLOURS, 0);
+    let picked = ctx.action("pick wallpaper");
+    let config = create_signal(UiConfig::default());
+    create_effect(move || {
+        let name = COLOURS[colours.get()];
+        if let Some((_, source)) = SOURCES.iter().find(|(known, _)| *known == name) {
+            config.update(|c| source.apply(c));
+        }
+    });
+    panel_frame().child(move || {
+        let picked = picked.clone();
+        match PIECES[piece.get()] {
+            "Theme" => theme_picker(config).on_pick_wallpaper(picked).into_any(),
+            "Mode" => mode_picker(config).into_any(),
+            "Colour editor" => color_editor(config, false).into_any(),
+            "Fonts" => font_picker(config).families(families()).into_any(),
+            "Layout" => layout_picker(config).into_any(),
+            _ => appearance_panel(config)
+                .families(families())
+                .on_pick_wallpaper(picked)
+                .into_any(),
+        }
+    })
 }
 
 /// A panel under the island, as the stories here draw it: painted like the

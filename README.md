@@ -57,7 +57,7 @@ row("Wi-Fi")
 
 | Feature | Adds |
 |---|---|
-| `serde` | `theme::config::UiConfig`, read from an `[appearance]` table and written back |
+| `serde` | `theme::config::UiConfig`, read from an `[appearance]` table and written back, and the controls that edit it (`components::appearance`) |
 | `material` | themes worked out from a seed colour |
 | `wallpaper` | themes worked out from an image (implies `material`) |
 
@@ -335,6 +335,7 @@ The modules of `components`:
 | `card` | level figures and stat cards coloured by their `Level` |
 | `progress`, `sparkline`, `roll` | bars, rings, recent samples, rolling digits |
 | `notification` | notifications, alone and grouped |
+| `appearance` | controls that edit a `UiConfig` (with the `serde` feature): the theme, the mode, a side's colours, the fonts, the layout, and a panel of them |
 
 A button is one component, with a label, an icon before it, or the icon
 alone in a circle (`button().icon(icon)` with no label).
@@ -412,6 +413,55 @@ level_indicator(Levels::BATTERY, 50.0).icon(Icon::BatteryCharging).level(Level::
 level_indicator(Levels::VOLUME, 0.0).icon(Icon::VolumeOff);
 level_indicator(Levels::WIFI, 70.0);
 ```
+
+## Appearance controls
+
+With the `serde` feature, `components::appearance` lets the user choose
+what the `[appearance]` table holds. Each control edits an
+`RwSignal<UiConfig>` the app holds, and each change is written to it at
+once; the app turns it into its `Ui` (and saves it) as it changes.
+
+| Component | Edits |
+|---|---|
+| `theme_picker` | where the colours come from (`Source`): a preset with, on a card for each side, its flavour and accent; a seed or a wallpaper, with its variant and contrast; or every colour by hand, in a `color_editor` for each side |
+| `mode_picker` | light, dark or as the system prefers, and which side of which theme that shows |
+| `color_editor` | one side's colours, by name, as hexes; one left empty is worked out |
+| `font_picker` | the sans and the mono family, among those installed, or the system's |
+| `layout_picker` | the density, the shape, the material and the motion |
+| `appearance` | all of them, in sections (theme and mode, layout, fonts) |
+
+What reaches the system stays the app's, and is handed in, so styletto
+needs no portal or font database: the families installed (`Family`: a name,
+whether it is monospaced, whether it draws the semibold weight), what the
+system prefers, and a callback that opens a file chooser for a wallpaper
+and sets the path chosen. `UiConfig::ui` reads a wallpaper when it is the
+source, so an app reads it off the UI thread, and can say how that went
+with `wallpaper_note`; the controls never read it. Chosen as the source, a
+wallpaper is an empty path until one is set, which `UiConfig` takes as none
+chosen yet: the theme shows meanwhile. A seed is offered with the `material` feature, a
+wallpaper with `wallpaper`. The panel fills the width it is given, wrapping
+its options, as in a quick-settings panel; the app scrolls it.
+
+```rust
+use styletto::components::appearance::{appearance, mode_picker, theme_picker};
+
+let config = create_signal(UiConfig::default()); // or as the app loaded it
+appearance(config)
+    .system_dark(system_dark)
+    .families(families)
+    .on_pick_wallpaper(move || chooser.send(()));
+
+// A first-start step: only the theme and its mode.
+container()
+    .child(mode_picker(config).system_dark(system_dark))
+    .child(theme_picker(config).system_dark(system_dark));
+```
+
+`Source::of(&config)` tells where a config's colours come from and
+`source.apply(&mut config)` switches it, leaving out what the source
+before had set. `MODES`, `DENSITIES`, `SHAPES`, `MATERIALS`, `MOTIONS`,
+`VARIANTS`, `CONTRASTS` and `SOURCES` list each choice by the name a
+control shows.
 
 ## Licence
 

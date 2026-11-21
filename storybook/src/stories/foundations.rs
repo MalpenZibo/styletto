@@ -1,5 +1,5 @@
-use crate::chrome::appearance::{DENSITIES, SHAPES};
 use guido::prelude::*;
+use styletto::components::appearance::{DENSITIES, SHAPES};
 use styletto::components::button::{Variant, button};
 use styletto::components::list::{page_header, row};
 use styletto::components::slider::slider_row;

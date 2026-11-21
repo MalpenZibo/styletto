@@ -279,10 +279,12 @@ fn set(controls: &[Control], name: &str, value: &str) -> Result<(), String> {
     Ok(())
 }
 
-fn expand(path: &str) -> PathBuf {
-    match path.strip_prefix("~/") {
+/// A wallpaper's path as typed, `~/` for the home directory, as `UiConfig`
+/// reads it.
+pub fn expand(path: &str) -> PathBuf {
+    match path.trim().strip_prefix("~/") {
         Some(rest) => std::env::home_dir().unwrap_or_default().join(rest),
-        None => PathBuf::from(path),
+        None => PathBuf::from(path.trim()),
     }
 }
 
