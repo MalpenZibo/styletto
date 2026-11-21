@@ -6,6 +6,7 @@
 //! chrome keeps the default.
 
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::system::color_scheme::{self, ColorScheme};
 use futures::StreamExt;
@@ -25,11 +26,10 @@ use styletto::primitives::island as look;
 use styletto::primitives::text::typed;
 use styletto::theme::config::UiConfig;
 use styletto::theme::material;
-use styletto::theme::palette::{Hue, to_hex};
+use styletto::theme::palette::Hue;
 use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
 
 use crate::chrome::widgets::{island, wallpaper};
-use crate::shot::expand;
 use crate::system::fonts;
 use crate::system::picker;
 
@@ -42,15 +42,22 @@ struct Reader {
 
 impl Reader {
     fn read(self, path: PathBuf) {
+        // Each read is numbered: one that ends after a later one began has
+        // nothing left to say.
+        static LATEST: AtomicU64 = AtomicU64::new(0);
+        let read = LATEST.fetch_add(1, Ordering::Relaxed) + 1;
         self.picture.set(Picture::Reading(path.clone()));
         std::thread::spawn(move || {
-            self.picture.set(match material::seeds(&path) {
-                Ok(seeds) => match seeds.first() {
-                    Some(&seed) => Picture::Read { path, seed },
-                    None => Picture::Failed(path, "No colour found".to_string()),
-                },
+            let picture = match material::seeds(&path) {
+                Ok(seeds) if seeds.is_empty() => {
+                    Picture::Failed(path, "No colour found".to_string())
+                }
+                Ok(seeds) => Picture::Read { path, seeds },
                 Err(err) => Picture::Failed(path, err),
-            })
+            };
+            if LATEST.load(Ordering::Relaxed) == read {
+                self.picture.set(picture);
+            }
         });
     }
 }
@@ -78,7 +85,7 @@ fn chooser(config: WriteSignal<UiConfig>, reader: Reader) -> Service<()> {
             match chosen {
                 Ok(Some(path)) => {
                     let path = path.display().to_string();
-                    config.update(move |c| c.wallpaper = Some(path));
+                    config.update(move |c| c.set_wallpaper(path));
                 }
                 Ok(None) => {}
                 Err(err) => reader.picture.set(Picture::Failed(
@@ -90,16 +97,16 @@ fn chooser(config: WriteSignal<UiConfig>, reader: Reader) -> Service<()> {
     })
 }
 
-/// An image read for the colour a theme is made of, by its path.
+/// An image read for the colours a theme could be made of, by its path.
 #[derive(Clone, Debug, Default, PartialEq)]
 enum Picture {
     #[default]
     None,
     Reading(PathBuf),
-    /// Its colour that fits a theme best, as `UiConfig` takes it.
     Read {
         path: PathBuf,
-        seed: Color,
+        /// Best first, as `UiConfig` chooses among them.
+        seeds: Vec<Color>,
     },
     Failed(PathBuf, String),
 }
@@ -129,9 +136,17 @@ impl Appearance {
             picture: picture.writer(),
         };
         // A path set, as typed or as the chooser gave it, is read.
-        let wallpaper = create_memo(move || config.with(|c| c.wallpaper.as_deref().map(expand)));
+        let wallpaper = create_memo(move || config.with(UiConfig::wallpaper_path));
         create_effect(move || {
-            if let Some(path) = wallpaper.get().filter(|p| !p.as_os_str().is_empty()) {
+            let Some(path) = wallpaper.get() else {
+                return;
+            };
+            // A picture read or being read already, as on coming back to it.
+            let known = picture.with_untracked(|p| match p {
+                Picture::Reading(known) | Picture::Read { path: known, .. } => *known == path,
+                _ => false,
+            });
+            if !known {
                 reader.read(path);
             }
         });
@@ -156,20 +171,22 @@ impl Appearance {
         self.backdrop
     }
 
-    /// The config, the wallpaper in it given as the colour read from it;
-    /// none while it is being read.
+    /// The config, the wallpaper in it given as the colour chosen among those
+    /// read from it; none while it is being read.
     pub fn ui(self) -> Ui {
-        let mut config = self.config.get();
-        if config.wallpaper.take().is_some() {
-            let path = self.wallpaper.get();
-            config.seed = self.picture.with(|p| match p {
-                Picture::Read { path: read, seed } if Some(read) == path.as_ref() => {
-                    Some(to_hex(*seed))
-                }
-                _ => None,
-            });
-        }
-        config.ui(self.system.get())
+        self.config
+            .with(|c| c.with_wallpaper_colors(&self.wallpaper_colors()))
+            .ui(self.system.get())
+    }
+
+    /// The colours read from the config's wallpaper, best first; none while
+    /// it is being read.
+    fn wallpaper_colors(self) -> Vec<Color> {
+        let path = self.wallpaper.get();
+        self.picture.with(|p| match p {
+            Picture::Read { path: read, seeds } if Some(read) == path.as_ref() => seeds.clone(),
+            _ => Vec::new(),
+        })
     }
 
     /// What the reading of the wallpaper came to, for the panel to show; a
@@ -248,6 +265,7 @@ pub fn page(a: Appearance) -> Container {
                         .system_dark(a.system)
                         .families(a.families)
                         .wallpaper_note(move || a.wallpaper_note())
+                        .wallpaper_colors(move || a.wallpaper_colors())
                         .on_pick_wallpaper(move || a.chooser.send(())),
                 ),
         )
@@ -457,7 +475,7 @@ mod tests {
 
     use guido::prelude::*;
     use guido::testing::Headless;
-    use styletto::components::appearance::{Source, appearance};
+    use styletto::components::appearance::{Source, appearance, color_editor};
     use styletto::theme::config::UiConfig;
     use styletto::theme::palette::parse_hex;
     use styletto::theme::presets::Mode;
@@ -481,7 +499,7 @@ mod tests {
         h.step();
         let a: Appearance = probe.take().unwrap();
         a.config.update(|c| {
-            Source::Custom.apply(c);
+            Source::Custom.apply(c, &[]);
             c.mode = Mode::Light;
         });
         h.step();
@@ -508,6 +526,53 @@ mod tests {
             Some(a.ui().colors.accent.fill),
             parse_hex(&before.dark["accent"]),
             "dark mode shows the light edit"
+        );
+    }
+
+    #[test]
+    fn a_colour_field_follows_a_change_made_elsewhere() {
+        let Some(mut h) = Headless::new_or_skip() else {
+            return;
+        };
+        let custom = |accent: Option<&str>| {
+            let mut c = UiConfig::default();
+            Source::Custom.apply(&mut c, &[]);
+            if let Some(accent) = accent {
+                c.dark.insert("accent".to_string(), accent.to_string());
+            }
+            c
+        };
+        // One editor whose config changes from outside, one built with the
+        // config it changes to: once it has, they draw the same.
+        let probe = Rc::new(Cell::new(None));
+        let seen = probe.clone();
+        let changed = h.surface(SurfaceConfig::new(), move || {
+            let config = create_signal(custom(None));
+            seen.set(Some(config));
+            container().width(fill()).child(color_editor(config, false))
+        });
+        let built = h.surface(SurfaceConfig::new(), move || {
+            let config = create_signal(custom(Some("#00ff00")));
+            container().width(fill()).child(color_editor(config, false))
+        });
+        for id in [changed, built] {
+            h.configure(id, 400, 900, 1.0);
+        }
+        let settle = |h: &mut Headless| {
+            for _ in 0..30 {
+                h.step();
+            }
+        };
+        settle(&mut h);
+        assert_ne!(h.read_frame(changed), h.read_frame(built));
+        let config: RwSignal<UiConfig> = probe.take().unwrap();
+        config.update(|c| {
+            c.dark.insert("accent".to_string(), "#00ff00".to_string());
+        });
+        settle(&mut h);
+        assert!(
+            h.read_frame(changed) == h.read_frame(built),
+            "the field did not show the colour set elsewhere"
         );
     }
 
@@ -567,7 +632,7 @@ mod tests {
             Box::new(move || a.config.update(|c| c.material = Material::Glass)) as Box<dyn Fn()>,
             Box::new(move || a.config.update(|c| c.density = Density::Compact)),
             Box::new(move || a.config.update(|c| c.mode = Mode::Light)),
-            Box::new(move || a.config.update(|c| Source::Custom.apply(c))),
+            Box::new(move || a.config.update(|c| Source::Custom.apply(c, &[]))),
         ] {
             let before = built.get();
             change();

@@ -29,7 +29,8 @@ usage: styletto-storybook shot --list
            [--set \"Control=value\"]... [key=value]...
 
 key=value are the keys of the [appearance] table: theme, dark_flavor,
-light_flavor, accent, seed, wallpaper, variant, contrast, mode, density,
+light_flavor, accent, dark_accent, light_accent, seed, wallpaper,
+wallpaper_color, variant, contrast, mode, density,
 shape, material, motion, fonts.sans, fonts.mono, dark.<colour>,
 light.<colour>. mode is dark unless given.";
 
@@ -39,8 +40,11 @@ const KEYS: &[&str] = &[
     "dark_flavor",
     "light_flavor",
     "accent",
+    "dark_accent",
+    "light_accent",
     "seed",
     "wallpaper",
+    "wallpaper_color",
     "variant",
     "contrast",
     "mode",
@@ -154,7 +158,13 @@ fn appearance(pairs: &[(String, String)]) -> Result<UiConfig, String> {
         if !KEYS.contains(&key.as_str()) && !TABLES.iter().any(|t| key.starts_with(t)) {
             return Err(format!("unknown appearance key {key:?}\n\n{USAGE}"));
         }
-        table.push_str(&format!("{key} = {}\n", toml_string(value)));
+        // The one number among them; the rest are names.
+        let value = if key == "wallpaper_color" {
+            value.to_string()
+        } else {
+            toml_string(value)
+        };
+        table.push_str(&format!("{key} = {value}\n"));
     }
     if !pairs.iter().any(|(key, _)| key == "mode") {
         table.push_str("mode = \"dark\"\n");
@@ -174,7 +184,7 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
 
     let mut h = Headless::new().ok_or("no GPU adapter: a frame has nowhere to land")?;
     let ui = config.ui(None);
-    let backdrop = config.wallpaper.as_deref().map(expand);
+    let backdrop = config.wallpaper_path();
     let story = &STORIES[shot.story];
     let drawn: Rc<RefCell<Option<Rc<Ctx>>>> = Rc::default();
     let seen = drawn.clone();
@@ -277,15 +287,6 @@ fn set(controls: &[Control], name: &str, value: &str) -> Result<(), String> {
         Control::Text { value: signal, .. } => signal.set(value.to_string()),
     }
     Ok(())
-}
-
-/// A wallpaper's path as typed, `~/` for the home directory, as `UiConfig`
-/// reads it.
-pub fn expand(path: &str) -> PathBuf {
-    match path.trim().strip_prefix("~/") {
-        Some(rest) => std::env::home_dir().unwrap_or_default().join(rest),
-        None => PathBuf::from(path.trim()),
-    }
 }
 
 struct Stderr;

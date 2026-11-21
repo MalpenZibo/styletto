@@ -1,7 +1,7 @@
 use guido::prelude::*;
 use styletto::components::appearance::{
-    Family, SOURCES, appearance as appearance_panel, color_editor, font_picker, layout_picker,
-    mode_picker, theme_picker,
+    Family, SOURCES, Source, appearance as appearance_panel, color_editor, font_picker,
+    layout_picker, mode_picker, theme_picker,
 };
 use styletto::components::button::{Fill, button};
 use styletto::components::card::{level_figure, stat_card};
@@ -19,6 +19,7 @@ use styletto::foundations::tokens;
 use styletto::foundations::tokens::{icon as icon_box, size as space, tile};
 use styletto::primitives::island;
 use styletto::theme::config::UiConfig;
+use styletto::theme::presets::THEMES;
 use styletto::{Icon, centered_row, icon, ui};
 
 use super::{CPU_LEVELS, TEMP_LEVELS, panel};
@@ -447,20 +448,37 @@ pub fn appearance(ctx: &Ctx) -> Container {
     let config = create_signal(UiConfig::default());
     create_effect(move || {
         let name = COLOURS[colours.get()];
-        if let Some((_, source)) = SOURCES.iter().find(|(known, _)| *known == name) {
-            config.update(|c| source.apply(c));
+        if let Some(&(_, source)) = SOURCES.iter().find(|(known, _)| *known == name) {
+            config.update(|c| {
+                source.apply(c, &[]);
+                // A wallpaper chosen, as an app's file chooser sets it.
+                if source == Source::Wallpaper {
+                    c.wallpaper = Some("~/Pictures/wallpaper.jpg".to_string());
+                }
+            });
         }
     });
+    // The colours an app would read from it, best first.
+    let found = || {
+        THEMES[0].flavors[0].accents[..5]
+            .iter()
+            .map(|a| a.color)
+            .collect::<Vec<_>>()
+    };
     panel_frame().child(move || {
         let picked = picked.clone();
         match PIECES[piece.get()] {
-            "Theme" => theme_picker(config).on_pick_wallpaper(picked).into_any(),
+            "Theme" => theme_picker(config)
+                .wallpaper_colors(found())
+                .on_pick_wallpaper(picked)
+                .into_any(),
             "Mode" => mode_picker(config).into_any(),
             "Colour editor" => color_editor(config, false).into_any(),
             "Fonts" => font_picker(config).families(families()).into_any(),
             "Layout" => layout_picker(config).into_any(),
             _ => appearance_panel(config)
                 .families(families())
+                .wallpaper_colors(found())
                 .on_pick_wallpaper(picked)
                 .into_any(),
         }

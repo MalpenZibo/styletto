@@ -114,63 +114,35 @@ impl Source {
     }
 
     /// Makes `config` take its colours from here, leaving out what the
-    /// source before had set. A seed starts as the accent of the side the
-    /// mode shows with no system preference (dark in `Auto`), a
-    /// wallpaper as an empty path until one is chosen, and custom colours
-    /// as every colour showing; leaving a wallpaper, which is not read here,
-    /// they start from the preset. A preset keeps the theme chosen, and so
-    /// does custom, for its sides to be copied back from.
-    pub fn apply(self, config: &mut UiConfig) {
+    /// source before had set; the theme chosen is kept, to go back to. A
+    /// seed starts as the accent of the side the mode shows with no system
+    /// preference (dark in `Auto`), a wallpaper as an empty path until one
+    /// is chosen, and custom colours as every colour showing. A wallpaper is
+    /// never read here: what shows of it is made of `wallpaper_colors`, those
+    /// the app read from it, best first, or of the theme without them.
+    pub fn apply(self, config: &mut UiConfig, wallpaper_colors: &[Color]) {
         if Source::of(config) == self {
             return;
         }
-        let clear = |config: &mut UiConfig| {
-            config.seed = None;
-            config.wallpaper = None;
-            config.dark.clear();
-            config.light.clear();
-        };
-        let generated = |config: &mut UiConfig| {
-            clear(config);
-            config.theme = None;
-            config.dark_flavor = None;
-            config.light_flavor = None;
-            config.accent = None;
-        };
+        let showing = config.with_wallpaper_colors(wallpaper_colors).schemes();
+        config.seed = None;
+        config.wallpaper = None;
+        config.wallpaper_color = 0;
+        config.dark.clear();
+        config.light.clear();
         match self {
-            Source::Preset => clear(config),
+            Source::Preset => {}
             Source::Seed => {
                 let light = !config.mode.is_dark(None);
-                let accent = unread(config)[light as usize].accent.color;
-                generated(config);
-                config.seed = Some(to_hex(accent));
+                config.seed = Some(to_hex(showing[light as usize].accent.color));
             }
-            Source::Wallpaper => {
-                generated(config);
-                config.wallpaper = Some(String::new());
-            }
+            Source::Wallpaper => config.wallpaper = Some(String::new()),
             Source::Custom => {
-                let [dark, light] = unread(config);
-                clear(config);
+                let [dark, light] = showing;
                 config.dark = colors(&dark);
                 config.light = colors(&light);
             }
         }
-    }
-}
-
-/// Both sides as `config` makes them, but for a wallpaper: reading one takes
-/// a moment, and is the app's to do off the UI thread. Meanwhile its sides
-/// are the preset's.
-fn unread(config: &UiConfig) -> [Scheme; 2] {
-    if config.wallpaper.is_some() {
-        UiConfig {
-            wallpaper: None,
-            ..config.clone()
-        }
-        .schemes()
-    } else {
-        config.schemes()
     }
 }
 
@@ -220,6 +192,11 @@ pub fn theme_picker(
     /// What the app found reading the wallpaper, under its path: that it is
     /// reading, or why it can't. Empty says nothing.
     wallpaper_note: String,
+    /// The colours the app found in the wallpaper, best first, as
+    /// `material::seeds` gives them: shown to choose the one the sides are
+    /// made of (`wallpaper_color`). The app reads them off the UI thread, as
+    /// it reads the wallpaper for its `Ui`; the controls never do.
+    wallpaper_colors: Vec<Color>,
     /// Shows a button beside the wallpaper's path. The app opens its file
     /// chooser and sets `wallpaper` to the path chosen.
     #[prop(callback)]
@@ -229,17 +206,22 @@ pub fn theme_picker(
     let source = create_memo(move || config.with(Source::of));
     let showing = move |light: bool| !config.with(|c| c.mode).is_dark(system_dark.get()) == light;
     #[cfg(not(feature = "wallpaper"))]
-    let _ = (wallpaper_note, on_pick_wallpaper);
+    let _ = (wallpaper_note, wallpaper_colors, on_pick_wallpaper);
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
-        .child(choice(
-            config,
+        .child(setting(
             "Colours",
             None,
-            SOURCES,
-            Source::of,
-            |c, source| source.apply(c),
+            choices(
+                SOURCES.iter().map(|(name, _)| *name).collect(),
+                move |index| source.get() == SOURCES[index].1,
+                // What shows of the wallpaper is what the next starts from.
+                move |index| {
+                    let found = wallpaper_colors.get();
+                    config.update(|c| SOURCES[index].1.apply(c, &found))
+                },
+            ),
         ))
         .child(move || match source.get() {
             Source::Preset => preset(config, showing),
@@ -248,7 +230,7 @@ pub fn theme_picker(
             #[cfg(feature = "wallpaper")]
             Source::Wallpaper => generated(
                 config,
-                wallpaper_field(config, wallpaper_note, on_pick_wallpaper),
+                wallpaper_field(config, wallpaper_note, wallpaper_colors, on_pick_wallpaper),
             ),
             Source::Custom => {
                 sides(move |light| side_card(light, showing, color_editor(config, light)))
@@ -273,9 +255,11 @@ pub fn mode_picker(
             let kind = if light { "light" } else { "dark" };
             let shown = match Source::of(c) {
                 Source::Custom => format!("your {kind} colours"),
-                Source::Wallpaper => format!("the wallpaper's {kind} colours"),
+                Source::Wallpaper if c.wallpaper_path().is_some() => {
+                    format!("the wallpaper's {kind} colours")
+                }
                 Source::Seed => format!("the seed's {kind} colours"),
-                Source::Preset => {
+                Source::Preset | Source::Wallpaper => {
                     let choice = c.choice();
                     format!("{} {}", choice.theme.name, choice.flavor_of(light).name)
                 }
@@ -370,13 +354,11 @@ pub fn color_editor(
 ) -> impl Widget {
     let config = config.get_untracked();
     let light = light.get_untracked();
-    // Bumped to build the fields again once the colours are copied.
-    let generation = create_signal(0u32);
     // Worked out once per change, for every dot of the side.
-    let scheme = create_memo(move || config.with(|c| unread(c)[light as usize]));
+    let scheme = create_memo(move || config.with(|c| c.with_wallpaper_colors(&[]).scheme(light)));
     let palette = create_memo(move || scheme.get().palette());
     let field = move |name: &'static str| {
-        let hex = hex_text(config, light, name);
+        let (hex, input) = hex_text(config, light, name);
         let drawn = move || palette.with(|p| drawn(p, name));
         container()
             .width(fill())
@@ -395,6 +377,7 @@ pub fn color_editor(
                     })
                     .child(typing(
                         text_input(hex)
+                            .widget_ref(input)
                             .typeset(MONO_SMALL)
                             .placeholder(move || drawn().map(to_hex).unwrap_or_default()),
                     )),
@@ -403,20 +386,13 @@ pub fn color_editor(
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S2.px()))
-        .child(move || {
-            generation.get();
-            container()
-                .width(fill())
-                .layout(Flex::column().spacing(size::S2.px()))
-                .children(Scheme::default().named().map(|(name, _)| field(name)))
-        })
+        .children(Scheme::default().named().map(|(name, _)| field(name)))
         .child(
             container().child(button().label("Copy from the preset").on_click(move || {
                 config.update(|c| {
                     let preset = c.choice().scheme_of(light);
                     *side_mut(c, light) = colors(&preset);
-                });
-                generation.update(|n| *n += 1);
+                })
             })),
         )
 }
@@ -433,6 +409,8 @@ pub fn appearance(
     families: Vec<Family>,
     /// What the app found reading the wallpaper; see [`theme_picker`].
     wallpaper_note: String,
+    /// The colours the app found in the wallpaper; see [`theme_picker`].
+    wallpaper_colors: Vec<Color>,
     /// Shows a button beside the wallpaper's path; see [`theme_picker`].
     #[prop(callback)]
     on_pick_wallpaper: (),
@@ -451,6 +429,7 @@ pub fn appearance(
                     theme_picker(config)
                         .system_dark(system_dark)
                         .wallpaper_note(wallpaper_note)
+                        .wallpaper_colors(wallpaper_colors)
                         .on_pick_wallpaper(on_pick_wallpaper),
                 ),
         ))
@@ -605,10 +584,7 @@ fn preset(
                 move |index| theme.get() == THEMES[index].name,
                 move |index| {
                     config.update(|c| {
-                        c.theme = Some(THEMES[index].name.to_string());
-                        c.dark_flavor = None;
-                        c.light_flavor = None;
-                        c.accent = None;
+                        c.set_theme(Some(THEMES[index].name.to_string()));
                     })
                 },
             ),
@@ -677,7 +653,7 @@ fn flavor_and_accent(
                     flavor.accents.iter().map(move |a| {
                         let name = a.name;
                         swatch(a.color, move || accent() == name)
-                            .on_click(move || config.update(|c| c.accent = Some(name.to_string())))
+                            .on_click(move || config.update(|c| c.set_accent(light, name)))
                     }),
                 ),
             )
@@ -714,14 +690,12 @@ fn generated(config: RwSignal<UiConfig>, from: Container) -> Container {
 /// as a colour.
 #[cfg(feature = "material")]
 fn seed_field(config: RwSignal<UiConfig>) -> Container {
-    let typed = create_signal(config.with_untracked(|c| c.seed.clone().unwrap_or_default()));
-    create_effect(move || {
-        let text = typed.get();
-        let text = text.trim();
-        if parse_hex(text).is_some() && config.with_untracked(|c| c.seed.as_deref() != Some(text)) {
-            config.update(|c| c.seed = Some(text.to_string()));
-        }
-    });
+    let (typed, input) = bound_text(
+        config,
+        |c| c.seed.clone().unwrap_or_default(),
+        |text| parse_hex(text).is_some(),
+        |c, text| c.seed = Some(text.to_string()),
+    );
     setting(
         "Seed",
         None,
@@ -737,7 +711,9 @@ fn seed_field(config: RwSignal<UiConfig>) -> Container {
                 input_field()
                     .size(Size::Sm)
                     .refused(move || typed.with(|text| parse_hex(text).is_none()))
-                    .child(typing(text_input(typed).typeset(MONO_SMALL))),
+                    .child(typing(
+                        text_input(typed).widget_ref(input).typeset(MONO_SMALL),
+                    )),
             ),
     )
 }
@@ -748,11 +724,13 @@ fn seed_field(config: RwSignal<UiConfig>) -> Container {
 fn wallpaper_field(
     config: RwSignal<UiConfig>,
     note: Signal<String>,
+    candidates: Signal<Vec<Color>>,
     pick: Option<Callback>,
 ) -> Container {
     let set = create_memo(move || config.with(|c| c.wallpaper.clone().unwrap_or_default()));
     let typed = create_signal(config.with_untracked(|c| c.wallpaper.clone().unwrap_or_default()));
-    // A path the app's chooser sets shows in the field.
+    // A new path, as the app's chooser sets it, shows in the field; a path
+    // typed and not sent stays until then.
     create_effect(move || {
         let path = set.get();
         if typed.with_untracked(|typed| *typed != path) {
@@ -762,9 +740,7 @@ fn wallpaper_field(
     let input = text_input(typed)
         .typeset(MONO_SMALL)
         .placeholder("~/Pictures/wallpaper.jpg".to_string())
-        .on_submit(move |path: &str| {
-            config.update(|c| c.wallpaper = Some(path.trim().to_string()))
-        });
+        .on_submit(move |path: &str| config.update(|c| c.set_wallpaper(path.trim().to_string())));
     let field = input_field().size(Size::Sm).child(typing(input));
     let field = match pick {
         Some(pick) => field.trailing(
@@ -785,7 +761,31 @@ fn wallpaper_field(
             note
         }
     };
-    setting("Wallpaper", Some(caption(note)), field)
+    // The colours found, to choose among: the best first.
+    let chosen = move || {
+        let count = candidates.with(Vec::len);
+        config.with(|c| c.wallpaper_index(count))
+    };
+    let found = move || {
+        let found = candidates.get();
+        (!found.is_empty()).then(|| {
+            container().layout(centered_row(size::S1.px())).children(
+                found.into_iter().enumerate().map(move |(index, color)| {
+                    swatch(color, move || chosen() == index)
+                        .on_click(move || config.update(|c| c.wallpaper_color = index))
+                }),
+            )
+        })
+    };
+    setting(
+        "Wallpaper",
+        Some(caption(note)),
+        container()
+            .width(fill())
+            .layout(Flex::column().spacing(size::S2.px()))
+            .child(field)
+            .child(found),
+    )
 }
 
 /// A family to choose among those installed: the one chosen, written in
@@ -820,10 +820,12 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
         let Some(name) = chosen.get().filter(|_| families.with(|f| !f.is_empty())) else {
             return String::new();
         };
-        families.with(|families| match families.iter().find(|f| f.name == name) {
-            None => "Not installed".to_string(),
-            Some(family) if !family.semibold => "No semibold: the nearest".to_string(),
-            Some(_) => String::new(),
+        families.with(|families| {
+            match families.iter().find(|f| f.name.eq_ignore_ascii_case(&name)) {
+                None => "Not installed".to_string(),
+                Some(family) if !family.semibold => "No semibold: the nearest".to_string(),
+                Some(_) => String::new(),
+            }
         })
     });
     let current = container()
@@ -969,36 +971,66 @@ fn swatch(color: Color, on: impl Fn() -> bool + 'static) -> Container {
     )
 }
 
-/// The text of the field for colour `name` of one side: what parses as a
-/// colour is set on that side, nothing at all unsets it, and anything else
-/// waits to be finished.
-fn hex_text(config: RwSignal<UiConfig>, light: bool, name: &'static str) -> RwSignal<String> {
-    let hex = create_signal(
-        config
-            .with_untracked(|c| side(c, light).get(name).cloned())
-            .unwrap_or_default(),
-    );
+/// The field for colour `name` of one side, bound to the config: what
+/// parses as a colour is set on that side, nothing at all unsets it, and
+/// anything else waits to be finished.
+fn hex_text(
+    config: RwSignal<UiConfig>,
+    light: bool,
+    name: &'static str,
+) -> (RwSignal<String>, WidgetRef) {
+    bound_text(
+        config,
+        move |c| side(c, light).get(name).cloned().unwrap_or_default(),
+        |text| text.is_empty() || parse_hex(text).is_some(),
+        move |c, text| {
+            let colors = side_mut(c, light);
+            if text.is_empty() {
+                colors.remove(name);
+            } else {
+                colors.insert(name.to_string(), text.to_string());
+            }
+        },
+    )
+}
+
+/// A field's text bound to one value of the config, both ways, and the ref
+/// its input takes. What is typed is written, trimmed, once `takes` it. A
+/// change made elsewhere shows in the field, over an edit not finished,
+/// but not while the field has the focus, so it never moves the text
+/// under the cursor: the field catches up once it is left.
+fn bound_text(
+    config: RwSignal<UiConfig>,
+    read: impl Fn(&UiConfig) -> String + Copy + 'static,
+    takes: fn(&str) -> bool,
+    write: impl Fn(&mut UiConfig, &str) + Copy + 'static,
+) -> (RwSignal<String>, WidgetRef) {
+    let start = config.with_untracked(read);
+    let text = create_signal(start.clone());
+    // The config's value the field last followed.
+    let seen = create_signal(start);
+    let input = create_widget_ref();
     create_effect(move || {
-        let text = hex.get();
-        let text = text.trim();
-        let set = if text.is_empty() {
-            None
-        } else if parse_hex(text).is_some() {
-            Some(text.to_string())
-        } else {
-            return;
-        };
-        if config.with_untracked(|c| side(c, light).get(name) != set.as_ref()) {
-            config.update(|c| {
-                let colors = side_mut(c, light);
-                match set {
-                    Some(hex) => colors.insert(name.to_string(), hex),
-                    None => colors.remove(name),
-                };
-            });
+        let typed = text.get();
+        let typed = typed.trim();
+        if takes(typed) && config.with_untracked(read) != typed {
+            config.update(|c| write(c, typed));
         }
     });
-    hex
+    let outside = create_memo(move || config.with(read));
+    create_effect(move || {
+        let value = outside.get();
+        // The focus is read only for a change: a field in step doesn't
+        // follow it.
+        if seen.with_untracked(|seen| *seen == value) || input.is_focused() {
+            return;
+        }
+        seen.set(value.clone());
+        if text.with_untracked(|text| text.trim() != value) {
+            text.set(value);
+        }
+    });
+    (text, input)
 }
 
 /// The colour a scheme's `name` is drawn in, from its palette: an
@@ -1044,7 +1076,7 @@ mod tests {
             mode,
             ..UiConfig::default()
         };
-        Source::Custom.apply(&mut config);
+        Source::Custom.apply(&mut config, &[]);
         config
     }
 
@@ -1052,8 +1084,8 @@ mod tests {
     fn a_light_colour_leaves_the_dark_one() {
         let config = create_signal(custom(Mode::Light));
         let before = config.get_untracked();
-        let dark = hex_text(config, false, "accent");
-        let light = hex_text(config, true, "accent");
+        let (dark, _) = hex_text(config, false, "accent");
+        let (light, _) = hex_text(config, true, "accent");
         assert_eq!(
             config.get_untracked(),
             before,
@@ -1076,7 +1108,7 @@ mod tests {
             .flat_map(|light| {
                 Scheme::default()
                     .named()
-                    .map(|(name, _)| ((light, name), hex_text(config, light, name)))
+                    .map(|(name, _)| ((light, name), hex_text(config, light, name).0))
             })
             .collect();
         let red = parse_hex("#ff0000").unwrap();
@@ -1113,7 +1145,7 @@ mod tests {
             ..UiConfig::default()
         };
         let showing = config.schemes();
-        Source::Custom.apply(&mut config);
+        Source::Custom.apply(&mut config, &[]);
         assert_eq!(Source::of(&config), Source::Custom);
         // As it showed, to the byte a hex keeps.
         let hexes = |schemes: [Scheme; 2]| schemes.map(|s| s.named().map(|(_, c)| c.map(to_hex)));
@@ -1127,21 +1159,63 @@ mod tests {
         if !cfg!(feature = "wallpaper") {
             return;
         }
-        Source::Seed.apply(&mut config);
+        Source::Seed.apply(&mut config, &[]);
         assert_eq!(Source::of(&config), Source::Seed);
         assert!(config.dark.is_empty() && config.light.is_empty());
-        assert_eq!(config.theme, None);
+        assert_eq!(config.theme.as_deref(), Some("nord"), "the theme is kept");
         assert_eq!(
             config.seed.as_deref().and_then(parse_hex),
             Some(showing[0].accent.color),
             "the seed starts as the accent showing"
         );
-        Source::Wallpaper.apply(&mut config);
+        Source::Wallpaper.apply(&mut config, &[]);
         assert_eq!(
             (config.seed.as_ref(), config.wallpaper.as_deref()),
             (None, Some(""))
         );
-        Source::Preset.apply(&mut config);
-        assert_eq!(config, UiConfig::default());
+        // Leaving a wallpaper, what showed of it is what the next starts
+        // from: the colour chosen among those read from it.
+        config.set_wallpaper("~/w.jpg".to_string());
+        let found = [Color::from_hex(0x2e7d32), Color::from_hex(0xc62828)];
+        config.wallpaper_color = 1;
+        let shown = config.with_wallpaper_colors(&found).schemes();
+        let mut custom = config.clone();
+        Source::Custom.apply(&mut custom, &found);
+        assert_eq!(hexes(custom.schemes()), hexes(shown));
+        Source::Preset.apply(&mut config, &[]);
+        assert_eq!(
+            config,
+            UiConfig {
+                theme: Some("nord".to_string()),
+                accent: Some("frost".to_string()),
+                ..UiConfig::default()
+            },
+            "back to the preset chosen"
+        );
+    }
+
+    #[test]
+    fn a_field_follows_a_change_made_elsewhere_but_not_over_an_edit() {
+        let config = create_signal(custom(Mode::Dark));
+        let (hex, _) = hex_text(config, false, "accent");
+        config.update(|c| {
+            c.dark.insert("accent".to_string(), "#00ff00".to_string());
+        });
+        assert_eq!(hex.get_untracked(), "#00ff00", "the field stayed behind");
+        // Typed, then a change elsewhere: the field shows what it wrote.
+        hex.set("#0000ff".to_string());
+        config.update(|c| c.mode = Mode::Light);
+        assert_eq!(hex.get_untracked(), "#0000ff");
+        // Half typed and left, it takes a change made elsewhere.
+        hex.set("#ff".to_string());
+        assert_eq!(config.get_untracked().dark["accent"], "#0000ff");
+        config.update(|c| {
+            c.dark.insert("accent".to_string(), "#123456".to_string());
+        });
+        assert_eq!(hex.get_untracked(), "#123456", "the field stayed behind");
+        // A change that leaves the colour as it is moves nothing.
+        hex.set("#ff".to_string());
+        config.update(|c| c.mode = Mode::Light);
+        assert_eq!(hex.get_untracked(), "#ff", "the edit was lost");
     }
 }
