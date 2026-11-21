@@ -11,7 +11,7 @@ use crate::theme::palette::Palette;
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize),
+    derive(serde::Deserialize, serde::Serialize),
     serde(rename_all = "lowercase")
 )]
 pub enum Density {
@@ -47,7 +47,7 @@ impl Density {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize),
+    derive(serde::Deserialize, serde::Serialize),
     serde(rename_all = "lowercase")
 )]
 pub enum Shape {
@@ -86,7 +86,7 @@ impl Default for Fonts {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize),
+    derive(serde::Deserialize, serde::Serialize),
     serde(rename_all = "lowercase")
 )]
 pub enum Material {
@@ -122,7 +122,7 @@ impl Material {
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
 #[cfg_attr(
     feature = "serde",
-    derive(serde::Deserialize),
+    derive(serde::Deserialize, serde::Serialize),
     serde(rename_all = "lowercase")
 )]
 pub enum Motion {
