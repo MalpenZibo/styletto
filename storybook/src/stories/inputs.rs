@@ -231,6 +231,54 @@ mod tests {
     }
 
     #[test]
+    fn a_notch_steps_from_the_level_an_owner_snaps_to() {
+        let Some((mut m, ())) = Mounted::new(|log| {
+            // A backlight of 16 levels: it takes the one nearest the ask.
+            let value = create_signal(40.0);
+            let slider = slider(value).on_change(move |v: f32| {
+                value.set((v / 100.0 * 15.0).round() / 15.0 * 100.0);
+                log.borrow_mut().push(v);
+            });
+            (container().width(200.0).child(slider), ())
+        }) else {
+            return;
+        };
+
+        // Asked 45, it answers 46.67: the next notch steps from there, and
+        // asks 51.67 rounded, not 50.
+        assert_eq!(m.notch(true), [45.0]);
+        assert_eq!(m.notch(true), [52.0]);
+        // 53.33, then down: 48.33 and 41.67, rounded.
+        assert_eq!(m.notch(false), [48.0]);
+        assert_eq!(m.notch(false), [42.0]);
+    }
+
+    #[test]
+    fn a_change_from_outside_ends_the_wheels_run() {
+        let Some((mut m, value)) = Mounted::new(|log| {
+            // An owner that answers only when the test says so.
+            let value = create_signal(60.0);
+            let slider = slider(value).on_change(move |v| log.borrow_mut().push(v));
+            (container().width(200.0).child(slider), value)
+        }) else {
+            return;
+        };
+
+        assert_eq!(m.notch(true), [65.0]);
+        assert_eq!(m.notch(true), [70.0]);
+        // A media key, with the pointer still on the slider: the next notch
+        // steps from what it set, not from the asks it overtook.
+        value.set(30.0);
+        m.step();
+        assert_eq!(m.notch(true), [35.0]);
+        // A late answer still holds a run started after the change.
+        assert_eq!(m.notch(true), [40.0]);
+        value.set(35.0);
+        m.step();
+        assert_eq!(m.notch(true), [45.0]);
+    }
+
+    #[test]
     fn wheel_and_press_reach_the_max() {
         let Some((mut m, max)) = Mounted::new(|log| {
             let (value, max) = (create_signal(140.0), create_signal(150.0));

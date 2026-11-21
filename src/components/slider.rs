@@ -73,20 +73,29 @@ pub fn slider(
     let hovered = create_signal(false);
     // While dragging, show where the pointer put it, not the owner's answer.
     let dragging = create_signal(None::<f32>);
-    // Likewise the wheel's last step, until the owner's value catches up with
-    // it: the next notch steps from there, not from an answer on its way. The
-    // owner's value is rounded, as the steps are, for an owner that keeps
-    // finer levels (a backlight's) than whole percentages.
-    let wheeled = create_signal(None::<f32>);
+    // Likewise the wheel's steps the owner has not answered yet, in order: the
+    // last one is shown, and the next notch steps from it, not from an answer
+    // on its way.
+    let wheeled = create_signal(Vec::<f32>::new());
     create_effect(move || {
-        if wheeled.get_untracked() == Some(value.get().round()) {
-            wheeled.set(None);
-        }
+        // Rounded, as the steps are, for an owner that keeps finer levels (a
+        // backlight's) than whole percentages.
+        let v = value.get().round();
+        wheeled.update(|asks| match asks.iter().position(|&a| a == v) {
+            // A late answer: the steps asked after it still hold.
+            Some(i) => {
+                asks.drain(..=i);
+            }
+            // Anything else, a level of the owner's own or a change from
+            // outside, is believed: the next notch steps from it.
+            None => asks.clear(),
+        });
     });
+    let held = move || wheeled.with(|asks| asks.last().copied());
     let shown = create_memo(move || {
         dragging
             .get()
-            .or_else(|| wheeled.get())
+            .or_else(held)
             .unwrap_or_else(|| value.get())
             .clamp(0.0, max.get())
     });
@@ -95,7 +104,7 @@ pub fn slider(
 
     let set = move |v: f32| {
         let v = v.clamp(0.0, max.get_untracked()).round();
-        wheeled.set(None);
+        wheeled.set(Vec::new());
         if dragging.get_untracked() != Some(v) {
             dragging.set(Some(v));
             on_change(v);
@@ -199,7 +208,7 @@ pub fn slider(
             // Leaving ends the wheel's run: an owner that refused a step, or
             // never answered, is believed again.
             if !h {
-                wheeled.set(None);
+                wheeled.set(Vec::new());
             }
         })
         .on_mouse_down(move |x, _| set(locate(x)))
@@ -218,7 +227,7 @@ pub fn slider(
             // steps down from the maximum.
             let max = max.get_untracked();
             let from = wheeled
-                .get_untracked()
+                .with_untracked(|asks| asks.last().copied())
                 .unwrap_or_else(|| value.get_untracked())
                 .clamp(0.0, max);
             let next = (from - dy.signum() * step.get_untracked())
@@ -227,7 +236,7 @@ pub fn slider(
             if next != from {
                 // Held before the owner is told, so an answer given at once
                 // is seen catching up.
-                wheeled.set(Some(next));
+                wheeled.update(|asks| asks.push(next));
                 on_change(next);
             }
         })
