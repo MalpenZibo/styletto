@@ -4,12 +4,13 @@
 //! any case; one that matches nothing is logged and left out.
 
 use std::collections::BTreeMap;
+use std::path::PathBuf;
 
-use guido::prelude::FontFamily;
+use guido::prelude::{Color, FontFamily};
 use serde::{Deserialize, Serialize};
 
 use crate::theme::material::{Contrast, Variant};
-use crate::theme::palette::{Scheme, parse_hex};
+use crate::theme::palette::{Scheme, parse_hex, to_hex};
 use crate::theme::presets::{Mode, Side, THEMES, Theme, ThemeChoice};
 use crate::ui::{Density, Fonts, Material, Motion, Shape, Ui};
 
@@ -19,7 +20,9 @@ pub type Colors = BTreeMap<String, String>;
 
 /// The source of the colours is one of `theme`, `seed` and `wallpaper`: the
 /// default theme when none is set, the wallpaper then the seed when more
-/// than one is. `dark` and `light` are set over it, whichever it is.
+/// than one is. A theme beside a seed or a wallpaper is kept for when they
+/// give no colour, and to go back to. `dark` and `light` are set over it,
+/// whichever it is.
 ///
 /// Written back (`toml::to_string(&config)`, or JSON, or another format that
 /// names its fields), it leaves out every field at its default, so it holds
@@ -39,12 +42,24 @@ pub struct UiConfig {
     /// Set on each side whose flavour has it.
     #[serde(skip_serializing_if = "is_default")]
     pub accent: Option<String>,
+    /// The dark side's accent, over `accent`.
+    #[serde(skip_serializing_if = "is_default")]
+    pub dark_accent: Option<String>,
+    /// The light side's accent, over `accent`.
+    #[serde(skip_serializing_if = "is_default")]
+    pub light_accent: Option<String>,
     /// Both sides worked out from this colour. Needs the `material` feature.
     #[serde(skip_serializing_if = "is_default")]
     pub seed: Option<String>,
     /// Both sides worked out from this image. Needs the `wallpaper` feature.
+    /// Empty, it is one not chosen yet, and the theme shows meanwhile.
     #[serde(skip_serializing_if = "is_default")]
     pub wallpaper: Option<String>,
+    /// Which of the colours the wallpaper yields, best first, the sides are
+    /// made of: 0, the best, unless another is chosen; any past the last is
+    /// the best.
+    #[serde(skip_serializing_if = "is_default")]
+    pub wallpaper_color: usize,
     /// How a seed or a wallpaper spreads over the roles.
     #[serde(skip_serializing_if = "is_default")]
     pub variant: Variant,
@@ -137,9 +152,16 @@ impl UiConfig {
                 None => log::warn!("{} has no flavour {name:?}", theme.name),
             }
         }
-        if let Some(name) = &self.accent {
+        // The accent of both sides, then each side's own over it.
+        let accents = [
+            (&self.accent, [false, true].as_slice()),
+            (&self.dark_accent, &[false]),
+            (&self.light_accent, &[true]),
+        ];
+        for (name, sides) in accents {
+            let Some(name) = name else { continue };
             let mut found = false;
-            for light in [false, true] {
+            for &light in sides {
                 if let Some(accent) = choice
                     .flavor_of(light)
                     .accents
@@ -157,17 +179,101 @@ impl UiConfig {
         choice
     }
 
+    /// The wallpaper's path, `~/` standing for the home directory; none
+    /// while it is unset or not chosen yet (empty).
+    pub fn wallpaper_path(&self) -> Option<PathBuf> {
+        let path = self.wallpaper.as_deref()?.trim();
+        if path.is_empty() {
+            return None;
+        }
+        Some(match path.strip_prefix("~/") {
+            Some(rest) => std::env::home_dir().unwrap_or_default().join(rest),
+            None => PathBuf::from(path),
+        })
+    }
+
+    /// Sets the wallpaper's path; another picture starts from its best
+    /// colour.
+    pub fn set_wallpaper(&mut self, path: String) {
+        if self.wallpaper.as_ref() != Some(&path) {
+            self.wallpaper = Some(path);
+            self.wallpaper_color = 0;
+        }
+    }
+
+    /// Which of `count` colours a wallpaper yields, best first, the sides
+    /// are made of: `wallpaper_color`, or the best when it is past the last.
+    pub fn wallpaper_index(&self, count: usize) -> usize {
+        if self.wallpaper_color < count {
+            self.wallpaper_color
+        } else {
+            0
+        }
+    }
+
+    /// This config with its wallpaper as read: the colour chosen among
+    /// `colors`, those it yields best first (`material::seeds`), stands as
+    /// the seed; with none yet, the theme shows. For an app that reads the
+    /// wallpaper itself, off the UI thread, rather than in [`ui`](Self::ui).
+    pub fn with_wallpaper_colors(&self, colors: &[Color]) -> UiConfig {
+        let mut config = self.clone();
+        if config.wallpaper.take().is_some() {
+            config.seed = colors
+                .get(self.wallpaper_index(colors.len()))
+                .map(|&color| to_hex(color));
+        }
+        config
+    }
+
+    /// Chooses a theme by name, or the default one, in its own flavours and
+    /// accents.
+    pub fn set_theme(&mut self, theme: Option<String>) {
+        self.theme = theme;
+        self.dark_flavor = None;
+        self.light_flavor = None;
+        self.accent = None;
+        self.dark_accent = None;
+        self.light_accent = None;
+    }
+
+    /// Sets one side's accent by name, writing as little as keeps both sides
+    /// as they show: no key while each shows its flavour's own, `accent`
+    /// while both show the same one, and each side's own key where they
+    /// differ and it isn't its flavour's. A name its flavour hasn't is
+    /// logged and left out.
+    pub fn set_accent(&mut self, light: bool, name: &str) {
+        let mut choice = self.choice();
+        let flavor = choice.flavor_of(light);
+        let Some(accent) = flavor.accents.iter().find(|a| same(a.name, name)) else {
+            log::warn!("{} has no accent {name:?}", flavor.name);
+            return;
+        };
+        choice.side_mut(light).accent = accent.name;
+        let shown = [false, true].map(|light| choice.side(light).accent);
+        let own = [false, true].map(|light| {
+            let flavor = choice.flavor_of(light);
+            flavor.accents[flavor.accent].name
+        });
+        let set = |side: usize| (shown[side] != own[side]).then(|| shown[side].to_string());
+        (self.accent, self.dark_accent, self.light_accent) = if shown == own {
+            (None, None, None)
+        } else if shown[0] == shown[1] {
+            (Some(shown[0].to_string()), None, None)
+        } else {
+            (None, set(0), set(1))
+        };
+    }
+
     /// Both sides from the wallpaper or the seed, where one is set and
     /// gives a colour.
     fn generated(&self) -> Option<[Scheme; 2]> {
-        if self.wallpaper.is_some() && self.seed.is_some() {
+        // A wallpaper not chosen yet (empty) is none.
+        let wallpaper = self.wallpaper_path();
+        if wallpaper.is_some() && self.seed.is_some() {
             log::warn!("appearance: both wallpaper and seed are set; using the wallpaper");
         }
-        if (self.wallpaper.is_some() || self.seed.is_some()) && self.theme.is_some() {
-            log::warn!("appearance: theme is set beside a wallpaper or a seed, which wins");
-        }
-        let seed = match (&self.wallpaper, &self.seed) {
-            (Some(path), _) => wallpaper_seed(path),
+        let seed = match (wallpaper, &self.seed) {
+            (Some(path), _) => self.wallpaper_seed(path),
             (None, Some(hex)) => {
                 let color = parse_hex(hex);
                 if color.is_none() {
@@ -195,39 +301,34 @@ impl UiConfig {
 }
 
 #[cfg(feature = "material")]
-fn generate(
-    seed: guido::prelude::Color,
-    variant: Variant,
-    contrast: Contrast,
-) -> Option<[Scheme; 2]> {
+fn generate(seed: Color, variant: Variant, contrast: Contrast) -> Option<[Scheme; 2]> {
     Some(crate::theme::material::schemes(seed, variant, contrast))
 }
 
 #[cfg(not(feature = "material"))]
-fn generate(_: guido::prelude::Color, _: Variant, _: Contrast) -> Option<[Scheme; 2]> {
+fn generate(_: Color, _: Variant, _: Contrast) -> Option<[Scheme; 2]> {
     log::warn!("appearance: a seed or a wallpaper needs styletto's material feature");
     None
 }
 
-#[cfg(feature = "wallpaper")]
-fn wallpaper_seed(path: &str) -> Option<guido::prelude::Color> {
-    let path = match path.trim().strip_prefix("~/") {
-        Some(rest) => std::env::home_dir().unwrap_or_default().join(rest),
-        None => std::path::PathBuf::from(path.trim()),
-    };
-    match crate::theme::material::seeds(&path) {
-        Ok(seeds) => seeds.first().copied(),
-        Err(err) => {
-            log::warn!("appearance.wallpaper {}: {err}", path.display());
-            None
+impl UiConfig {
+    /// The colour chosen among those the wallpaper at `path` yields.
+    #[cfg(feature = "wallpaper")]
+    fn wallpaper_seed(&self, path: PathBuf) -> Option<Color> {
+        match crate::theme::material::seeds(&path) {
+            Ok(seeds) => seeds.get(self.wallpaper_index(seeds.len())).copied(),
+            Err(err) => {
+                log::warn!("appearance.wallpaper {}: {err}", path.display());
+                None
+            }
         }
     }
-}
 
-#[cfg(not(feature = "wallpaper"))]
-fn wallpaper_seed(_: &str) -> Option<guido::prelude::Color> {
-    log::warn!("appearance: a wallpaper needs styletto's wallpaper feature");
-    None
+    #[cfg(not(feature = "wallpaper"))]
+    fn wallpaper_seed(&self, _: PathBuf) -> Option<Color> {
+        log::warn!("appearance: a wallpaper needs styletto's wallpaper feature");
+        None
+    }
 }
 
 /// Sets `colors` over `scheme`, by name. A colour set is used as given; the
@@ -261,8 +362,6 @@ fn same(name: &str, asked: &str) -> bool {
 
 #[cfg(test)]
 mod tests {
-    use guido::prelude::Color;
-
     use super::*;
 
     fn config(toml: &str) -> UiConfig {
@@ -393,7 +492,7 @@ mod tests {
         let tables = [
             // Every key at once, the tables among the values when written.
             "theme = \"catppuccin\"\ndark_flavor = \"macchiato\"\nlight_flavor = \"latte\"\n\
-             accent = \"peach\"\nseed = \"#6750a4\"\nwallpaper = \"~/Pictures/w.jpg\"\n\
+             accent = \"peach\"\ndark_accent = \"red\"\nlight_accent = \"teal\"\nseed = \"#6750a4\"\nwallpaper = \"~/Pictures/w.jpg\"\nwallpaper_color = 2\n\
              variant = \"fruit-salad\"\ncontrast = \"high\"\nmode = \"light\"\n\
              density = \"compact\"\nshape = \"round\"\nmaterial = \"glass\"\n\
              motion = \"reduced\"\n[dark]\naccent = \"#ff79c6\"\non_accent = \"#1a1b26\"\n\
@@ -415,6 +514,80 @@ mod tests {
     fn a_seed_that_is_no_colour_leaves_the_theme() {
         assert_eq!(
             config("seed = \"purple\"").schemes(),
+            UiConfig::default().schemes()
+        );
+    }
+
+    #[test]
+    fn a_sides_accent_wins_over_the_accent_on_that_side_only() {
+        let c = config("theme = \"catppuccin\"\naccent = \"peach\"\nlight_accent = \"teal\"");
+        let choice = c.choice();
+        assert_eq!(choice.dark.accent, "Peach");
+        assert_eq!(choice.light.accent, "Teal");
+        let c = config("theme = \"catppuccin\"\ndark_accent = \"red\"");
+        let choice = c.choice();
+        assert_eq!(choice.dark.accent, "Red");
+        assert_eq!(choice.light, ThemeChoice::of(&THEMES[1]).light);
+    }
+
+    #[test]
+    fn the_wallpaper_colour_picks_among_the_candidates() {
+        let candidates = [Color::BLACK, Color::WHITE];
+        let pick = |index: usize, candidates: &[Color]| {
+            UiConfig {
+                wallpaper: Some("~/w.jpg".to_string()),
+                wallpaper_color: index,
+                ..UiConfig::default()
+            }
+            .with_wallpaper_colors(candidates)
+            .seed
+        };
+        assert_eq!(pick(0, &candidates), Some(to_hex(Color::BLACK)));
+        assert_eq!(pick(1, &candidates), Some(to_hex(Color::WHITE)));
+        assert_eq!(
+            pick(2, &candidates),
+            Some(to_hex(Color::BLACK)),
+            "past the end, the best"
+        );
+        assert_eq!(pick(1, &[]), None, "none read yet");
+        // Another picture starts from its best colour; the same one keeps it.
+        let mut c = config("wallpaper = \"~/w.jpg\"\nwallpaper_color = 1");
+        c.set_wallpaper("~/w.jpg".to_string());
+        assert_eq!(c.wallpaper_color, 1);
+        c.set_wallpaper("~/other.jpg".to_string());
+        assert_eq!(c.wallpaper_color, 0);
+    }
+
+    #[test]
+    fn an_accent_is_written_per_side_only_where_the_sides_differ() {
+        let mut c = config("theme = \"catppuccin\"");
+        let own = c.choice().dark.accent;
+        let keys = |c: &UiConfig| {
+            (
+                c.accent.clone(),
+                c.dark_accent.clone(),
+                c.light_accent.clone(),
+            )
+        };
+        c.set_accent(true, "peach");
+        assert_eq!(keys(&c), (None, None, Some("Peach".to_string())));
+        assert_eq!(c.choice().dark.accent, own, "the dark side moved");
+        c.set_accent(false, "Peach");
+        assert_eq!(keys(&c), (Some("Peach".to_string()), None, None));
+        c.set_accent(false, "Red");
+        assert_eq!(
+            keys(&c),
+            (None, Some("Red".to_string()), Some("Peach".to_string()))
+        );
+        c.set_accent(false, own);
+        c.set_accent(true, own);
+        assert_eq!(keys(&c), (None, None, None), "the flavours' own");
+    }
+
+    #[test]
+    fn a_wallpaper_not_chosen_yet_leaves_the_theme() {
+        assert_eq!(
+            config("wallpaper = \"\"").schemes(),
             UiConfig::default().schemes()
         );
     }

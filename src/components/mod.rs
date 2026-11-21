@@ -1,6 +1,8 @@
 //! The components: `#[component]`s, closed and set through their props,
 //! slots and callbacks.
 
+#[cfg(feature = "serde")]
+pub mod appearance;
 pub mod badge;
 pub mod button;
 pub mod card;

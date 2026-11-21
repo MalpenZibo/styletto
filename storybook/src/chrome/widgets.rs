@@ -1,54 +1,12 @@
 //! The storybook's own small pieces, shared by its chrome and its pages.
 
 use std::path::PathBuf;
-use styletto::components::button::{self, button};
-use styletto::foundations::motion;
-use styletto::foundations::tokens::{radius, size as space, stroke};
+use styletto::components::button::button;
+use styletto::foundations::tokens::{radius, size as space};
 use styletto::primitives::island;
 use styletto::primitives::text::{label, overline};
 
 use guido::prelude::*;
-
-/// A dot of `color`, ringed while `on`.
-pub fn swatch(color: Color, on: impl Fn() -> bool + 'static) -> Container {
-    button::pressable(
-        container()
-            .width(space::S4.px())
-            .height(space::S4.px())
-            .corners(radius::pill(space::S4.px()))
-            .background(color)
-            .border(
-                stroke::BOLD,
-                (move || {
-                    if on() {
-                        Color::WHITE
-                    } else {
-                        Color::TRANSPARENT
-                    }
-                })
-                .transition(motion::hover()),
-            ),
-        // A small target: it presses deeper than a button.
-        motion::PRESS_SCALE_INNER,
-    )
-}
-
-/// A named choice among a few options, as buttons.
-pub fn choice<T: Copy + PartialEq + 'static>(
-    name: &'static str,
-    options: &'static [(&'static str, T)],
-    value: RwSignal<T>,
-) -> Container {
-    field(
-        name,
-        None,
-        choices(
-            options.iter().map(|(name, _)| *name).collect(),
-            move |index| value.get() == options[index].1,
-            move |index| value.set(options[index].1),
-        ),
-    )
-}
 
 /// A setting: its name, a note at the other end of the line, and what sets
 /// it underneath.

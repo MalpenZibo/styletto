@@ -83,6 +83,7 @@ pub const STORIES: &[Story] = &[
     story("Composites", "Power menu", composites::power_menu),
     story("Composites", "Cards", composites::cards),
     story("Composites", "Notifications", composites::notifications),
+    story("Composites", "Appearance", composites::appearance),
     story("Motion", "Island", motion::island),
     story("Motion", "Cross-fade", motion::cross_fade),
     story("Motion", "Shake", motion::shake),
