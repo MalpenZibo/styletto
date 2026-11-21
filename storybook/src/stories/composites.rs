@@ -119,6 +119,7 @@ pub fn tiles(ctx: &Ctx) -> Container {
 pub fn slider_rows(ctx: &Ctx) -> Container {
     let volume = ctx.number("Volume", 0.0..=150.0, 64.0);
     let max = ctx.number("Max", 100.0..=150.0, 100.0);
+    let step = ctx.number("Step", 1.0..=20.0, 5.0);
     let brightness = ctx.number("Brightness", 0.0..=100.0, 80.0);
     let muted = ctx.bool("Muted", false);
     let opened = ctx.action_with::<&'static str>("open");
@@ -137,6 +138,7 @@ pub fn slider_rows(ctx: &Ctx) -> Container {
                 volume,
             )
             .max(max)
+            .step(step)
             .on_change(move |v| volume.set(v))
             .on_icon(move || muted.set(!muted.get_untracked()))
             .on_more(move || opened("audio")),
