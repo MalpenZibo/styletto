@@ -1875,12 +1875,14 @@ dependencies = [
 name = "styletto"
 version = "0.1.0"
 dependencies = [
+ "fontdb 0.23.0",
  "guido",
  "image",
  "log",
  "material-colors",
  "serde",
  "toml",
+ "ttf-parser",
 ]
 
 [[package]]
@@ -1888,7 +1890,6 @@ name = "styletto-storybook"
 version = "0.1.0"
 dependencies = [
  "anyhow",
- "fontdb 0.24.0",
  "futures",
  "guido",
  "image",
@@ -1896,7 +1897,6 @@ dependencies = [
  "styletto",
  "tokio",
  "toml",
- "ttf-parser",
  "url",
  "zbus",
 ]

@@ -14,6 +14,7 @@ read it before changing anything, and keep it true.
 - `src/components`: the `#[component]`s.
 - `storybook/src/stories`: one story per component or pattern, registered in `mod.rs`.
 - `icons/`: unmodified Lucide SVGs (ISC, see `icons/LICENSE`); `assets/`: logos and wordmarks.
+- `tests/fonts/`: tiny faces for the font scan's tests, made by the script beside them.
 
 ## Rules of the system
 
@@ -45,6 +46,7 @@ What CI runs (`.github/workflows/ci.yml`); all must pass:
 cargo fmt --all -- --check
 cargo clippy --workspace --all-targets --all-features -- -D warnings
 cargo clippy -p styletto --all-targets -- -D warnings
+cargo clippy -p styletto --all-targets --features serde -- -D warnings
 cargo test --workspace --all-features
 RUSTDOCFLAGS="-D warnings" cargo doc -p styletto --all-features --no-deps
 ```

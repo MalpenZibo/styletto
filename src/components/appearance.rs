@@ -5,9 +5,16 @@
 //! ([`layout_picker`]); and [`appearance`], a panel of them in sections, as
 //! wide as the app makes it.
 //!
-//! What reaches the system is the app's, handed in: the font families
-//! installed, and a file chooser for a wallpaper. A seed is offered with
-//! the `material` feature, a wallpaper with `wallpaper`.
+//! What reaches the system is the app's, handed in: a file chooser for a
+//! wallpaper, and the font families installed, which the font picker finds
+//! by itself with the `fonts` feature (`installed_families`). A seed is
+//! offered with the `material` feature, a wallpaper with `wallpaper`.
+
+#[cfg(feature = "fonts")]
+mod fonts;
+
+#[cfg(feature = "fonts")]
+pub use fonts::installed_families;
 
 use guido::prelude::*;
 
@@ -168,7 +175,8 @@ fn side_mut(config: &mut UiConfig, light: bool) -> &mut Colors {
     }
 }
 
-/// A font family the app found installed, for [`font_picker`] to offer.
+/// A font family installed, for [`font_picker`] to offer: as the app found
+/// it, or as `installed_families` did, with the `fonts` feature.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Family {
     pub name: String,
@@ -328,10 +336,19 @@ pub fn layout_picker(#[prop(required)] config: RwSignal<UiConfig>) -> impl Widge
 pub fn font_picker(
     #[prop(required)] config: RwSignal<UiConfig>,
     /// The families installed, as the app finds them; monospaced ones are
-    /// offered for mono too.
-    families: Vec<Family>,
+    /// offered for mono too. Left out (`None` as the picker is made), they
+    /// are `installed_families()` with the `fonts` feature, and none without
+    /// it.
+    families: Option<Vec<Family>>,
 ) -> impl Widget {
     let config = config.get_untracked();
+    // Given or not is decided as the picker is made, so the system's fonts
+    // are read only when the app gives none.
+    let families: Signal<Vec<Family>> = if families.with_untracked(Option::is_some) {
+        create_memo(move || families.get().unwrap_or_default()).into_signal()
+    } else {
+        installed()
+    };
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
@@ -405,8 +422,9 @@ pub fn appearance(
     #[prop(required)] config: RwSignal<UiConfig>,
     /// What the system prefers, dark or light, for [`Mode::Auto`].
     system_dark: Option<bool>,
-    /// The font families installed, as the app finds them.
-    families: Vec<Family>,
+    /// The font families installed, as the app finds them; see
+    /// [`font_picker`].
+    families: Option<Vec<Family>>,
     /// What the app found reading the wallpaper; see [`theme_picker`].
     wallpaper_note: String,
     /// The colours the app found in the wallpaper; see [`theme_picker`].
@@ -435,6 +453,15 @@ pub fn appearance(
         ))
         .child(group("Layout", layout_picker(config)))
         .child(group("Fonts", font_picker(config).families(families)))
+}
+
+/// The families installed, for a picker given none: read with the `fonts`
+/// feature, none without it.
+fn installed() -> Signal<Vec<Family>> {
+    #[cfg(feature = "fonts")]
+    return installed_families();
+    #[cfg(not(feature = "fonts"))]
+    create_stored(Vec::new())
 }
 
 /// A titled run of settings, set in from the panel's edge as a row's
@@ -1048,6 +1075,22 @@ fn drawn(palette: &Palette, name: &str) -> Option<Color> {
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    /// Never run, only compiled: the families optional, an app still hands
+    /// them in in every form it did when they were a list.
+    #[allow(dead_code)]
+    fn families_are_handed_in_as_before(
+        config: RwSignal<UiConfig>,
+        read: Signal<Vec<Family>>,
+        held: RwSignal<Vec<Family>>,
+        worked_out: Memo<Vec<Family>>,
+    ) {
+        font_picker(config).families(read);
+        font_picker(config).families(held);
+        font_picker(config).families(worked_out);
+        font_picker(config).families(move || read.get());
+        appearance(config).families(Vec::new());
+    }
     use crate::theme::presets::ThemeChoice;
 
     #[test]
