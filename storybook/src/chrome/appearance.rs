@@ -2,9 +2,8 @@
 //! library's appearance panel editing a `UiConfig`, beside a preview of what
 //! it makes. The page hands the panel what reaches the system: the system's
 //! dark preference, a wallpaper chosen through the desktop portal and read
-//! on a thread of its own; the panel finds the families installed itself
-//! (the library's `fonts` feature). The storybook's own chrome keeps the
-//! default.
+//! on a thread of its own; the panel finds the families installed itself,
+//! in Guido's list. The storybook's own chrome keeps the default.
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};

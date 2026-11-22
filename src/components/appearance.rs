@@ -6,14 +6,12 @@
 //! wide as the app makes it.
 //!
 //! What reaches the system is the app's, handed in: a file chooser for a
-//! wallpaper, and the font families installed, which the font picker finds
-//! by itself with the `fonts` feature (`installed_families`). A seed is
-//! offered with the `material` feature, a wallpaper with `wallpaper`.
+//! wallpaper, and the font families installed, which the font picker reads
+//! by itself from Guido ([`installed_families`]) when the app gives none. A
+//! seed is offered with the `material` feature, a wallpaper with `wallpaper`.
 
-#[cfg(feature = "fonts")]
 mod fonts;
 
-#[cfg(feature = "fonts")]
 pub use fonts::installed_families;
 
 use guido::prelude::*;
@@ -178,7 +176,7 @@ fn side_mut(config: &mut UiConfig, light: bool) -> &mut Colors {
 }
 
 /// A font family installed, for [`font_picker`] to offer: as the app found
-/// it, or as `installed_families` did, with the `fonts` feature.
+/// it, or as [`installed_families`] did.
 #[derive(Clone, Debug, PartialEq, Eq)]
 pub struct Family {
     pub name: String,
@@ -324,17 +322,16 @@ pub fn font_picker(
     #[prop(required)] config: RwSignal<UiConfig>,
     /// The families installed, as the app finds them; monospaced ones are
     /// offered for mono too. Left out (`None` as the picker is made), they
-    /// are `installed_families()` with the `fonts` feature, and none without
-    /// it.
+    /// are [`installed_families`].
     families: Option<Vec<Family>>,
 ) -> impl Widget {
     let config = config.get_untracked();
-    // Given or not is decided as the picker is made, so the system's fonts
-    // are read only when the app gives none.
+    // Given or not is decided as the picker is made, so Guido lists its
+    // fonts only when the app gives none.
     let families: Signal<Vec<Family>> = if families.with_untracked(Option::is_some) {
         create_memo(move || families.get().unwrap_or_default()).into_signal()
     } else {
-        installed()
+        installed_families()
     };
     container()
         .width(fill())
@@ -437,15 +434,6 @@ pub fn appearance(
         )
         .child(setting_group("Layout").child(layout_picker(config)))
         .child(setting_group("Fonts").child(font_picker(config).families(families)))
-}
-
-/// The families installed, for a picker given none: read with the `fonts`
-/// feature, none without it.
-fn installed() -> Signal<Vec<Family>> {
-    #[cfg(feature = "fonts")]
-    return installed_families();
-    #[cfg(not(feature = "fonts"))]
-    create_stored(Vec::new())
 }
 
 /// Each option of a list, by the name it shows, for `choices`.

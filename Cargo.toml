@@ -26,14 +26,11 @@ guido = { git = "https://github.com/MalpenZibo/guido", branch = "main" }
 log = "0.4.35"
 
 [dependencies]
-# 0.23, the version Guido's text renderer (cosmic-text) has: one copy.
-fontdb = { version = "0.23.0", optional = true }
 guido.workspace = true
 image = { version = "0.25.10", default-features = false, features = ["png", "jpeg", "webp"], optional = true }
 log = { workspace = true, optional = true }
 material-colors = { version = "0.5.0", optional = true }
 serde = { version = "1.0.229", features = ["derive"], optional = true }
-ttf-parser = { version = "0.25.1", optional = true }
 
 [features]
 # `[appearance]` read from a config file and written back: UiConfig, and
@@ -43,8 +40,6 @@ serde = ["dep:serde", "dep:log"]
 material = ["dep:material-colors"]
 # ...or from a wallpaper.
 wallpaper = ["material", "material-colors/quantize", "dep:image"]
-# The font families installed, which the font picker then finds by itself.
-fonts = ["serde", "dep:fontdb", "dep:ttf-parser"]
 
 [dev-dependencies]
 toml = "1.2.1"

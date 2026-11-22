@@ -1,89 +1,49 @@
 //! The font families installed, for [`font_picker`](super::font_picker) to
-//! offer, as the font database the text renderer loads sees them: read once
-//! per process, on a thread of their own, since that reads every font file.
-//! Only families that write Latin text are kept, so a symbol or an emoji font
-//! is left out.
+//! offer: Guido's own list of the fonts it draws with, the system's and those
+//! the app loaded. Only families that write Latin text are kept, so a symbol
+//! or an emoji font is left out.
 
-use std::collections::BTreeMap;
-use std::sync::OnceLock;
+use std::ops::RangeInclusive;
 
 use guido::prelude::*;
 
 use super::Family;
 use crate::foundations::typography::LABEL_MEDIUM;
 
-/// The families installed, by name, empty until they have been read.
+/// The families installed, by name whatever its case, empty until Guido has
+/// read them.
 ///
-/// The first call starts the reading, on a thread; every later one shares
-/// what it finds, and none reads again. Each call gets a signal in its own
-/// scope, so a picker that goes away takes only its own.
-///
-/// They are the system's fonts as fontdb finds them, read apart from the
-/// renderer's; the source may become Guido's own font database once it
-/// shares it (MalpenZibo/guido#948), which also knows the fonts an app
-/// loaded itself.
-pub fn installed_families() -> Signal<Vec<Family>> {
-    // The list is the process's, the signal the caller's: a signal lives in
-    // the scope that made it, and the first caller's may go before the
-    // others'. A `GlobalSignal`, which the app owns, will take its place
-    // once Guido makes it public (MalpenZibo/guido#947).
-    static FOUND: OnceLock<Vec<Family>> = OnceLock::new();
-    if let Some(found) = FOUND.get() {
-        return create_stored(found.clone());
-    }
-    let families = create_signal(Vec::new());
-    let writer = families.writer();
-    // The first thread reads; one started while it does waits for it. Set
-    // from there, the write waits for this thread's next frame, and one to a
-    // signal whose scope has gone since is dropped.
-    std::thread::spawn(move || writer.set(FOUND.get_or_init(system_families).clone()));
-    families.read_only()
-}
-
-/// The families of the system's fonts.
-fn system_families() -> Vec<Family> {
-    let mut db = fontdb::Database::new();
-    db.load_system_fonts();
-    families(&db)
-}
-
-/// Every family of `db` that writes Latin text, by name: monospaced if every
+/// Guido reads its fonts once, on a thread, and every call shares what it
+/// found; the signal is the caller's, a memo over Guido's list, which the
+/// app owns. A family is kept if it draws `a` and `A`, is monospaced if every
 /// face of it is, and semibold if it draws the weight of the emphasised type
 /// (`.em()`), or one within a step of it.
-fn families(db: &fontdb::Database) -> Vec<Family> {
-    let semibold = LABEL_MEDIUM.em().resolve().weight.0;
-    let mut found: BTreeMap<&str, Family> = BTreeMap::new();
-    for face in db.faces() {
-        let Some((name, _)) = face.families.first() else {
-            continue;
-        };
-        // Whether it writes Latin text, and the span of its weight axis if
-        // it is a variable face.
-        let read = db.with_face_data(face.id, |data, index| {
-            let parsed = ttf_parser::Face::parse(data, index).ok()?;
-            let latin = parsed.glyph_index('a').is_some() && parsed.glyph_index('A').is_some();
-            let axis = parsed
-                .variation_axes()
-                .into_iter()
-                .find(|axis| axis.tag == ttf_parser::Tag::from_bytes(b"wght"))
-                .map(|axis| (axis.min_value as u16, axis.max_value as u16));
-            Some((latin, axis))
-        });
-        let Some(Some((true, axis))) = read else {
-            continue;
-        };
-        // The weights it draws: one for a static face, the span of its
-        // weight axis for a variable one.
-        let (low, high) = axis.unwrap_or((face.weight.0, face.weight.0));
-        let family = found.entry(name).or_insert_with(|| Family {
-            name: name.clone(),
-            monospace: true,
-            semibold: false,
-        });
-        family.monospace &= face.monospaced;
-        family.semibold |= semibold + 50 >= low && semibold <= high + 50;
-    }
-    found.into_values().collect()
+pub fn installed_families() -> Signal<Vec<Family>> {
+    let families = font_families();
+    let semibold = LABEL_MEDIUM.em().resolve().weight;
+    create_memo(move || {
+        families.with(|families| {
+            families
+                .iter()
+                .filter(|family| family.covers('a') && family.covers('A'))
+                .map(|family| Family {
+                    name: family.name().to_string(),
+                    monospace: family.monospaced(),
+                    semibold: draws(family.weights(), semibold),
+                })
+                .collect()
+        })
+    })
+    .into_signal()
+}
+
+/// Whether one of `weights` reaches `weight`, or one within a step of it: a
+/// static face is one weight, a variable one the span of its `wght` axis.
+fn draws(weights: &[RangeInclusive<FontWeight>], weight: FontWeight) -> bool {
+    // Saturating: a broken face may say its axis ends at the top of `u16`.
+    weights.iter().any(|w| {
+        weight.0.saturating_add(50) >= w.start().0 && weight.0 <= w.end().0.saturating_add(50)
+    })
 }
 
 #[cfg(test)]
@@ -91,25 +51,23 @@ mod tests {
     use super::*;
 
     #[test]
-    fn a_family_is_read_as_the_picker_needs_it() {
-        let mut db = fontdb::Database::new();
-        db.load_font_data(include_bytes!("../../../tests/fonts/families.ttc").to_vec());
-        let family = |name: &str, monospace: bool, semibold: bool| Family {
-            name: name.to_string(),
-            monospace,
-            semibold,
-        };
-        // Fixture Caps, which has no a, is left out.
-        assert_eq!(
-            families(&db),
-            vec![
-                // One face of it is not monospaced.
-                family("Fixture Mixed", false, false),
-                family("Fixture Mono", true, true),
-                family("Fixture Sans", false, false),
-                // Its axis spans the semibold weight.
-                family("Fixture Variable", false, true),
-            ]
-        );
+    fn a_family_is_semibold_within_a_step_of_the_weight() {
+        let semibold = FontWeight::SEMI_BOLD;
+        let one = |w: u16| FontWeight(w)..=FontWeight(w);
+        assert!(draws(&[one(400), one(600)], semibold));
+        // 50 either side is near enough...
+        assert!(draws(&[one(550)], semibold));
+        assert!(draws(&[one(650)], semibold));
+        // ...more than that is not.
+        assert!(!draws(&[one(400), one(700)], semibold));
+        assert!(!draws(&[], semibold));
+        // A variable face anywhere along its axis.
+        assert!(draws(&[FontWeight(100)..=FontWeight(900)], semibold));
+        assert!(draws(&[FontWeight(300)..=FontWeight(550)], semibold));
+        assert!(!draws(&[FontWeight(300)..=FontWeight(500)], semibold));
+        assert!(!draws(
+            &[FontWeight(u16::MAX)..=FontWeight(u16::MAX)],
+            semibold
+        ));
     }
 }

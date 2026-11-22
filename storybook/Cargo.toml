@@ -16,7 +16,7 @@ futures = "0.3.34"
 guido = { workspace = true, features = ["testing"] }
 image = { version = "0.25.10", default-features = false, features = ["png"] }
 log.workspace = true
-styletto = { path = "..", features = ["fonts", "serde", "wallpaper"] }
+styletto = { path = "..", features = ["serde", "wallpaper"] }
 toml = "1.2.1"
 tokio = { version = "1.54.1", default-features = false, features = ["rt-multi-thread", "macros"] }
 url = "2.5.8"
