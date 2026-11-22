@@ -117,7 +117,15 @@ fn scheme(seed: Rgb, variant: Variant, contrast: Contrast, light: bool) -> Schem
 /// The colours that would make a theme of the image at `path`, best first.
 #[cfg(feature = "wallpaper")]
 pub fn seeds(path: &Path) -> Result<Vec<Color>, String> {
-    let image = image::open(path).map_err(|err| err.to_string())?;
+    // The format from the first bytes, the extension only when they say
+    // nothing: a wallpaper changer often keeps the picture behind a link
+    // with no extension, or the wrong one.
+    let open = || {
+        image::ImageReader::open(path)?
+            .with_guessed_format()?
+            .decode()
+    };
+    let image = open().map_err(|err| err.to_string())?;
     // A thumbnail holds the same colours in a fraction of the pixels.
     // Transparent pixels show no colour of the image.
     let pixels: Vec<Rgb> = image
@@ -224,5 +232,24 @@ mod tests {
         assert!(!found.is_empty());
         assert!(found[0].b > found[0].r, "the larger blue should come first");
         assert!(seeds(Path::new("/nowhere.png")).is_err());
+    }
+
+    #[cfg(feature = "wallpaper")]
+    #[test]
+    fn an_image_is_read_whatever_its_name_says() {
+        let png = image::RgbaImage::from_pixel(16, 16, image::Rgba([30, 90, 200, 255]));
+        // As a wallpaper changer's link names it, and with a wrong extension.
+        let id = std::process::id();
+        for name in [
+            format!("styletto-seeds-{id}"),
+            format!("styletto-seeds-{id}.jpg"),
+        ] {
+            let path = std::env::temp_dir().join(&name);
+            png.save_with_format(&path, image::ImageFormat::Png)
+                .unwrap();
+            let found = seeds(&path);
+            std::fs::remove_file(&path).ok();
+            assert!(!found.unwrap().is_empty(), "{name}");
+        }
     }
 }
