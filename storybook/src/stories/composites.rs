@@ -5,11 +5,13 @@ use styletto::components::appearance::{
 };
 use styletto::components::button::{Fill, button};
 use styletto::components::card::{level_figure, stat_card};
+use styletto::components::choices::choices;
 use styletto::components::level::Level;
 use styletto::components::list::{
     back, empty, page_header, pages, row, scroll_list, section, separator,
 };
 use styletto::components::notification::{app_icon, notification, notification_group};
+use styletto::components::settings::{setting, setting_group};
 use styletto::components::slider::slider_row;
 use styletto::components::tag::Tone;
 use styletto::components::tile::{small_tile, tile};
@@ -483,6 +485,79 @@ pub fn appearance(ctx: &Ctx) -> Container {
                 .into_any(),
         }
     })
+}
+
+/// Where an app's bar sits on the screen.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Edge {
+    Top,
+    Bottom,
+}
+
+/// How an app's clock shows the hours.
+#[derive(Clone, Copy, Debug, PartialEq)]
+enum Hours {
+    Twelve,
+    TwentyFour,
+}
+
+/// An app's own settings, made of the pieces the appearance panel is made
+/// of, above one of styletto's pickers: the same titles, names and buttons,
+/// spaced the same.
+pub fn settings(ctx: &Ctx) -> Container {
+    let notes = ctx.bool("Notes", true);
+    let chose_edge = ctx.action_with::<Edge>("edge");
+    let chose_hours = ctx.action_with::<Hours>("hours");
+    let edge = create_signal(Edge::Top);
+    let hours = create_signal(Hours::TwentyFour);
+    let config = create_signal(UiConfig::default());
+    panel_frame().child(
+        container()
+            .width(fill())
+            .layout(Flex::column().spacing(space::S4.px()))
+            .child(
+                setting_group("Bar")
+                    .child(
+                        setting("Edge")
+                            .note(move || {
+                                if notes.get() {
+                                    "Moves at once".to_string()
+                                } else {
+                                    String::new()
+                                }
+                            })
+                            .child(
+                                choices(
+                                    vec![
+                                        ("Top".to_string(), Edge::Top),
+                                        ("Bottom".to_string(), Edge::Bottom),
+                                    ],
+                                    edge,
+                                )
+                                .on_choose(move |chosen| {
+                                    edge.set(chosen);
+                                    chose_edge(chosen);
+                                }),
+                            ),
+                    )
+                    .child(
+                        setting("Clock").child(
+                            choices(
+                                vec![
+                                    ("12-hour".to_string(), Hours::Twelve),
+                                    ("24-hour".to_string(), Hours::TwentyFour),
+                                ],
+                                hours,
+                            )
+                            .on_choose(move |chosen| {
+                                hours.set(chosen);
+                                chose_hours(chosen);
+                            }),
+                        ),
+                    ),
+            )
+            .child(setting_group("Layout").child(layout_picker(config))),
+    )
 }
 
 /// A panel under the island, as the stories here draw it: painted like the
