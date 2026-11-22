@@ -104,7 +104,10 @@ Fixed values: `stroke::HAIRLINE` 1, `RING` 1.5, `BOLD` 2, `HEAVY` 3;
 group of notifications), `HALO` 0.5 (a share of the glow's alpha, for the
 island's halo); `glow::SMALL` 4, `MEDIUM` 8, `LARGE` 16 (the island's
 halo); `scrollbar::WIDTH` 4, `HOVER_WIDTH` 8, `MARGIN` 2,
-`MIN_HANDLE` 24, the same in every density.
+`MIN_HANDLE` 24, the same in every density; `indicator::DOT` 8 (a page
+indicator's dot, and the gap between two) and `CURRENT` 24 (the current
+page's pill), the same in every density too, as a dot that shrank with the
+space would all but vanish in compact.
 
 A fill lights up by a `lift` step. Under the pointer, an opaque one moves
 `HOVER` 0.12 toward white and a translucent one gains `HOVER_ALPHA` 0.06 of
@@ -344,7 +347,7 @@ The modules of `components`:
 |---|---|
 | `button` | buttons, with a label, an icon or both, an action or a toggle as a tile is; the bar's pills; `pressable` |
 | `toggle`, `slider`, `input` | a switch, a slider and a slider row (to 100%, or past it to a max; a wheel notch moves it by a step, 5% unless set), text and password fields |
-| `list` | rows (a checked one marks the choice in use; one in a tag's `Tone`, as warning or danger, has its title, icon, hover and press in that hue), sections, empty states, page headers with a subtitle, pages that slide, a list that scrolls past a height with the theme's scrollbar |
+| `list` | rows (a checked one marks the choice in use; one in a tag's `Tone`, as warning or danger, has its title, icon, hover and press in that hue), sections, empty states, page headers with a subtitle, pages that slide and a page indicator for where a flow of them stands, a list that scrolls past a height with the theme's scrollbar |
 | `tile` | quick-settings tiles, wide and small; a wide one's subtitle takes a second line when it needs one, and tiles side by side in a `Flex::row()` are as tall as the tallest |
 | `tag` | read-only pills for a state, tinted by a `Tone` (neutral, accent, success, warning, danger), glowing if asked |
 | `badge` | dots, icon tiles |
@@ -352,7 +355,8 @@ The modules of `components`:
 | `card` | level figures and stat cards coloured by their `Level` |
 | `progress`, `sparkline`, `roll` | bars, rings, recent samples, rolling digits |
 | `notification` | notifications, alone and grouped |
-| `settings`, `choices` | the pieces of a settings panel: a titled group of settings, a setting with its name and a note over what sets it; one of several values to choose, as a row of buttons |
+| `settings` | the pieces of a settings panel: a titled group of settings, a setting with its name and a note over what sets it |
+| `choices` | one of several values to choose: a row of buttons that wraps, or a window's tabs on one line |
 | `appearance` | controls that edit a `UiConfig` (with the `serde` feature): the theme, the mode, a side's colours, the fonts, the layout, and a panel of them |
 
 A button is one component, with a label, an icon before it, or the icon
@@ -460,6 +464,26 @@ setting_group("Bar").child(
 // Beside one of styletto's, editing the app's config.
 let config = create_signal(UiConfig::default());
 setting_group("Layout").child(layout_picker(config));
+```
+
+`tabs(options, chosen)` is the same choice as a window's tabs: ghost
+buttons on one line, the current one `active`, as tall as a header's
+buttons, to sit between its title and its close button; it takes the same
+values and `on_choose`. Where a flow of pages stands, as a first start's
+steps, is a `page_indicator(count, current)`: a dot for each page in
+`dim`, the current one stretched into a short pill in the accent as text,
+which reads on the island on every material (the fill may not). It takes
+no press: the flow's own buttons move it, Back and Next at the footer's
+ends.
+
+```rust
+use styletto::components::choices::tabs;
+use styletto::components::list::page_indicator;
+
+let tab = create_signal(Tab::Look);
+tabs(vec![("Bar".into(), Tab::Bar), ("Look".into(), Tab::Look)], tab)
+    .on_choose(move |chosen| tab.set(chosen));
+page_indicator(4, step); // step: the page showing, from 0
 ```
 
 ## Appearance controls

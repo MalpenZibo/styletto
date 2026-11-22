@@ -1,4 +1,5 @@
-//! Lists and the pages a panel navigates between.
+//! Lists, the pages a panel navigates between, and where a flow of them
+//! stands.
 
 use std::cell::Cell;
 use std::rc::Rc;
@@ -10,7 +11,7 @@ use crate::components::tag::Tone;
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
-use crate::foundations::tokens::{icon as icon_box, opacity, radius, size, stroke};
+use crate::foundations::tokens::{icon as icon_box, indicator, opacity, radius, size, stroke};
 use crate::foundations::typography::{LABEL_MEDIUM, TITLE_XSMALL, Typeset};
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::{caption, label, overline};
@@ -218,6 +219,63 @@ where
             )
             .children(page)
     })
+}
+
+/// Where a flow of pages stands, as a first start's steps: a dot for each
+/// page in `dim`, the current one stretched into a short pill in the
+/// accent as text, springing to the next as `current` moves. The palette
+/// holds both to 3:1 on the island whatever shows through it; the accent's
+/// fill falls to 1.3:1 on glass (Catppuccin Latte's rosewater). It shows
+/// and takes no press: the flow's Back and Next buttons move it.
+#[component]
+pub fn page_indicator(
+    /// How many pages there are.
+    #[prop(required)]
+    count: usize,
+    /// The page showing, from 0; one past the last shows as the last.
+    #[prop(required)]
+    current: usize,
+) -> impl Widget {
+    let t = ui();
+    // Stretching is a movement: reduced motion swaps the pill over at once
+    // and only fades the colours.
+    let moves = motion::moves();
+    // A page past the last shows as the last, rather than as none.
+    let current = move || current.get().min(count.get().saturating_sub(1));
+    container()
+        .layout(centered_row(indicator::DOT))
+        .children(move || {
+            (0..count.get()).map(move |page| {
+                let on = move || current() == page;
+                container()
+                    .width(
+                        (move || {
+                            if on() {
+                                indicator::CURRENT
+                            } else {
+                                indicator::DOT
+                            }
+                        })
+                        .transition(if moves {
+                            motion::spring()
+                        } else {
+                            motion::instant()
+                        }),
+                    )
+                    .height(indicator::DOT)
+                    .corners(radius::pill(indicator::DOT))
+                    .background(
+                        (move || {
+                            if on() {
+                                t.colors.accent.text
+                            } else {
+                                t.colors.dim
+                            }
+                        })
+                        .transition(motion::color()),
+                    )
+            })
+        })
 }
 
 /// A list of rows that grows to `max_height`, then scrolls. Its scrollbar is

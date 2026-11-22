@@ -3,12 +3,12 @@ use styletto::components::appearance::{
     Family, SOURCES, Source, appearance as appearance_panel, color_editor, font_picker,
     layout_picker, mode_picker, theme_picker,
 };
-use styletto::components::button::{Fill, button};
+use styletto::components::button::{Fill, Variant, button};
 use styletto::components::card::{level_figure, stat_card};
-use styletto::components::choices::choices;
+use styletto::components::choices::{choices, tabs};
 use styletto::components::level::Level;
 use styletto::components::list::{
-    back, empty, page_header, pages, row, scroll_list, section, separator,
+    back, empty, page_header, page_indicator, pages, row, scroll_list, section, separator,
 };
 use styletto::components::notification::{app_icon, notification, notification_group};
 use styletto::components::settings::{setting, setting_group};
@@ -20,6 +20,7 @@ use styletto::foundations::control::Size;
 use styletto::foundations::tokens;
 use styletto::foundations::tokens::{icon as icon_box, size as space, tile};
 use styletto::primitives::island;
+use styletto::primitives::text::{caption, heading};
 use styletto::theme::config::UiConfig;
 use styletto::theme::presets::THEMES;
 use styletto::{Icon, centered_row, icon, ui};
@@ -558,6 +559,99 @@ pub fn settings(ctx: &Ctx) -> Container {
             )
             .child(setting_group("Layout").child(layout_picker(config))),
     )
+}
+
+/// The tabs of the window below, by the names they show.
+const TABS: &[&str] = &["Bar", "Look", "About"];
+/// The pages of its first start.
+const STEPS: &[&str] = &["1", "2", "3", "4", "5"];
+
+/// A first start's window: a header with its title, the tabs between it
+/// and the close button, all as tall; a footer with Back and Next at its
+/// ends and where the flow stands between them. Back and Next are solid,
+/// so their edges line up with the title's; a ghost button's label sits
+/// in by its padding.
+pub fn tabs_and_steps(ctx: &Ctx) -> Container {
+    let tab = ctx.choice("Tab", TABS, 1);
+    let page = ctx.choice("Page", STEPS, 1);
+    let closed = ctx.action("close");
+    let done = ctx.action("done");
+    let t = ui();
+    let header = container()
+        .width(fill())
+        .layout(centered_row(space::S2.px()))
+        .child(side(MainAlignment::Start, heading("Welcome")))
+        .child(
+            tabs(
+                TABS.iter()
+                    .enumerate()
+                    .map(|(index, name)| (name.to_string(), index))
+                    .collect::<Vec<_>>(),
+                tab,
+            )
+            .on_choose(move |index| tab.set(index)),
+        )
+        .child(side(
+            MainAlignment::End,
+            button().icon(Icon::X).fill(Fill::Ghost).on_click(closed),
+        ));
+    let last = STEPS.len() - 1;
+    let footer = container()
+        .width(fill())
+        .layout(centered_row(space::S2.px()))
+        .child(side(
+            MainAlignment::Start,
+            button()
+                .label("Back")
+                .enabled(move || page.get() > 0)
+                .on_click(move || page.update(|p| *p = p.saturating_sub(1))),
+        ))
+        .child(page_indicator(STEPS.len(), page))
+        .child(side(
+            MainAlignment::End,
+            button()
+                .label(move || if page.get() == last { "Done" } else { "Next" }.to_string())
+                .variant(Variant::Accent)
+                .on_click(move || {
+                    if page.get_untracked() == last {
+                        done();
+                    } else {
+                        page.update(|p| *p += 1);
+                    }
+                }),
+        ));
+    panel_frame().child(
+        container()
+            .width(fill())
+            .layout(Flex::column().spacing(space::S4.px()))
+            .child(header)
+            .child(
+                container()
+                    .width(fill())
+                    .height(space::S40.px())
+                    .corners(tokens::radius::SMALL.corners())
+                    .background(t.colors.surface)
+                    .layout(Flex::column().center())
+                    .child(caption(move || {
+                        format!(
+                            "{}: page {} of {}",
+                            TABS[tab.get()],
+                            page.get() + 1,
+                            STEPS.len()
+                        )
+                    })),
+            )
+            .child(footer),
+    )
+}
+
+/// One end of a header or a footer: as wide as the other, so what sits
+/// between them is centred, holding `content` at its `end`.
+fn side(end: MainAlignment, content: impl Widget + 'static) -> Container {
+    container()
+        .width(fill())
+        .layout(Flex::row().main_alignment(end))
+        .child(content)
 }
 
 /// A panel under the island, as the stories here draw it: painted like the

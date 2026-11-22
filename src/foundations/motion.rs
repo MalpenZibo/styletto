@@ -43,7 +43,7 @@ pub const ARM_MS: u64 = 450;
 pub const HEIGHT_LAG_MS: f32 = 45.0;
 
 /// Instant, where nothing should move.
-fn instant() -> Transition {
+pub(crate) fn instant() -> Transition {
     Transition::new(1.0, TimingFunction::Linear)
 }
 
