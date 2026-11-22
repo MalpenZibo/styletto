@@ -343,7 +343,8 @@ pub mod scrollbar {
 /// all but vanish in compact (4 px), so they stay the same in every
 /// density, as Material's page indicator and Apple's page control do.
 pub mod indicator {
-    /// A dot, and the gap between two.
+    /// A dot, and the gap between two; also the least a badge's dot
+    /// (`badge::dot`) shrinks to.
     pub const DOT: f32 = 8.0;
     /// The current page's dot, stretched into a short pill.
     pub const CURRENT: f32 = 24.0;
