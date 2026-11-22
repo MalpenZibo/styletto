@@ -337,3 +337,14 @@ pub mod scrollbar {
     /// How short the handle may get, so it stays grabbable.
     pub const MIN_HANDLE: f32 = 24.0;
 }
+
+/// A page indicator's dots. It shows where a flow stands rather than taking
+/// room in it, and a dot that shrank with the density, as space does, would
+/// all but vanish in compact (4 px), so they stay the same in every
+/// density, as Material's page indicator and Apple's page control do.
+pub mod indicator {
+    /// A dot, and the gap between two.
+    pub const DOT: f32 = 8.0;
+    /// The current page's dot, stretched into a short pill.
+    pub const CURRENT: f32 = 24.0;
+}

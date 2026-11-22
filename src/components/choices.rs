@@ -1,11 +1,12 @@
 //! One of several values to choose, as a row of buttons with the chosen one
 //! `active`: a setting's options, as the appearance controls offer them, or
-//! an app's own.
+//! an app's own; or the tabs in a window's header.
 
 use guido::prelude::*;
 
-use crate::components::button::button;
+use crate::components::button::{Fill, button};
 use crate::foundations::tokens::size;
+use crate::primitives::layout::centered_row;
 
 /// One of `options` to choose, as buttons, the chosen one `active`, as
 /// many to a line as fit. A press calls `on_choose` with its value; the
@@ -23,19 +24,62 @@ pub fn choices<T: Copy + PartialEq + 'static>(
     #[prop(callback)]
     on_choose: fn(T),
 ) -> impl Widget {
-    container()
-        .width(fill())
-        .layout(Flex::row().spacing(size::S1.px()).wrap(true))
-        .children(move || {
-            options.get().into_iter().map(move |(name, value)| {
-                button()
-                    .label(name)
-                    .active(move || chosen.get() == value)
-                    .on_click(move || {
-                        if let Some(on_choose) = on_choose {
-                            on_choose.run(value);
-                        }
-                    })
-            })
+    buttons(
+        Flex::row().spacing(size::S1.px()).wrap(true),
+        Fill::Solid,
+        options,
+        chosen,
+        on_choose,
+    )
+    .width(fill())
+}
+
+/// The pages of a window, as tabs: ghost buttons on one line, the current
+/// one `active`, as tall as a header's buttons, to sit between its title
+/// and its close button. They never wrap: a header holds as many as fit on
+/// its line. As [`choices`], a press calls `on_choose` with its value and
+/// the app sets `chosen`.
+#[component]
+pub fn tabs<T: Copy + PartialEq + 'static>(
+    /// Each tab's label and value, in the order they show.
+    #[prop(required)]
+    options: Vec<(String, T)>,
+    /// The current tab's value.
+    #[prop(required)]
+    chosen: T,
+    /// Called with the value of the tab pressed.
+    #[prop(callback)]
+    on_choose: fn(T),
+) -> impl Widget {
+    buttons(
+        centered_row(size::S1.px()),
+        Fill::Ghost,
+        options,
+        chosen,
+        on_choose,
+    )
+}
+
+/// The options as buttons in `fill`, laid out by `layout`, the one whose
+/// value is `chosen` `active`.
+fn buttons<T: Copy + PartialEq + 'static>(
+    layout: Flex,
+    fill: Fill,
+    options: Signal<Vec<(String, T)>>,
+    chosen: Signal<T>,
+    on_choose: Option<Callback<(T,)>>,
+) -> Container {
+    container().layout(layout).children(move || {
+        options.get().into_iter().map(move |(name, value)| {
+            button()
+                .label(name)
+                .fill(fill)
+                .active(move || chosen.get() == value)
+                .on_click(move || {
+                    if let Some(on_choose) = on_choose {
+                        on_choose.run(value);
+                    }
+                })
         })
+    })
 }
