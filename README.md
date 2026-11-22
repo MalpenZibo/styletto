@@ -177,7 +177,9 @@ shadow or of a box sunk into a fill.
 Two inks are worked out where they are drawn, as Material 3 does. A
 switch's knob is `accent.on` while on, and `sub` while off: as `sub` reads
 on `surface2`, the track, it keeps the 3:1 WCAG asks of a control even in a
-hovered or chosen row, which tints the track again. An app's icon
+hovered or chosen row, which tints the track again. Where it would not, as
+on a see-through island, where `sub` keeps only 3:1 on the bare track
+(below), the knob is `text` while off. An app's icon
 (`app_icon`) draws its glyph in black or white, whichever has the more
 contrast on the app's colour.
 
@@ -212,13 +214,16 @@ fill.
 On a see-through island the text is adjusted again: `Ui::colors` holds it
 as dark or as light as it must be to read with the island's opposite showing
 through, black behind a light island or white behind a dark one, to the
-4.5:1 of every ground there, not to the 7:1 it has on a solid one. Each hue's
-`text` is moved the same way, in lightness only, but to 3:1, the floor
-`dim` has (WCAG's for icons and large text), not 4.5:1: with white behind
-dark glass, a hue that reads at 4.5:1 is so light it is all but white, as
-light as the text, and a warning no longer looks like one. Where not even
-black or white would read, the island is drawn denser. A colour set below
-its floor keeps the contrast it was set with. Paint text with `ui().colors`, not with a
+4.5:1 of every ground there, not to the 7:1 it has on a solid one. `sub` is
+held there to 3:1 with that worst behind it, the floor `dim` has (WCAG's for
+icons and large text), not 4.5:1: the island turns grey, and at 4.5:1 `sub`
+is pushed as far as `text`, to the same colour, and the two levels of text
+are one. On a solid island it keeps 4.5:1. Each hue's `text` is moved the
+same way, in lightness only, to 3:1 too: with white behind dark glass, a
+hue that reads at 4.5:1 is so light it is all but white, as light as the
+text, and a warning no longer looks like one. Where not even black or white
+would read, the island is drawn denser. A colour set below its floor keeps
+the contrast it was set with. Paint text with `ui().colors`, not with a
 `Scheme`'s or a theme's own colours, or it won't follow.
 
 The preset themes, in `presets::THEMES`, each with dark and light flavours

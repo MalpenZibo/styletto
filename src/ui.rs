@@ -267,6 +267,7 @@ pub fn tabular() -> FontFeatures {
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::theme::palette::contrast;
     use crate::theme::presets::{THEMES, ThemeChoice};
 
     #[test]
@@ -279,7 +280,8 @@ mod tests {
 
     #[test]
     fn text_reads_on_every_material_over_the_worst_backdrop() {
-        // The text, and every hue as text with each of the accents.
+        // The text, and every hue as text with each of the accents; `sub`
+        // to 4.5:1 on a solid island and to 3:1 on a see-through one.
         for theme in THEMES {
             for flavor in theme.flavors {
                 for (index, accent) in flavor.accents.iter().enumerate() {
@@ -290,6 +292,33 @@ mod tests {
                             colors.unreadable(palette.worst_backdrop()),
                             None,
                             "{} {} {} {material:?}",
+                            theme.name,
+                            flavor.name,
+                            accent.name
+                        );
+                    }
+                }
+            }
+        }
+    }
+
+    #[test]
+    fn text_and_sub_stay_two_levels_on_every_material() {
+        // With the island's opposite behind it, where both are pushed
+        // furthest, `text` still reads at least 1:1 more than `sub` on the
+        // island, the measure of `a_light_theme_keeps_two_levels_of_text`.
+        for theme in THEMES {
+            for flavor in theme.flavors {
+                for (index, accent) in flavor.accents.iter().enumerate() {
+                    let palette = flavor.scheme(index).palette();
+                    for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                        let colors = Ui::new(palette).with_material(material).colors;
+                        let island = colors.grounds(palette.worst_backdrop())[0];
+                        let [text, sub] =
+                            [colors.text, colors.sub].map(|ink| contrast(ink, island));
+                        assert!(
+                            text >= sub + 1.0,
+                            "{} {} {} {material:?}: {text:.2} and {sub:.2}",
                             theme.name,
                             flavor.name,
                             accent.name
