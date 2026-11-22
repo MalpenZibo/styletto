@@ -27,7 +27,7 @@ themes and components. Every piece of it is on show in the
 | Module | Holds |
 |---|---|
 | `foundations` | `tokens`, `typography`, `control`, `motion`, `icons`: the scales, the motion and the icons |
-| `theme` | `palette`, `presets`, `material`, `config`: colours by meaning, the preset themes, themes from a colour, the `[appearance]` table |
+| `theme` | `palette`, `presets`, `material`, `wallpaper`, `config`: colours by meaning, the preset themes, themes from a colour, the wallpapers read for theirs, the `[appearance]` table |
 | `primitives` | `text`, `layout`, `island`, `satellite`: plain functions an app can add to |
 | `components` | the components, below |
 
@@ -47,6 +47,8 @@ use styletto::{Icon, provide_ui, ui};
 use styletto::components::list::row;
 use styletto::components::toggle::toggle;
 
+// In a reactive closure that builds the tree, so it follows the config,
+// and a wallpaper once it is read.
 provide_ui(config.appearance.ui(system_dark)); // or Ui::default()
 
 row("Wi-Fi")
@@ -59,7 +61,7 @@ row("Wi-Fi")
 |---|---|
 | `serde` | `theme::config::UiConfig`, read from an `[appearance]` table and written back, and the controls that edit it (`components::appearance`) |
 | `material` | themes worked out from a seed colour |
-| `wallpaper` | themes worked out from an image (implies `material`) |
+| `wallpaper` | themes worked out from an image, read once per path on a thread of its own (`theme::wallpaper`; implies `material`) |
 
 ## The Ui
 
@@ -514,16 +516,23 @@ every picker shares what it found; a family is offered if it writes Latin
 (a face of it draws `a` and one draws `A`), is monospaced if every face of
 it is, and is semibold if a face draws the weight of the emphasised type,
 within a step (a variable face, anywhere along its `wght` axis).
-`UiConfig::ui` reads a wallpaper when it is the
-source, so an app reads it off the UI thread, and hands in what it found:
-`wallpaper_note` (reading, or why it can't) and `wallpaper_colors`, the
-colours `material::seeds` yields, best first, which the panel shows to choose
-the one the sides are made of (`wallpaper_color`); the controls never read
-it. `UiConfig::wallpaper_path()` is the path to read (`~/` expanded), and
-`config.with_wallpaper_colors(&colors).ui(system_dark)` the `Ui` with the
-colour chosen among those it yields, without reading it again;
+
+A wallpaper is read by styletto, once per path for the whole process, on a
+thread of its own, and kept: `wallpaper::picture(path)` is how far it is
+read (`Reading`, `Read` with the colours it yields best first, as
+`material::seeds` gives them, or `Failed` with why). `UiConfig::ui` never
+reads it on the thread that calls it: until it is read, the theme shows, and
+the closure that called it runs again once it is, as every surface that
+asked shares the one read. The theme picker reads the same store: it notes
+"Reading…" or why the picture can't be read, and shows the colours found to
+choose the one the sides are made of (`wallpaper_color`). Call them on the
+`App`'s thread; a program with no running `App` reads the picture with
+`material::seeds` and builds its `Ui` with
+`config.with_wallpaper_colors(&colors).ui(system_dark)`.
+`UiConfig::wallpaper_path()` is the path read (`~/` expanded);
 `set_wallpaper(path)` sets a new one, starting from its best colour, as the
-app's chooser does. Chosen as the source, a
+app's chooser does, and what the chooser says, as that there is none, is the
+app's `chooser_note`. Chosen as the source, a
 wallpaper is an empty path until one is set, which `UiConfig` takes as none
 chosen yet: the theme shows meanwhile. A seed is offered with the `material` feature, a
 wallpaper with `wallpaper`. The panel fills the width it is given, wrapping
@@ -536,9 +545,8 @@ let config = create_signal(UiConfig::default()); // or as the app loaded it
 appearance(config)
     .system_dark(system_dark)
     .families(families)            // or left out: installed_families()
-    .wallpaper_note(note)          // as the app's reading of the wallpaper went
-    .wallpaper_colors(found)       // what it found in it, best first
-    .on_pick_wallpaper(move || chooser.send(()));
+    .on_pick_wallpaper(move || chooser.send(()))
+    .chooser_note(note);           // what the app's chooser said, if anything
 
 // A first-start step: only the theme and its mode.
 container()
@@ -558,7 +566,8 @@ edit not finished.
 `Source::of(&config)` tells where a config's colours come from and
 `source.apply(&mut config, &wallpaper_colors)` switches it, leaving out
 what the source before had set but the theme chosen, to go back to; it
-starts from what shows, a wallpaper as the colours read from it. `MODES`, `DENSITIES`, `SHAPES`, `MATERIALS`, `MOTIONS`,
+starts from what shows, a wallpaper as the colours read from it (the theme
+picker hands it those of `wallpaper::picture`). `MODES`, `DENSITIES`, `SHAPES`, `MATERIALS`, `MOTIONS`,
 `VARIANTS`, `CONTRASTS` and `SOURCES` list each choice by the name a
 control shows.
 

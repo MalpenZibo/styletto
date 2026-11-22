@@ -1,3 +1,6 @@
+use std::path::{Path, PathBuf};
+use std::sync::OnceLock;
+
 use guido::prelude::*;
 use styletto::components::appearance::{
     Family, SOURCES, Source, appearance as appearance_panel, color_editor, font_picker,
@@ -456,35 +459,65 @@ pub fn appearance(ctx: &Ctx) -> Container {
                 source.apply(c, &[]);
                 // A wallpaper chosen, as an app's file chooser sets it.
                 if source == Source::Wallpaper {
-                    c.wallpaper = Some("~/Pictures/wallpaper.jpg".to_string());
+                    c.wallpaper = Some(wallpaper_picture().display().to_string());
                 }
             });
         }
     });
-    // The colours an app would read from it, best first.
-    let found = || {
-        THEMES[0].flavors[0].accents[..5]
-            .iter()
-            .map(|a| a.color)
-            .collect::<Vec<_>>()
-    };
     panel_frame().child(move || {
         let picked = picked.clone();
         match PIECES[piece.get()] {
-            "Theme" => theme_picker(config)
-                .wallpaper_colors(found())
-                .on_pick_wallpaper(picked)
-                .into_any(),
+            "Theme" => theme_picker(config).on_pick_wallpaper(picked).into_any(),
             "Mode" => mode_picker(config).into_any(),
             "Colour editor" => color_editor(config, false).into_any(),
             "Fonts" => font_picker(config).families(families()).into_any(),
             "Layout" => layout_picker(config).into_any(),
             _ => appearance_panel(config)
                 .families(families())
-                .wallpaper_colors(found())
                 .on_pick_wallpaper(picked)
                 .into_any(),
         }
+    })
+}
+
+/// A picture for the panel to read as a wallpaper: a band of each of four
+/// accents of the default theme, far apart in hue and narrower each, so
+/// they come out as four colours in that order. Written once per run to the
+/// user's runtime directory, which only they can write to, or else the
+/// temporary one.
+fn wallpaper_picture() -> &'static Path {
+    static PICTURE: OnceLock<PathBuf> = OnceLock::new();
+    PICTURE.get_or_init(|| {
+        let dir =
+            std::env::var_os("XDG_RUNTIME_DIR").map_or_else(std::env::temp_dir, PathBuf::from);
+        let path = dir.join("styletto-storybook-wallpaper.png");
+        // Blue, green, orange, magenta, by their place among the accents.
+        const BANDS: [(usize, u32); 4] = [(0, 48), (3, 32), (5, 24), (7, 16)];
+        let accents = &THEMES[0].flavors[0].accents;
+        let width = BANDS.iter().map(|&(_, w)| w).sum();
+        let image = ::image::RgbImage::from_fn(width, 32, |x, _| {
+            let mut x = x;
+            let mut band = BANDS[0].0;
+            for (accent, w) in BANDS {
+                band = accent;
+                if x < w {
+                    break;
+                }
+                x -= w;
+            }
+            let (r, g, b, _) = accents[band].color.to_rgba8();
+            ::image::Rgb([r, g, b])
+        });
+        // Written beside it and moved over it, so a storybook running at
+        // the same time never reads half of it.
+        let partial = path.with_extension(format!("{}.png", std::process::id()));
+        if let Err(err) = image
+            .save(&partial)
+            .and_then(|()| Ok(std::fs::rename(&partial, &path)?))
+        {
+            eprintln!("storybook: no picture at {}: {err}", path.display());
+        }
+        path
     })
 }
 

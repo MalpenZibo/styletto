@@ -32,6 +32,8 @@ use crate::theme::config::{Colors, UiConfig};
 use crate::theme::material::{Contrast, Variant};
 use crate::theme::palette::{Palette, Scheme, parse_hex, to_hex};
 use crate::theme::presets::{Mode, THEMES, ThemeChoice};
+#[cfg(feature = "wallpaper")]
+use crate::theme::wallpaper::{self, Picture};
 use crate::ui::{Density, Material, Motion, Shape, ui};
 
 /// The choices of each kind, by the name a control shows.
@@ -126,7 +128,8 @@ impl Source {
     /// preference (dark in `Auto`), a wallpaper as an empty path until one
     /// is chosen, and custom colours as every colour showing. A wallpaper is
     /// never read here: what shows of it is made of `wallpaper_colors`, those
-    /// the app read from it, best first, or of the theme without them.
+    /// read from it, best first (`wallpaper::picture`), or of the theme
+    /// without them.
     pub fn apply(self, config: &mut UiConfig, wallpaper_colors: &[Color]) {
         if Source::of(config) == self {
             return;
@@ -197,24 +200,19 @@ pub fn theme_picker(
     /// What the system prefers, dark or light, to tell the side showing
     /// in [`Mode::Auto`]; nothing said is dark.
     system_dark: Option<bool>,
-    /// What the app found reading the wallpaper, under its path: that it is
-    /// reading, or why it can't. Empty says nothing.
-    wallpaper_note: String,
-    /// The colours the app found in the wallpaper, best first, as
-    /// `material::seeds` gives them: shown to choose the one the sides are
-    /// made of (`wallpaper_color`). The app reads them off the UI thread, as
-    /// it reads the wallpaper for its `Ui`; the controls never do.
-    wallpaper_colors: Vec<Color>,
     /// Shows a button beside the wallpaper's path. The app opens its file
     /// chooser and sets `wallpaper` to the path chosen.
     #[prop(callback)]
     on_pick_wallpaper: (),
+    /// What the app's file chooser said, as that there is none: shown over
+    /// the wallpaper while not empty, in place of what reading it came to.
+    chooser_note: String,
 ) -> impl Widget {
     let config = config.get_untracked();
     let source = create_memo(move || config.with(Source::of));
     let showing = move |light: bool| !config.with(|c| c.mode).is_dark(system_dark.get()) == light;
     #[cfg(not(feature = "wallpaper"))]
-    let _ = (wallpaper_note, wallpaper_colors, on_pick_wallpaper);
+    let _ = (on_pick_wallpaper, chooser_note);
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
@@ -222,7 +220,7 @@ pub fn theme_picker(
             setting("Colours").child(choices(labelled(SOURCES), source).on_choose(
                 // What shows of the wallpaper is what the next starts from.
                 move |chosen: Source| {
-                    let found = wallpaper_colors.get();
+                    let found = config.with_untracked(wallpaper_colors);
                     config.update(|c| chosen.apply(c, &found))
                 },
             )),
@@ -234,7 +232,7 @@ pub fn theme_picker(
             #[cfg(feature = "wallpaper")]
             Source::Wallpaper => generated(
                 config,
-                wallpaper_field(config, wallpaper_note, wallpaper_colors, on_pick_wallpaper),
+                wallpaper_field(config, on_pick_wallpaper, chooser_note),
             ),
             Source::Custom => {
                 sides(move |light| side_card(light, showing, color_editor(config, light)))
@@ -344,8 +342,7 @@ pub fn font_picker(
 /// drawn; an on-colour or a hue's text left empty is worked out, and shows
 /// what it is in its place. A way back to the preset's ends it.
 ///
-/// Under a wallpaper, which it leaves to the app to read, it shows the
-/// colours set over the preset's.
+/// Under a wallpaper, it shows the colours set over the preset's.
 #[component]
 pub fn color_editor(
     #[prop(required)] config: RwSignal<UiConfig>,
@@ -409,13 +406,11 @@ pub fn appearance(
     /// The font families installed, as the app finds them; see
     /// [`font_picker`].
     families: Option<Vec<Family>>,
-    /// What the app found reading the wallpaper; see [`theme_picker`].
-    wallpaper_note: String,
-    /// The colours the app found in the wallpaper; see [`theme_picker`].
-    wallpaper_colors: Vec<Color>,
     /// Shows a button beside the wallpaper's path; see [`theme_picker`].
     #[prop(callback)]
     on_pick_wallpaper: (),
+    /// What the app's file chooser said; see [`theme_picker`].
+    chooser_note: String,
 ) -> impl Widget {
     let config = config.get_untracked();
     container()
@@ -427,9 +422,8 @@ pub fn appearance(
                 .child(
                     theme_picker(config)
                         .system_dark(system_dark)
-                        .wallpaper_note(wallpaper_note)
-                        .wallpaper_colors(wallpaper_colors)
-                        .on_pick_wallpaper(on_pick_wallpaper),
+                        .on_pick_wallpaper(on_pick_wallpaper)
+                        .chooser_note(chooser_note),
                 ),
         )
         .child(setting_group("Layout").child(layout_picker(config)))
@@ -664,16 +658,32 @@ fn seed_field(config: RwSignal<UiConfig>) -> Setting {
     )
 }
 
+/// The colours the config's wallpaper yields, best first, as far as it is
+/// read; none without one.
+fn wallpaper_colors(config: &UiConfig) -> Vec<Color> {
+    #[cfg(feature = "wallpaper")]
+    return config.wallpaper_colors();
+    #[cfg(not(feature = "wallpaper"))]
+    {
+        let _ = config;
+        Vec::new()
+    }
+}
+
 /// The wallpaper's path, set on Enter or by the app's file chooser, and how
-/// to set one or what the app says of it.
+/// to set one or what reading it came to.
 #[cfg(feature = "wallpaper")]
 fn wallpaper_field(
     config: RwSignal<UiConfig>,
-    note: Signal<String>,
-    candidates: Signal<Vec<Color>>,
     pick: Option<Callback>,
+    chooser_note: Signal<String>,
 ) -> Setting {
     let set = create_memo(move || config.with(|c| c.wallpaper.clone().unwrap_or_default()));
+    let picture = create_memo(move || {
+        config
+            .with(UiConfig::wallpaper_path)
+            .map(|path| wallpaper::picture(&path))
+    });
     let typed = create_signal(config.with_untracked(|c| c.wallpaper.clone().unwrap_or_default()));
     // A new path, as the app's chooser sets it, shows in the field; a path
     // typed and not sent stays until then.
@@ -698,15 +708,23 @@ fn wallpaper_field(
         ),
         None => field,
     };
-    // What the app found, or until a path is set, how to set one.
+    // What the chooser said, or what reading the picture came to, or until
+    // a path is set, how to set one.
     let note = move || {
-        let note = note.get();
-        if note.is_empty() && set.with(String::is_empty) {
-            "Choose one, or type a path and Enter".to_string()
-        } else {
-            note
+        let said = chooser_note.get();
+        if !said.is_empty() {
+            return said;
+        }
+        match picture.get() {
+            None => "Choose one, or type a path and Enter".to_string(),
+            Some(Picture::Reading) => "Reading…".to_string(),
+            Some(Picture::Failed(why)) => why,
+            Some(Picture::Read(_)) => String::new(),
         }
     };
+    let candidates = create_memo(move || {
+        picture.with(|p| p.as_ref().map_or(Vec::new(), |p| p.colors().to_vec()))
+    });
     // The colours found, to choose among: the best first.
     let chosen = move || {
         let count = candidates.with(Vec::len);

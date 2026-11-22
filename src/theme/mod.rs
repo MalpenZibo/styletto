@@ -6,3 +6,5 @@ pub mod config;
 pub mod material;
 pub mod palette;
 pub mod presets;
+#[cfg(feature = "wallpaper")]
+pub mod wallpaper;
