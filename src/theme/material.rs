@@ -1,8 +1,9 @@
 //! Themes worked out from one colour, as Material You does it: a colour
 //! given, or the one that fits a wallpaper best. Its roles fill a
-//! [`Scheme`]; success and warning, which it has none of, are a green and an
-//! amber turned toward that colour. The generation needs the `material`
-//! feature, reading a wallpaper the `wallpaper` one.
+//! [`palette::Scheme`](super::palette::Scheme); success and warning, which it
+//! has none of, are a green and an amber turned toward that colour. The
+//! generation needs the `material` feature, reading a wallpaper the
+//! `wallpaper` one.
 
 #[cfg(feature = "wallpaper")]
 use std::path::Path;

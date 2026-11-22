@@ -49,6 +49,7 @@ cargo clippy -p styletto --all-targets -- -D warnings
 cargo clippy -p styletto --all-targets --features serde -- -D warnings
 cargo test --workspace --all-features
 RUSTDOCFLAGS="-D warnings" cargo doc -p styletto --all-features --no-deps
+RUSTDOCFLAGS="-D warnings" cargo doc -p styletto --no-deps
 ```
 
 ## Seeing a change

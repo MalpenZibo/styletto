@@ -54,6 +54,11 @@ jobs:
         env:
           RUSTDOCFLAGS: -D warnings
         run: cargo doc --locked -p styletto --all-features --no-deps
+      # Links to what a feature brings must still resolve without it.
+      - name: Build the API documentation with the default features
+        env:
+          RUSTDOCFLAGS: -D warnings
+        run: cargo doc --locked -p styletto --no-deps
 
   msrv:
     name: Minimum Rust version
