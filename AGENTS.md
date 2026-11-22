@@ -14,7 +14,6 @@ read it before changing anything, and keep it true.
 - `src/components`: the `#[component]`s.
 - `storybook/src/stories`: one story per component or pattern, registered in `mod.rs`.
 - `icons/`: unmodified Lucide SVGs (ISC, see `icons/LICENSE`); `assets/`: logos and wordmarks.
-- `tests/fonts/`: tiny faces for the font scan's tests, made by the script beside them.
 
 ## Rules of the system
 

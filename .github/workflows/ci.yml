@@ -43,8 +43,9 @@ jobs:
       # What a consumer gets without asking for a feature.
       - name: Run clippy with the default features
         run: cargo clippy --locked -p styletto --all-targets -- -D warnings
-      # The appearance controls without the font scan, which `fonts` adds.
-      - name: Run clippy with serde and without fonts
+      # The appearance controls without a seed or a wallpaper, which
+      # `material` and `wallpaper` add.
+      - name: Run clippy with serde alone
         run: cargo clippy --locked -p styletto --all-targets --features serde -- -D warnings
       - name: Run tests
         env:
