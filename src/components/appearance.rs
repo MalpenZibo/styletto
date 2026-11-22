@@ -696,7 +696,22 @@ fn wallpaper_field(
     let input = text_input(typed)
         .typeset(MONO_SMALL)
         .placeholder("~/Pictures/wallpaper.jpg".to_string())
-        .on_submit(move |path: &str| config.update(|c| c.set_wallpaper(path.trim().to_string())));
+        .on_submit(move |path: &str| {
+            let path = path.trim().to_string();
+            let typed = UiConfig {
+                wallpaper: Some(path.clone()),
+                ..UiConfig::default()
+            }
+            .wallpaper_path();
+            // The same file again, however it is written, is read again:
+            // it may have changed, or come to be since it failed.
+            let same = typed.is_some() && config.with_untracked(|c| c.wallpaper_path() == typed);
+            if same {
+                config.update(UiConfig::reread_wallpaper);
+            } else {
+                config.update(|c| c.set_wallpaper(path));
+            }
+        });
     let field = input_field().size(Size::Sm).child(typing(input));
     let field = match pick {
         Some(pick) => field.trailing(
