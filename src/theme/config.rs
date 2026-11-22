@@ -102,8 +102,8 @@ impl UiConfig {
     /// The [`Ui`] it asks for, with the side the mode picks given what the
     /// system prefers: dark, light, or nothing said.
     ///
-    /// A wallpaper is never read here: it is read once per path for the
-    /// process, on a thread of its own (`wallpaper::picture`, with the
+    /// A wallpaper is never read here: it is read once per path, and kept
+    /// until it is read again, on a thread of its own (`wallpaper::picture`, with the
     /// `wallpaper` feature). Until it is, the theme shows, as
     /// [`with_wallpaper_colors`] shows it with no colours, and a reactive
     /// closure that calls this runs again once it is. Call it on the `App`'s
@@ -206,6 +206,21 @@ impl UiConfig {
     pub fn set_wallpaper(&mut self, path: String) {
         if self.wallpaper.as_ref() != Some(&path) {
             self.wallpaper = Some(path);
+            self.wallpaper_color = 0;
+        }
+    }
+
+    /// Reads its wallpaper again, as when the file has changed, and starts
+    /// from the new picture's best colour, as [`set_wallpaper`] does for a
+    /// new path; see `wallpaper::reread`. Until the new picture lands, the
+    /// best colour of the one read before shows. Call it on the `App`'s
+    /// thread.
+    ///
+    /// [`set_wallpaper`]: Self::set_wallpaper
+    #[cfg(feature = "wallpaper")]
+    pub fn reread_wallpaper(&mut self) {
+        if let Some(path) = self.wallpaper_path() {
+            crate::theme::wallpaper::reread(&path);
             self.wallpaper_color = 0;
         }
     }

@@ -61,7 +61,7 @@ row("Wi-Fi")
 |---|---|
 | `serde` | `theme::config::UiConfig`, read from an `[appearance]` table and written back, and the controls that edit it (`components::appearance`) |
 | `material` | themes worked out from a seed colour |
-| `wallpaper` | themes worked out from an image, read once per path on a thread of its own (`theme::wallpaper`; implies `material`) |
+| `wallpaper` | themes worked out from an image, read on a thread of its own, once per path until read again (`theme::wallpaper`; implies `material`) |
 
 ## The Ui
 
@@ -517,8 +517,8 @@ every picker shares what it found; a family is offered if it writes Latin
 it is, and is semibold if a face draws the weight of the emphasised type,
 within a step (a variable face, anywhere along its `wght` axis).
 
-A wallpaper is read by styletto, once per path for the whole process, on a
-thread of its own, and kept: `wallpaper::picture(path)` is how far it is
+A wallpaper is read by styletto, once per path, on a thread of its own, and
+kept for the whole process until it is read again: `wallpaper::picture(path)` is how far it is
 read (`Reading`, `Read` with the colours it yields best first, as
 `material::seeds` gives them, or `Failed` with why). `UiConfig::ui` never
 reads it on the thread that calls it: until it is read, the theme shows, and
@@ -529,6 +529,12 @@ choose the one the sides are made of (`wallpaper_color`). Call them on the
 `App`'s thread; a program with no running `App` reads the picture with
 `material::seeds` and builds its `Ui` with
 `config.with_wallpaper_colors(&colors).ui(system_dark)`.
+A picture changed at the same path is read again with
+`config.update(UiConfig::reread_wallpaper)`, from the app's own file
+watcher (styletto watches no file) on the `App`'s thread, or on Enter over
+the same path in the picker's field: it starts again from the best colour,
+the old picture's until the new one lands. `wallpaper::reread(path)` reads
+again and keeps the colour chosen.
 `UiConfig::wallpaper_path()` is the path read (`~/` expanded);
 `set_wallpaper(path)` sets a new one, starting from its best colour, as the
 app's chooser does, and what the chooser says, as that there is none, is the
