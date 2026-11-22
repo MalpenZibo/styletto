@@ -38,8 +38,10 @@ serde = { version = "1.0.229", features = ["derive"], optional = true }
 serde = ["dep:serde", "dep:log"]
 # Themes worked out from a seed colour.
 material = ["dep:material-colors"]
-# ...or from a wallpaper.
-wallpaper = ["material", "material-colors/quantize", "dep:image"]
+# ...or from a wallpaper, read once per path on a thread of its own.
+wallpaper = ["material", "material-colors/quantize", "dep:image", "dep:log"]
 
 [dev-dependencies]
+# `testing` for the tests that mount a tree headless.
+guido = { workspace = true, features = ["testing"] }
 toml = "1.2.1"

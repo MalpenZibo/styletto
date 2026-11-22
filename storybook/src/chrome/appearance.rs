@@ -1,12 +1,11 @@
 //! What the stories are drawn with, and the page that chooses it: the
 //! library's appearance panel editing a `UiConfig`, beside a preview of what
 //! it makes. The page hands the panel what reaches the system: the system's
-//! dark preference, a wallpaper chosen through the desktop portal and read
-//! on a thread of its own; the panel finds the families installed itself,
-//! in Guido's list. The storybook's own chrome keeps the default.
+//! dark preference and a wallpaper chosen through the desktop portal, which
+//! the library reads; the panel finds the families installed itself, in
+//! Guido's list. The storybook's own chrome keeps the default.
 
 use std::path::PathBuf;
-use std::sync::atomic::{AtomicU64, Ordering};
 
 use crate::system::color_scheme::{self, ColorScheme};
 use futures::StreamExt;
@@ -25,46 +24,18 @@ use styletto::foundations::typography as ty;
 use styletto::primitives::island as look;
 use styletto::primitives::text::typed;
 use styletto::theme::config::UiConfig;
-use styletto::theme::material;
 use styletto::theme::palette::Hue;
+use styletto::theme::wallpaper::{Picture, picture};
 use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
 
 use crate::chrome::widgets::{island, wallpaper};
 use crate::system::picker;
 
-/// Reads an image for its colours on a thread of its own; from the chooser's
-/// task too, so it holds only a writer.
-#[derive(Clone, Copy)]
-struct Reader {
-    picture: WriteSignal<Picture>,
-}
-
-impl Reader {
-    fn read(self, path: PathBuf) {
-        // Each read is numbered: one that ends after a later one began has
-        // nothing left to say.
-        static LATEST: AtomicU64 = AtomicU64::new(0);
-        let read = LATEST.fetch_add(1, Ordering::Relaxed) + 1;
-        self.picture.set(Picture::Reading(path.clone()));
-        std::thread::spawn(move || {
-            let picture = match material::seeds(&path) {
-                Ok(seeds) if seeds.is_empty() => {
-                    Picture::Failed(path, "No colour found".to_string())
-                }
-                Ok(seeds) => Picture::Read { path, seeds },
-                Err(err) => Picture::Failed(path, err),
-            };
-            if LATEST.load(Ordering::Relaxed) == read {
-                self.picture.set(picture);
-            }
-        });
-    }
-}
-
 /// Asks the system's file chooser for an image, and sets the config's
-/// wallpaper to it. The chooser is a window, so the storybook steps below
-/// windows while it is open.
-fn chooser(config: WriteSignal<UiConfig>, reader: Reader) -> Service<()> {
+/// wallpaper to it; where there is no chooser, says so in `note`. The
+/// chooser is a window, so the storybook steps below windows while it is
+/// open.
+fn chooser(config: WriteSignal<UiConfig>, note: WriteSignal<String>) -> Service<()> {
     let choosing = create_signal(false);
     if let Some(surface) = use_context::<SurfaceHandle>() {
         create_effect(move || {
@@ -87,27 +58,10 @@ fn chooser(config: WriteSignal<UiConfig>, reader: Reader) -> Service<()> {
                     config.update(move |c| c.set_wallpaper(path));
                 }
                 Ok(None) => {}
-                Err(err) => reader.picture.set(Picture::Failed(
-                    PathBuf::new(),
-                    format!("No file chooser: {err}"),
-                )),
+                Err(err) => note.set(format!("No file chooser: {err}")),
             }
         }
     })
-}
-
-/// An image read for the colours a theme could be made of, by its path.
-#[derive(Clone, Debug, Default, PartialEq)]
-enum Picture {
-    #[default]
-    None,
-    Reading(PathBuf),
-    Read {
-        path: PathBuf,
-        /// Best first, as `UiConfig` chooses among them.
-        seeds: Vec<Color>,
-    },
-    Failed(PathBuf, String),
 }
 
 #[derive(Clone, Copy)]
@@ -115,11 +69,9 @@ pub struct Appearance {
     config: RwSignal<UiConfig>,
     /// What the system prefers: dark, light, or nothing said.
     system: Signal<Option<bool>>,
-    /// The config's wallpaper, by its path, and as read here rather than in
-    /// `UiConfig::ui`, which would read it on each change.
-    wallpaper: Memo<Option<PathBuf>>,
-    picture: RwSignal<Picture>,
     chooser: Service<()>,
+    /// What the chooser said, until another wallpaper is set.
+    chooser_note: RwSignal<String>,
     /// The picture read last, shown behind the stories in place of the
     /// shapes, whatever the source is now.
     backdrop: Memo<Option<PathBuf>>,
@@ -128,37 +80,26 @@ pub struct Appearance {
 impl Appearance {
     pub fn new() -> Self {
         let config = create_signal(UiConfig::default());
-        let picture = create_signal(Picture::default());
-        let reader = Reader {
-            picture: picture.writer(),
-        };
-        // A path set, as typed or as the chooser gave it, is read.
+        let chooser_note = create_signal(String::new());
         let wallpaper = create_memo(move || config.with(UiConfig::wallpaper_path));
+        // The last path set, kept when the source changes; a new one
+        // clears what the chooser said.
+        let last = create_signal(None);
         create_effect(move || {
-            let Some(path) = wallpaper.get() else {
-                return;
-            };
-            // A picture read or being read already, as on coming back to it.
-            let known = picture.with_untracked(|p| match p {
-                Picture::Reading(known) | Picture::Read { path: known, .. } => *known == path,
-                _ => false,
-            });
-            if !known {
-                reader.read(path);
+            if let Some(path) = wallpaper.get() {
+                last.set(Some(path));
+                chooser_note.set(String::new());
             }
         });
         let backdrop = create_memo(move || {
-            picture.with(|p| match p {
-                Picture::Read { path, .. } => Some(path.clone()),
-                _ => None,
-            })
+            last.get()
+                .filter(|path| matches!(picture(path), Picture::Read(_)))
         });
         Self {
             config,
             system: system_dark(),
-            wallpaper,
-            picture,
-            chooser: chooser(config.writer(), reader),
+            chooser: chooser(config.writer(), chooser_note.writer()),
+            chooser_note,
             backdrop,
         }
     }
@@ -167,35 +108,11 @@ impl Appearance {
         self.backdrop
     }
 
-    /// The config, the wallpaper in it given as the colour chosen among those
-    /// read from it; none while it is being read.
+    /// The config, the wallpaper in it showing as the theme while it is
+    /// being read.
     pub fn ui(self) -> Ui {
-        self.config
-            .with(|c| c.with_wallpaper_colors(&self.wallpaper_colors()))
-            .ui(self.system.get())
-    }
-
-    /// The colours read from the config's wallpaper, best first; none while
-    /// it is being read.
-    fn wallpaper_colors(self) -> Vec<Color> {
-        let path = self.wallpaper.get();
-        self.picture.with(|p| match p {
-            Picture::Read { path: read, seeds } if Some(read) == path.as_ref() => seeds.clone(),
-            _ => Vec::new(),
-        })
-    }
-
-    /// What the reading of the wallpaper came to, for the panel to show; a
-    /// chooser that failed, whatever the path.
-    fn wallpaper_note(self) -> String {
-        let path = self.wallpaper.get().unwrap_or_default();
-        self.picture.with(|p| match p {
-            Picture::Failed(failed, err) if failed.as_os_str().is_empty() || *failed == path => {
-                err.clone()
-            }
-            Picture::Reading(reading) if *reading == path => "Reading…".to_string(),
-            _ => String::new(),
-        })
+        let system = self.system.get();
+        self.config.with(|c| c.ui(system))
     }
 }
 
@@ -238,9 +155,8 @@ pub fn page(a: Appearance) -> Container {
                 .child(
                     appearance(a.config)
                         .system_dark(a.system)
-                        .wallpaper_note(move || a.wallpaper_note())
-                        .wallpaper_colors(move || a.wallpaper_colors())
-                        .on_pick_wallpaper(move || a.chooser.send(())),
+                        .on_pick_wallpaper(move || a.chooser.send(()))
+                        .chooser_note(a.chooser_note),
                 ),
         )
         .child(preview(a))

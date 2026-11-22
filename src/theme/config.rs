@@ -100,8 +100,17 @@ fn is_default<T: Default + PartialEq>(value: &T) -> bool {
 
 impl UiConfig {
     /// The [`Ui`] it asks for, with the side the mode picks given what the
-    /// system prefers: dark, light, or nothing said. A wallpaper is read
-    /// here, so call it off the UI thread or keep what it gives.
+    /// system prefers: dark, light, or nothing said.
+    ///
+    /// A wallpaper is never read here: it is read once per path for the
+    /// process, on a thread of its own (`wallpaper::picture`, with the
+    /// `wallpaper` feature). Until it is, the theme shows, as
+    /// [`with_wallpaper_colors`] shows it with no colours, and a reactive
+    /// closure that calls this runs again once it is. Call it on the `App`'s
+    /// thread; a program with no running `App` reads the picture itself with
+    /// `material::seeds` and hands the colours to [`with_wallpaper_colors`].
+    ///
+    /// [`with_wallpaper_colors`]: Self::with_wallpaper_colors
     pub fn ui(&self, system_dark: Option<bool>) -> Ui {
         let system = Fonts::default();
         let family =
@@ -213,8 +222,9 @@ impl UiConfig {
 
     /// This config with its wallpaper as read: the colour chosen among
     /// `colors`, those it yields best first (`material::seeds`), stands as
-    /// the seed; with none yet, the theme shows. For an app that reads the
-    /// wallpaper itself, off the UI thread, rather than in [`ui`](Self::ui).
+    /// the seed; with none yet, the theme shows. For a program that reads
+    /// the wallpaper itself, as one with no running `App`, rather than
+    /// through [`ui`](Self::ui).
     pub fn with_wallpaper_colors(&self, colors: &[Color]) -> UiConfig {
         let mut config = self.clone();
         if config.wallpaper.take().is_some() {
@@ -312,16 +322,22 @@ fn generate(_: Color, _: Variant, _: Contrast) -> Option<[Scheme; 2]> {
 }
 
 impl UiConfig {
-    /// The colour chosen among those the wallpaper at `path` yields.
+    /// The colour chosen among those the wallpaper at `path` yields; none
+    /// until it is read, or if it can't be (the reading logs why).
     #[cfg(feature = "wallpaper")]
     fn wallpaper_seed(&self, path: PathBuf) -> Option<Color> {
-        match crate::theme::material::seeds(&path) {
-            Ok(seeds) => seeds.get(self.wallpaper_index(seeds.len())).copied(),
-            Err(err) => {
-                log::warn!("appearance.wallpaper {}: {err}", path.display());
-                None
-            }
-        }
+        let picture = crate::theme::wallpaper::picture(&path);
+        let colors = picture.colors();
+        colors.get(self.wallpaper_index(colors.len())).copied()
+    }
+
+    /// The colours its wallpaper yields, best first, as far as it is read
+    /// (`wallpaper::picture`); none without one.
+    #[cfg(feature = "wallpaper")]
+    pub(crate) fn wallpaper_colors(&self) -> Vec<Color> {
+        self.wallpaper_path()
+            .map(|path| crate::theme::wallpaper::picture(&path).colors().to_vec())
+            .unwrap_or_default()
     }
 
     #[cfg(not(feature = "wallpaper"))]
