@@ -105,7 +105,8 @@ group of notifications), `HALO` 0.5 (a share of the glow's alpha, for the
 island's halo); `glow::SMALL` 4, `MEDIUM` 8, `LARGE` 16 (the island's
 halo); `scrollbar::WIDTH` 4, `HOVER_WIDTH` 8, `MARGIN` 2,
 `MIN_HANDLE` 24, the same in every density; `indicator::DOT` 8 (a page
-indicator's dot, and the gap between two) and `CURRENT` 24 (the current
+indicator's dot, the gap between two, and the least a badge's dot shrinks
+to) and `CURRENT` 24 (the current
 page's pill), the same in every density too, as a dot that shrank with the
 space would all but vanish in compact.
 

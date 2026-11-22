@@ -3,18 +3,22 @@
 use guido::prelude::*;
 
 use crate::foundations::icons::{self, Icon};
-use crate::foundations::tokens::{icon, radius, size, stroke, tint};
+use crate::foundations::tokens::{icon, indicator, radius, size, stroke, tint};
 
+/// A small round mark, as of something unread. It grows with the density,
+/// but never below a page indicator's dot: shrunk with the space in compact
+/// (4 px), it would all but vanish.
 #[component]
 pub fn dot(
     #[prop(required)] color: Color,
     /// A ring around it.
     ring: Option<Color>,
 ) -> impl Widget {
+    let side = size::S2.px().max(indicator::DOT);
     container()
-        .width(size::S2.px())
-        .height(size::S2.px())
-        .corners(radius::pill(size::S2.px()))
+        .width(side)
+        .height(side)
+        .corners(radius::pill(side))
         .background(color)
         .shadow(move || {
             Shadow::new(
