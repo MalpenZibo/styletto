@@ -526,9 +526,14 @@ the closure that called it runs again once it is, as every surface that
 asked shares the one read. The theme picker reads the same store: it notes
 "Reading…" or why the picture can't be read, and shows the colours found to
 choose the one the sides are made of (`wallpaper_color`). Call them on the
-`App`'s thread; a program with no running `App` reads the picture with
-`material::seeds` and builds its `Ui` with
-`config.with_wallpaper_colors(&colors).ui(system_dark)`.
+`App`'s thread. An app whose first frame must already be in the wallpaper's
+colours, as a lock screen or a greeter, or a program with no running `App`,
+as a one-off render, calls `config.ui_blocking(system_dark)` once, before it
+draws and not in a reactive closure: it reads a picture not read yet on the
+calling thread, which waits for it, and puts it in the same store, so the
+surfaces after it take it at once and nothing reads it again. A picture that
+can't be read is logged and the theme shows, as with `ui`; without the
+`wallpaper` feature it is `ui`.
 A picture changed at the same path is read again with
 `config.update(UiConfig::reread_wallpaper)`, from the app's own file
 watcher (styletto watches no file) on the `App`'s thread, or on Enter over

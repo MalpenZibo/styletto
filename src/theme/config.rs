@@ -107,10 +107,12 @@ impl UiConfig {
     /// `wallpaper` feature). Until it is, the theme shows, as
     /// [`with_wallpaper_colors`] shows it with no colours, and a reactive
     /// closure that calls this runs again once it is. Call it on the `App`'s
-    /// thread; a program with no running `App` reads the picture itself with
-    /// `material::seeds` and hands the colours to [`with_wallpaper_colors`].
+    /// thread; an app whose first frame must already be in the wallpaper's
+    /// colours, or a program with no running `App`, calls [`ui_blocking`]
+    /// instead.
     ///
     /// [`with_wallpaper_colors`]: Self::with_wallpaper_colors
+    /// [`ui_blocking`]: Self::ui_blocking
     pub fn ui(&self, system_dark: Option<bool>) -> Ui {
         let system = Fonts::default();
         let family =
@@ -125,6 +127,37 @@ impl UiConfig {
                 sans: family(&self.fonts.sans, system.sans),
                 mono: family(&self.fonts.mono, system.mono),
             })
+    }
+
+    /// The [`Ui`] it asks for, as [`ui`] gives it, with the wallpaper already
+    /// read: for an app whose first frame must be in the wallpaper's colours,
+    /// as a lock screen or a greeter, or a program with no running `App`, as
+    /// a one-off render.
+    ///
+    /// A wallpaper not read yet is read here, on the calling thread, which
+    /// waits for it. What it finds goes into the store [`ui`] reads
+    /// (`wallpaper::picture`), so every surface and every call after this
+    /// one takes it at once, without reading it again; a read of it still
+    /// under way on a thread is dropped. A picture the store has already,
+    /// read or failed, is taken as it is, even one being read again
+    /// (`reread_wallpaper`). A picture that can't be read is logged, and the
+    /// theme shows, as with [`ui`]. Without the `wallpaper` feature it is
+    /// [`ui`].
+    ///
+    /// Call it once, before the app draws, on the `App`'s thread if there is
+    /// one. Not in a reactive closure: it blocks the thread for the read, and
+    /// writes the store the closure reads; there, [`ui`] follows the config.
+    ///
+    /// [`ui`]: Self::ui
+    pub fn ui_blocking(&self, system_dark: Option<bool>) -> Ui {
+        #[cfg(feature = "wallpaper")]
+        if let Some(path) = self.wallpaper_path() {
+            crate::theme::wallpaper::read_blocking(&path);
+        }
+        // Called outside a reactive closure, as it is meant to be: Guido's
+        // debug builds would warn there that the store's read is a snapshot,
+        // which is what this asks for. It silences the warning, nothing else.
+        guido::reactive::diagnostics::snapshot_zone(|| self.ui(system_dark))
     }
 
     /// Both sides, the dark one first, with their colours set over them.
@@ -238,8 +271,8 @@ impl UiConfig {
     /// This config with its wallpaper as read: the colour chosen among
     /// `colors`, those it yields best first (`material::seeds`), stands as
     /// the seed; with none yet, the theme shows. For a program that reads
-    /// the wallpaper itself, as one with no running `App`, rather than
-    /// through [`ui`](Self::ui).
+    /// the wallpaper itself rather than through [`ui`](Self::ui) or
+    /// [`ui_blocking`](Self::ui_blocking).
     pub fn with_wallpaper_colors(&self, colors: &[Color]) -> UiConfig {
         let mut config = self.clone();
         if config.wallpaper.take().is_some() {

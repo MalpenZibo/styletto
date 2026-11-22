@@ -2,7 +2,10 @@
 //! process until [`reread`],
 //! each on a thread of its own, whatever reads it and however often. A
 //! `UiConfig` whose source is a wallpaper reads it here, and so do the
-//! appearance controls, which show what the reading came to.
+//! appearance controls, which show what the reading came to. An app whose
+//! first frame must already be in the wallpaper's colours reads it once on
+//! the calling thread instead, with `UiConfig::ui_blocking`: what it finds
+//! goes into the same store, so nothing reads it again.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -92,7 +95,8 @@ fn started<R>(store: RwSignal<Pictures>, f: impl FnOnce(&mut Started) -> R) -> R
 ///
 /// Call it on the `App`'s thread: the store is that thread's. A program
 /// with no running `App`, as a one-off render, never sees a read end: it
-/// reads the picture itself with [`material::seeds`].
+/// asks with `UiConfig::ui_blocking` (`serde` feature), which reads the
+/// picture on its thread, or reads it itself with [`material::seeds`].
 pub fn picture(path: &Path) -> Picture {
     let pictures = PICTURES.get();
     if let Some(picture) = pictures.with(|read| read.get(path).cloned()) {
@@ -137,30 +141,40 @@ pub fn reading() -> bool {
     })
 }
 
+/// Reads the picture at `path` on the calling thread, unless the store
+/// already has it, read or failed, and puts what it found there: a read of
+/// it still under way on a thread is dropped when it ends. A picture that
+/// can't be read is logged and stays failed, as a thread's read leaves it.
+///
+/// It writes the store at once, on the `App`'s thread or with no `App` at
+/// all, so what reads the store next finds the picture. Not from a reactive
+/// closure that reads the store: the write would run it again.
+#[cfg(feature = "serde")]
+pub(crate) fn read_blocking(path: &Path) {
+    let pictures = PICTURES.get();
+    if pictures.with_untracked(|read| read.contains_key(path)) {
+        return;
+    }
+    let picture = read(path);
+    // No longer the last read of it: a thread's read of it, numbered
+    // before, finds no number when it ends, and its picture is dropped.
+    started(pictures, |s| s.reads.remove(path));
+    pictures.update(|read| {
+        read.insert(path.to_path_buf(), picture);
+    });
+}
+
 /// Reads the picture at `path` on a thread, which writes what it found to
 /// the store if it is still the last read of it (`number`): the only write,
 /// queued for the `App`'s thread, never made while something reads the
 /// store.
 fn start(pictures: RwSignal<Pictures>, path: PathBuf, number: u64) {
-    #[cfg(all(test, feature = "serde"))]
-    tests::READS.lock().unwrap().push(path.clone());
     let write = pictures.writer();
     let key = path.clone();
     let spawned = std::thread::Builder::new()
         .name("styletto-wallpaper".to_string())
         .spawn(move || {
-            // A decoder that panics on a picture fails it, rather than
-            // leaving it being read for ever.
-            let seeds = std::panic::catch_unwind(|| material::seeds(&path))
-                .unwrap_or_else(|_| Err("Can't be read".to_string()));
-            let picture = match seeds {
-                Ok(seeds) if seeds.is_empty() => Picture::Failed("No colour found".to_string()),
-                Ok(seeds) => Picture::Read(seeds),
-                Err(err) => Picture::Failed(err),
-            };
-            if let Picture::Failed(why) = &picture {
-                log::warn!("appearance.wallpaper {}: {why}", path.display());
-            }
+            let picture = read(&path);
             // Run on the App's thread, where the reads were started.
             write.update(move |read| {
                 let last = STARTED.with_borrow_mut(|started| {
@@ -183,6 +197,28 @@ fn start(pictures: RwSignal<Pictures>, path: PathBuf, number: u64) {
     }
 }
 
+/// Reads the picture at `path` on the calling thread: the one body of every
+/// read, on a thread of its own or not. What fails is logged.
+fn read(path: &Path) -> Picture {
+    #[cfg(all(test, feature = "serde"))]
+    tests::READS.lock().unwrap().push(path.to_path_buf());
+    // A decoder that panics on a picture fails it, rather than leaving it
+    // being read for ever.
+    let seeds = std::panic::catch_unwind(|| material::seeds(path))
+        .unwrap_or_else(|_| Err("Can't be read".to_string()));
+    let picture = match seeds {
+        Ok(seeds) if seeds.is_empty() => Picture::Failed("No colour found".to_string()),
+        Ok(seeds) => Picture::Read(seeds),
+        Err(err) => Picture::Failed(err),
+    };
+    if let Picture::Failed(why) = &picture {
+        log::warn!("appearance.wallpaper {}: {why}", path.display());
+    }
+    #[cfg(all(test, feature = "serde"))]
+    tests::ENDED.lock().unwrap().push(path.to_path_buf());
+    picture
+}
+
 #[cfg(all(test, feature = "serde"))]
 mod tests {
     use std::rc::Rc;
@@ -198,6 +234,8 @@ mod tests {
 
     /// Every read started, by path, in every test.
     pub(super) static READS: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
+    /// Every read ended, by path, in every test.
+    pub(super) static ENDED: Mutex<Vec<PathBuf>> = Mutex::new(Vec::new());
 
     fn reads(path: &Path) -> usize {
         READS.lock().unwrap().iter().filter(|p| *p == path).count()
@@ -224,6 +262,14 @@ mod tests {
         .save(&path)
         .unwrap();
         path
+    }
+
+    /// Rewrites the picture at `path` in place, as a wallpaper manager does:
+    /// green now.
+    fn repaint_green(path: &Path) {
+        ::image::RgbaImage::from_pixel(16, 16, ::image::Rgba([40, 160, 60, 255]))
+            .save(path)
+            .unwrap();
     }
 
     /// The `Ui` of `config` with its wallpaper as it is on the disk now.
@@ -337,10 +383,7 @@ mod tests {
         let seen = mount(&mut h, config.clone());
         let before = read_now(&config);
         wait(&mut h, || last(&seen) == before);
-        // Rewritten in place, as a wallpaper manager does: green now.
-        ::image::RgbaImage::from_pixel(16, 16, ::image::Rgba([40, 160, 60, 255]))
-            .save(&path)
-            .unwrap();
+        repaint_green(&path);
         let after = read_now(&config);
         assert_ne!(after, before);
         reread(&path);
@@ -350,6 +393,74 @@ mod tests {
         let seen = seen.borrow();
         let from = seen.iter().position(|ui| *ui == before).unwrap();
         assert_eq!(seen[from..], [before, after]);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn a_blocking_read_gives_the_wallpaper_at_once() {
+        let Some(mut h) = Headless::new_or_skip() else {
+            return;
+        };
+        let path = write_picture("blocking");
+        let config = config(&path);
+        let read = read_now(&config);
+        // Nothing read before: the first call has the colours already.
+        assert_eq!(config.ui_blocking(None), read);
+        assert!(!reading());
+        // A surface made now takes them at once, and nothing reads again.
+        assert_eq!(*mount(&mut h, config.clone()).borrow(), [read]);
+        assert_eq!(config.ui_blocking(None), read);
+        assert_eq!(reads(&path), 1, "read more than once");
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn a_blocking_read_of_a_missing_picture_shows_the_theme() {
+        let Some(_h) = Headless::new_or_skip() else {
+            return;
+        };
+        let missing = temp("blocking-missing");
+        assert_eq!(config(&missing).ui_blocking(None), Ui::default());
+        let Picture::Failed(why) = picture(&missing) else {
+            panic!("a missing picture was read");
+        };
+        assert!(!why.is_empty());
+        assert!(!reading());
+    }
+
+    #[test]
+    fn a_blocking_read_supersedes_one_under_way() {
+        let Some(mut h) = Headless::new_or_skip() else {
+            return;
+        };
+        let path = write_picture("superseded");
+        let config = config(&path);
+        assert_eq!(picture(&path), Picture::Reading);
+        // The thread's read of the blue picture ends; its write waits for
+        // the next frame, which isn't stepped.
+        let deadline = Instant::now() + Duration::from_secs(10);
+        while !ENDED.lock().unwrap().contains(&path) {
+            assert!(Instant::now() < deadline, "the read never ended");
+            std::thread::sleep(Duration::from_millis(2));
+        }
+        repaint_green(&path);
+        let green = read_now(&config);
+        assert_eq!(config.ui_blocking(None), green);
+        assert!(!reading());
+        // The frames run the thread's write: its blue lands nowhere.
+        let seen = mount(&mut h, config.clone());
+        h.step();
+        assert_eq!(*seen.borrow(), [green]);
+        assert_eq!(config.ui(None), green);
+        assert_eq!(reads(&path), 2);
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn a_blocking_read_needs_no_app() {
+        let path = write_picture("no-app");
+        let config = config(&path);
+        assert_eq!(config.ui_blocking(None), read_now(&config));
         std::fs::remove_file(&path).ok();
     }
 }
