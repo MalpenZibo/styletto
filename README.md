@@ -352,6 +352,7 @@ The modules of `components`:
 | `card` | level figures and stat cards coloured by their `Level` |
 | `progress`, `sparkline`, `roll` | bars, rings, recent samples, rolling digits |
 | `notification` | notifications, alone and grouped |
+| `settings`, `choices` | the pieces of a settings panel: a titled group of settings, a setting with its name and a note over what sets it; one of several values to choose, as a row of buttons |
 | `appearance` | controls that edit a `UiConfig` (with the `serde` feature): the theme, the mode, a side's colours, the fonts, the layout, and a panel of them |
 
 A button is one component, with a label, an icon before it, or the icon
@@ -429,6 +430,36 @@ level_indicator(Levels::BATTERY, 12.0).level(Level::below(12.0, 30.0, 15.0)).per
 level_indicator(Levels::BATTERY, 50.0).icon(Icon::BatteryCharging).level(Level::Good);
 level_indicator(Levels::VOLUME, 0.0).icon(Icon::VolumeOff);
 level_indicator(Levels::WIFI, 70.0);
+```
+
+A settings panel is made of three pieces, which the appearance controls
+are built from too, so an app's own settings sit beside styletto's spaced
+the same. `setting_group(title)` is a section's title with its settings
+under it, set in from the edge; `setting(name)` is a name, a `note` at the
+other end of the line if given, and what sets it underneath; `choices(options,
+chosen)` is a row of buttons that wraps, one per option, the one whose value
+is `chosen` `active`. It is generic over the value, any `Copy + PartialEq`
+type, and controlled as a toggle is: a press calls `on_choose` with the
+option's value, and the app sets `chosen`.
+
+```rust
+use styletto::components::appearance::layout_picker; // with the `serde` feature
+use styletto::components::choices::choices;
+use styletto::components::settings::{setting, setting_group};
+
+#[derive(Clone, Copy, PartialEq)]
+enum Edge { Top, Bottom }
+
+let edge = create_signal(Edge::Top);
+setting_group("Bar").child(
+    setting("Edge").note("Moves at once").child(
+        choices(vec![("Top".into(), Edge::Top), ("Bottom".into(), Edge::Bottom)], edge)
+            .on_choose(move |chosen| edge.set(chosen)),
+    ),
+);
+// Beside one of styletto's, editing the app's config.
+let config = create_signal(UiConfig::default());
+setting_group("Layout").child(layout_picker(config));
 ```
 
 ## Appearance controls

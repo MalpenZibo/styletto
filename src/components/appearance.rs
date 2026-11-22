@@ -19,15 +19,17 @@ pub use fonts::installed_families;
 use guido::prelude::*;
 
 use crate::components::button::{button, pressable};
+use crate::components::choices::choices;
 use crate::components::input::field as input_field;
-use crate::components::list::{scroll_list, section};
+use crate::components::list::scroll_list;
+use crate::components::settings::{Setting, setting, setting_group};
 use crate::foundations::control::Size;
 use crate::foundations::icons::{Icon, icon};
 use crate::foundations::motion;
 use crate::foundations::tokens::{icon as icon_box, radius, size, stroke};
 use crate::foundations::typography::{BODY_SMALL, LABEL_MEDIUM, MONO_SMALL, TITLE_XSMALL, Typeset};
 use crate::primitives::layout::centered_row;
-use crate::primitives::text::{caption, label};
+use crate::primitives::text::caption;
 use crate::theme::config::{Colors, UiConfig};
 use crate::theme::material::{Contrast, Variant};
 use crate::theme::palette::{Palette, Scheme, parse_hex, to_hex};
@@ -218,19 +220,15 @@ pub fn theme_picker(
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
-        .child(setting(
-            "Colours",
-            None,
-            choices(
-                SOURCES.iter().map(|(name, _)| *name).collect(),
-                move |index| source.get() == SOURCES[index].1,
+        .child(
+            setting("Colours").child(choices(labelled(SOURCES), source).on_choose(
                 // What shows of the wallpaper is what the next starts from.
-                move |index| {
+                move |chosen: Source| {
                     let found = wallpaper_colors.get();
-                    config.update(|c| SOURCES[index].1.apply(c, &found))
+                    config.update(|c| chosen.apply(c, &found))
                 },
-            ),
-        ))
+            )),
+        )
         .child(move || match source.get() {
             Source::Preset => preset(config, showing),
             #[cfg(feature = "material")]
@@ -256,7 +254,7 @@ pub fn mode_picker(
     system_dark: Option<bool>,
 ) -> impl Widget {
     let config = config.get_untracked();
-    let note = caption(move || {
+    let note = move || {
         let system = system_dark.get();
         config.with(|c| {
             let light = !c.mode.is_dark(system);
@@ -278,15 +276,8 @@ pub fn mode_picker(
                 _ => format!("Showing {shown}"),
             }
         })
-    });
-    choice(
-        config,
-        "Mode",
-        Some(note),
-        MODES,
-        |c| c.mode,
-        |c, mode| c.mode = mode,
-    )
+    };
+    choice(config, "Mode", MODES, |c| c.mode, |c, mode| c.mode = mode).note(note)
 }
 
 /// The density, the shape, the material and the motion.
@@ -299,7 +290,6 @@ pub fn layout_picker(#[prop(required)] config: RwSignal<UiConfig>) -> impl Widge
         .child(choice(
             config,
             "Density",
-            None,
             DENSITIES,
             |c| c.density,
             |c, v| c.density = v,
@@ -307,7 +297,6 @@ pub fn layout_picker(#[prop(required)] config: RwSignal<UiConfig>) -> impl Widge
         .child(choice(
             config,
             "Shape",
-            None,
             SHAPES,
             |c| c.shape,
             |c, v| c.shape = v,
@@ -315,7 +304,6 @@ pub fn layout_picker(#[prop(required)] config: RwSignal<UiConfig>) -> impl Widge
         .child(choice(
             config,
             "Material",
-            None,
             MATERIALS,
             |c| c.material,
             |c, v| c.material = v,
@@ -323,7 +311,6 @@ pub fn layout_picker(#[prop(required)] config: RwSignal<UiConfig>) -> impl Widge
         .child(choice(
             config,
             "Motion",
-            None,
             MOTIONS,
             |c| c.motion,
             |c, v| c.motion = v,
@@ -437,11 +424,8 @@ pub fn appearance(
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
-        .child(group(
-            "Theme",
-            container()
-                .width(fill())
-                .layout(Flex::column().spacing(size::S4.px()))
+        .child(
+            setting_group("Theme")
                 .child(mode_picker(config).system_dark(system_dark))
                 .child(
                     theme_picker(config)
@@ -450,9 +434,9 @@ pub fn appearance(
                         .wallpaper_colors(wallpaper_colors)
                         .on_pick_wallpaper(on_pick_wallpaper),
                 ),
-        ))
-        .child(group("Layout", layout_picker(config)))
-        .child(group("Fonts", font_picker(config).families(families)))
+        )
+        .child(setting_group("Layout").child(layout_picker(config)))
+        .child(setting_group("Fonts").child(font_picker(config).families(families)))
 }
 
 /// The families installed, for a picker given none: read with the `fonts`
@@ -464,57 +448,12 @@ fn installed() -> Signal<Vec<Family>> {
     create_stored(Vec::new())
 }
 
-/// A titled run of settings, set in from the panel's edge as a row's
-/// content is, under the title.
-fn group(title: &'static str, settings: impl Widget + 'static) -> Container {
-    container()
-        .width(fill())
-        .layout(Flex::column().spacing(size::S2.px()))
-        .child(section(title))
-        .child(
-            container()
-                .width(fill())
-                .padding([0.0, size::S3.px()])
-                .child(settings),
-        )
-}
-
-/// A setting: its name, a note at the other end of the line, and what sets
-/// it underneath.
-fn setting(name: &'static str, note: Option<Text>, body: impl Widget + 'static) -> Container {
-    container()
-        .width(fill())
-        .layout(Flex::column().spacing(size::S2.px()))
-        .child(
-            container()
-                .width(fill())
-                .layout(centered_row(size::S3.px()))
-                .child(label(name))
-                .child(
-                    container()
-                        .width(fill())
-                        .layout(Flex::row().main_alignment(MainAlignment::End))
-                        .children(note.map(|note| note.overflow(TextOverflow::Ellipsis))),
-                ),
-        )
-        .child(body)
-}
-
-/// The options as buttons, the chosen one on, as many to a line as fit.
-fn choices(
-    names: Vec<&'static str>,
-    active: impl Fn(usize) -> bool + Copy + 'static,
-    pick: impl Fn(usize) + Copy + 'static,
-) -> Container {
-    container()
-        .width(fill())
-        .layout(Flex::row().spacing(size::S1.px()).wrap(true))
-        .children(names.into_iter().enumerate().map(move |(index, name)| {
-            button()
-                .label(name)
-                .active(move || active(index))
-                .on_click(move || pick(index))
-        }))
+/// Each option of a list, by the name it shows, for `choices`.
+fn labelled<T: Copy>(options: &[(&'static str, T)]) -> Vec<(String, T)> {
+    options
+        .iter()
+        .map(|&(name, value)| (name.to_string(), value))
+        .collect()
 }
 
 /// A setting choosing one of `options`, read from the config with `get`
@@ -522,19 +461,13 @@ fn choices(
 fn choice<T: Copy + PartialEq + 'static>(
     config: RwSignal<UiConfig>,
     name: &'static str,
-    note: Option<Text>,
     options: &'static [(&'static str, T)],
     get: fn(&UiConfig) -> T,
     set: fn(&mut UiConfig, T),
-) -> Container {
-    setting(
-        name,
-        note,
-        choices(
-            options.iter().map(|(name, _)| *name).collect(),
-            move |index| config.with(get) == options[index].1,
-            move |index| config.update(|c| set(c, options[index].1)),
-        ),
+) -> Setting {
+    setting(name).child(
+        choices(labelled(options), move || config.with(get))
+            .on_choose(move |value| config.update(|c| set(c, value))),
     )
 }
 
@@ -603,19 +536,20 @@ fn preset(
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
-        .child(setting(
-            "Preset",
-            None,
-            choices(
-                THEMES.iter().map(|theme| theme.name).collect(),
-                move |index| theme.get() == THEMES[index].name,
-                move |index| {
-                    config.update(|c| {
-                        c.set_theme(Some(THEMES[index].name.to_string()));
-                    })
-                },
+        .child(
+            setting("Preset").child(
+                choices(
+                    THEMES
+                        .iter()
+                        .map(|theme| (theme.name.to_string(), theme.name))
+                        .collect::<Vec<_>>(),
+                    theme,
+                )
+                .on_choose(move |name: &'static str| {
+                    config.update(|c| c.set_theme(Some(name.to_string())))
+                }),
             ),
-        ))
+        )
         .child(move || {
             // Built again with the theme, whose flavours these are.
             theme.get();
@@ -633,9 +567,9 @@ fn flavor_and_accent(
     let theme = config.with_untracked(|c| c.choice().theme);
     let flavors = theme.flavors(light);
     let flavor = create_memo(move || choice.get().flavor_of(light));
-    let flavors = if flavors.is_empty() {
-        // Running text: it wraps inside the card rather than a caption's
-        // one line.
+    // Running text when there is none: it wraps inside the card rather than
+    // a caption's one line.
+    let none = flavors.is_empty().then(|| {
         container().width(fill()).child(
             text(format!(
                 "{} has no {} flavour: the {} one shows instead.",
@@ -646,36 +580,37 @@ fn flavor_and_accent(
             .typeset(BODY_SMALL)
             .color(t.colors.sub),
         )
-    } else {
-        setting(
-            "Flavour",
-            None,
+    });
+    let flavors = (!flavors.is_empty()).then(|| {
+        setting("Flavour").child(
             choices(
-                flavors.iter().map(|flavor| flavor.name).collect(),
-                move |index| choice.get().side(light).flavor == index,
-                move |index| {
-                    let name = theme.flavors(light)[index].name.to_string();
-                    config.update(|c| {
-                        if light {
-                            c.light_flavor = Some(name);
-                        } else {
-                            c.dark_flavor = Some(name);
-                        }
-                    })
-                },
-            ),
+                flavors
+                    .iter()
+                    .map(|flavor| (flavor.name.to_string(), flavor.name))
+                    .collect::<Vec<_>>(),
+                move || flavor.get().name,
+            )
+            .on_choose(move |name: &'static str| {
+                config.update(|c| {
+                    let name = Some(name.to_string());
+                    if light {
+                        c.light_flavor = name;
+                    } else {
+                        c.dark_flavor = name;
+                    }
+                })
+            }),
         )
-    };
+    });
     let accent = move || choice.get().side(light).accent;
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
+        .child(none)
         .child(flavors)
         .child(move || {
             let flavor = flavor.get();
-            setting(
-                "Accent",
-                Some(caption(move || accent().to_string())),
+            setting("Accent").note(move || accent().to_string()).child(
                 container().layout(centered_row(size::S1.px())).children(
                     flavor.accents.iter().map(move |a| {
                         let name = a.name;
@@ -690,7 +625,7 @@ fn flavor_and_accent(
 /// Where a seed or a wallpaper's colour comes from, then how the theme is
 /// made of it.
 #[cfg(feature = "material")]
-fn generated(config: RwSignal<UiConfig>, from: Container) -> Container {
+fn generated(config: RwSignal<UiConfig>, from: impl Widget + 'static) -> Container {
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
@@ -698,7 +633,6 @@ fn generated(config: RwSignal<UiConfig>, from: Container) -> Container {
         .child(choice(
             config,
             "Variant",
-            None,
             VARIANTS,
             |c| c.variant,
             |c, v| c.variant = v,
@@ -706,7 +640,6 @@ fn generated(config: RwSignal<UiConfig>, from: Container) -> Container {
         .child(choice(
             config,
             "Contrast",
-            None,
             CONTRASTS,
             |c| c.contrast,
             |c, v| c.contrast = v,
@@ -716,16 +649,14 @@ fn generated(config: RwSignal<UiConfig>, from: Container) -> Container {
 /// A seed typed as a hex, beside the dot it makes; it is set once it reads
 /// as a colour.
 #[cfg(feature = "material")]
-fn seed_field(config: RwSignal<UiConfig>) -> Container {
+fn seed_field(config: RwSignal<UiConfig>) -> Setting {
     let (typed, input) = bound_text(
         config,
         |c| c.seed.clone().unwrap_or_default(),
         |text| parse_hex(text).is_some(),
         |c, text| c.seed = Some(text.to_string()),
     );
-    setting(
-        "Seed",
-        None,
+    setting("Seed").child(
         container()
             .width(fill())
             .layout(centered_row(size::S2.px()))
@@ -753,7 +684,7 @@ fn wallpaper_field(
     note: Signal<String>,
     candidates: Signal<Vec<Color>>,
     pick: Option<Callback>,
-) -> Container {
+) -> Setting {
     let set = create_memo(move || config.with(|c| c.wallpaper.clone().unwrap_or_default()));
     let typed = create_signal(config.with_untracked(|c| c.wallpaper.clone().unwrap_or_default()));
     // A new path, as the app's chooser sets it, shows in the field; a path
@@ -804,9 +735,7 @@ fn wallpaper_field(
             )
         })
     };
-    setting(
-        "Wallpaper",
-        Some(caption(note)),
+    setting("Wallpaper").note(note).child(
         container()
             .width(fill())
             .layout(Flex::column().spacing(size::S2.px()))
@@ -818,7 +747,7 @@ fn wallpaper_field(
 /// A family to choose among those installed: the one chosen, written in
 /// itself, and a list to search when it is opened. Monospaced families
 /// only for `mono`; the system's first.
-fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Family>>) -> Container {
+fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Family>>) -> Setting {
     let t = ui();
     let chosen = create_memo(move || {
         config.with(|c| if mono { &c.fonts.mono } else { &c.fonts.sans }.clone())
@@ -842,7 +771,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
     };
     let drawn_in =
         move |family: &Option<String>| family.as_deref().map_or(system, FontFamily::name);
-    let note = caption(move || {
+    let note = move || {
         // Nothing to say until the app has found the families.
         let Some(name) = chosen.get().filter(|_| families.with(|f| !f.is_empty())) else {
             return String::new();
@@ -854,7 +783,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                 Some(_) => String::new(),
             }
         })
-    });
+    };
     let current = container()
         .width(fill())
         .padding([size::S2.px(), size::S3.px()])
@@ -940,15 +869,15 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                 )
         })
     };
-    setting(
-        if mono { "Mono" } else { "Sans" },
-        Some(note),
-        container()
-            .width(fill())
-            .layout(Flex::column().spacing(size::S1.px()))
-            .child(current)
-            .child(list),
-    )
+    setting(if mono { "Mono" } else { "Sans" })
+        .note(note)
+        .child(
+            container()
+                .width(fill())
+                .layout(Flex::column().spacing(size::S1.px()))
+                .child(current)
+                .child(list),
+        )
 }
 
 /// What is typed in a field, in the text's colours, filling the field up
