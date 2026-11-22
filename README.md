@@ -60,6 +60,7 @@ row("Wi-Fi")
 | `serde` | `theme::config::UiConfig`, read from an `[appearance]` table and written back, and the controls that edit it (`components::appearance`) |
 | `material` | themes worked out from a seed colour |
 | `wallpaper` | themes worked out from an image (implies `material`) |
+| `fonts` | the font families installed (`installed_families`), which the font picker then finds by itself (implies `serde`) |
 
 ## The Ui
 
@@ -447,10 +448,18 @@ once; the app turns it into its `Ui` (and saves it) as it changes.
 | `appearance` | all of them, in sections (theme and mode, layout, fonts) |
 
 What reaches the system stays the app's, and is handed in, so styletto
-needs no portal or font database: the families installed (`Family`: a name,
-whether it is monospaced, whether it draws the semibold weight), what the
-system prefers, and a callback that opens a file chooser for a wallpaper
-and sets the path chosen. `UiConfig::ui` reads a wallpaper when it is the
+needs no portal: what the system prefers, and a callback that opens a file
+chooser for a wallpaper and sets the path chosen. The font families
+installed (`Family`: a name, whether it is monospaced, whether it draws the
+semibold weight) are handed in as `families` too, or, with the `fonts`
+feature, left out: the font picker then reads them itself with
+`installed_families()`. That reads the system's fonts once per process, on
+a thread of its own, and every picker shares what it found; a family is
+offered if it writes Latin (it draws `a` and `A`), is monospaced if every
+face of it is, and is semibold if a face draws the weight of the emphasised
+type, within a step (a variable face, anywhere along its `wght` axis). Without
+the feature, a picker given no families offers only the system's.
+`UiConfig::ui` reads a wallpaper when it is the
 source, so an app reads it off the UI thread, and hands in what it found:
 `wallpaper_note` (reading, or why it can't) and `wallpaper_colors`, the
 colours `material::seeds` yields, best first, which the panel shows to choose
@@ -471,7 +480,7 @@ use styletto::components::appearance::{appearance, mode_picker, theme_picker};
 let config = create_signal(UiConfig::default()); // or as the app loaded it
 appearance(config)
     .system_dark(system_dark)
-    .families(families)
+    .families(families)            // or left out, with the `fonts` feature
     .wallpaper_note(note)          // as the app's reading of the wallpaper went
     .wallpaper_colors(found)       // what it found in it, best first
     .on_pick_wallpaper(move || chooser.send(()));

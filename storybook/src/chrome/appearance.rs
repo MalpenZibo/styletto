@@ -1,9 +1,10 @@
 //! What the stories are drawn with, and the page that chooses it: the
 //! library's appearance panel editing a `UiConfig`, beside a preview of what
-//! it makes. The page hands the panel what reaches the system: the families
-//! installed, the system's dark preference, a wallpaper chosen through the
-//! desktop portal and read on a thread of its own. The storybook's own
-//! chrome keeps the default.
+//! it makes. The page hands the panel what reaches the system: the system's
+//! dark preference, a wallpaper chosen through the desktop portal and read
+//! on a thread of its own; the panel finds the families installed itself
+//! (the library's `fonts` feature). The storybook's own chrome keeps the
+//! default.
 
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -11,7 +12,7 @@ use std::sync::atomic::{AtomicU64, Ordering};
 use crate::system::color_scheme::{self, ColorScheme};
 use futures::StreamExt;
 use guido::prelude::*;
-use styletto::components::appearance::{Family, appearance};
+use styletto::components::appearance::appearance;
 use styletto::components::button::{Variant, button};
 use styletto::components::card::level_figure;
 use styletto::components::level::Level;
@@ -30,7 +31,6 @@ use styletto::theme::palette::Hue;
 use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
 
 use crate::chrome::widgets::{island, wallpaper};
-use crate::system::fonts;
 use crate::system::picker;
 
 /// Reads an image for its colours on a thread of its own; from the chooser's
@@ -116,8 +116,6 @@ pub struct Appearance {
     config: RwSignal<UiConfig>,
     /// What the system prefers: dark, light, or nothing said.
     system: Signal<Option<bool>>,
-    /// The families installed, as the font database sees them.
-    families: Signal<Vec<Family>>,
     /// The config's wallpaper, by its path, and as read here rather than in
     /// `UiConfig::ui`, which would read it on each change.
     wallpaper: Memo<Option<PathBuf>>,
@@ -159,7 +157,6 @@ impl Appearance {
         Self {
             config,
             system: system_dark(),
-            families: installed_families(),
             wallpaper,
             picture,
             chooser: chooser(config.writer(), reader),
@@ -203,27 +200,6 @@ impl Appearance {
     }
 }
 
-/// The families installed, read once on a thread of their own: reading
-/// every font file takes a moment.
-fn installed_families() -> Signal<Vec<Family>> {
-    let families = create_signal(Vec::new());
-    let writer = families.writer();
-    std::thread::spawn(move || {
-        let semibold = ty::LABEL_MEDIUM.em().resolve().weight.0;
-        writer.set(
-            fonts::families()
-                .into_iter()
-                .map(|f| Family {
-                    semibold: f.has_weight(semibold),
-                    monospace: f.monospace,
-                    name: f.name,
-                })
-                .collect(),
-        )
-    });
-    families.read_only()
-}
-
 /// The system's preference, from the desktop portal, as it changes.
 fn system_dark() -> Signal<Option<bool>> {
     let dark = create_signal(None);
@@ -263,7 +239,6 @@ pub fn page(a: Appearance) -> Container {
                 .child(
                     appearance(a.config)
                         .system_dark(a.system)
-                        .families(a.families)
                         .wallpaper_note(move || a.wallpaper_note())
                         .wallpaper_colors(move || a.wallpaper_colors())
                         .on_pick_wallpaper(move || a.chooser.send(())),
