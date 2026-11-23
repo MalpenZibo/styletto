@@ -18,6 +18,7 @@ use styletto::primitives::text::{PaletteColors, caption, heading, label, typed};
 use styletto::{Icon, Ui, centered_row, icon, look, provide_ui, themed};
 
 use crate::chrome::appearance::{self, Appearance};
+use crate::chrome::language;
 use crate::chrome::widgets::{choices, field, island, section, wallpaper};
 use crate::stories::story::{Control, Ctx, Story};
 use crate::stories::{STORIES, group_icon};
@@ -62,6 +63,7 @@ pub fn view() -> Container {
     // The theme page shows in place of the selected story.
     let theming = create_signal(false);
     let appearance = Appearance::new();
+    language::provide(move || appearance.language.get());
     let log = create_signal(Vec::<String>::new());
     let window = Window {
         surface: expect_context::<SurfaceHandle>(),

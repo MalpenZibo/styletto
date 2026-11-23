@@ -1,6 +1,6 @@
 //! What the stories are drawn with, and the page that chooses it: the
 //! library's appearance panel editing a `UiConfig`, beside a preview of what
-//! it makes. The page hands the panel what reaches the system: the system's
+//! it makes, under the language styletto's words show in. The page hands the panel what reaches the system: the system's
 //! dark preference and a wallpaper chosen through the desktop portal, which
 //! the library reads; the panel finds the families installed itself, in
 //! Guido's list. The storybook's own chrome keeps the default.
@@ -13,9 +13,11 @@ use guido::prelude::*;
 use styletto::components::appearance::appearance;
 use styletto::components::button::{Variant, button};
 use styletto::components::card::level_figure;
+use styletto::components::choices::choices;
 use styletto::components::level::Level;
 use styletto::components::list::row;
 use styletto::components::progress::ring;
+use styletto::components::settings::{setting, setting_group};
 use styletto::components::slider::slider_row;
 use styletto::components::tile::small_tile;
 use styletto::components::toggle::toggle;
@@ -27,6 +29,7 @@ use styletto::theme::palette::Hue;
 use styletto::theme::wallpaper::{Picture, picture};
 use styletto::{Icon, Ui, centered_row, icon, look, themed};
 
+use crate::chrome::language::{LANGUAGES, Language};
 use crate::chrome::widgets::{island, wallpaper};
 use crate::system::picker;
 
@@ -74,6 +77,8 @@ pub struct Appearance {
     /// The picture read last, shown behind the stories in place of the
     /// shapes, whatever the source is now.
     backdrop: Memo<Option<PathBuf>>,
+    /// The language styletto's words show in, everywhere.
+    pub language: RwSignal<Language>,
 }
 
 impl Appearance {
@@ -100,6 +105,7 @@ impl Appearance {
             chooser: chooser(config.writer(), chooser_note.writer()),
             chooser_note,
             backdrop,
+            language: create_signal(Language::default()),
         }
     }
 
@@ -152,6 +158,21 @@ pub fn page(a: Appearance, drawn: Memo<Ui>) -> Container {
                 .height(fill())
                 .padding([0.0, space::S4.px(), space::S6.px(), space::S6.px()])
                 .scroll(Scroll::vertical())
+                .layout(Flex::column().spacing(space::S4.px()))
+                .child(
+                    setting_group("Storybook").child(
+                        setting("Language").child(
+                            choices(
+                                LANGUAGES
+                                    .iter()
+                                    .map(|&(name, language)| (name.to_string(), language))
+                                    .collect::<Vec<_>>(),
+                                a.language,
+                            )
+                            .on_choose(move |language| a.language.set(language)),
+                        ),
+                    ),
+                )
                 .child(
                     appearance(a.config)
                         .system_dark(a.system)
