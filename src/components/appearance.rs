@@ -496,7 +496,7 @@ fn side_card(
                         .child(icon(
                             if light { Icon::Sun } else { Icon::Moon },
                             icon_box::SMALL.px(),
-                            t.eased(|c| c.sub),
+                            t.color(|c| c.sub),
                         ))
                         .child(
                             text(if light { "Light" } else { "Dark" })
@@ -832,7 +832,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                 }
             },
             icon_box::SMALL.px(),
-            t.eased(|c| c.sub),
+            t.color(|c| c.sub),
         ));
     let list = move || {
         open.get().then(|| {

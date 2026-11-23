@@ -101,11 +101,7 @@ pub fn tile(
     .layout(Flex::column().center())
     .on_hover(move |inside| over_box.set(inside))
     .on_click(toggle)
-    .child(icons::icon(
-        icon,
-        Size::Md.icon(),
-        ink.transition(motion::color()),
-    ));
+    .child(icons::icon(icon, Size::Md.icon(), ink));
 
     // An empty subtitle takes no line, so the title sits in the middle. A
     // memo, so that the line is rebuilt only when it comes or goes. As tall
@@ -198,6 +194,6 @@ pub fn small_tile(
     .child(icons::icon(
         icon,
         Size::Md.icon(),
-        active_ink(active, t.color(|c| c.text)).transition(motion::color()),
+        active_ink(active, t.color(|c| c.text)),
     ))
 }

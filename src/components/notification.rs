@@ -147,7 +147,7 @@ pub fn notification_group(
                 } else {
                     Icon::ChevronLeft
                 };
-                icon(kind, icon_box::XSMALL.px(), t.eased(|c| c.dim))
+                icon(kind, icon_box::XSMALL.px(), t.color(|c| c.dim))
             })
         });
     container()
@@ -193,20 +193,22 @@ pub fn app_icon(
 ) -> impl Widget {
     let tile = size.get_untracked();
     let size = tile.px();
-    let color = color.get_untracked();
+    // Read as it paints, so a colour that follows the palette repaints the
+    // tile in place.
     container()
         .width(size)
         .height(size)
         .corners(tile.radius().corners())
-        .gradient(LinearGradient::new(
-            color.lighter(lift::SHEEN),
-            color.darker(lift::SHEEN),
-            GradientDirection::Diagonal,
-        ))
+        .gradient(move || {
+            let color = color.get();
+            LinearGradient::new(
+                color.lighter(lift::SHEEN),
+                color.darker(lift::SHEEN),
+                GradientDirection::Diagonal,
+            )
+        })
         .layout(Flex::column().center())
-        .child(icons::icon(
-            icon,
-            tile.icon(),
-            palette::black_or_white(color),
-        ))
+        .child(icons::icon(icon, tile.icon(), move || {
+            palette::black_or_white(color.get())
+        }))
 }

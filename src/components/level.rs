@@ -6,7 +6,6 @@ use guido::prelude::*;
 
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
-use crate::foundations::motion;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::figure_text;
 use crate::theme::palette::Hue;
@@ -141,17 +140,13 @@ pub fn level_indicator(
     size: Size,
 ) -> impl Widget {
     let size = size.get_untracked();
-    let t = look();
-    let ink = move || t.colors().ink(level.get().hue());
+    let ink = move || level_ink(level.get());
     // A memo, so the icon is built again only when it changes, not with
     // every value.
     let kind = create_memo(move || icon.get().or_else(|| levels.get().icon(value.get())));
     container()
         .layout(centered_row(size.gap()))
-        .child(move || {
-            kind.get()
-                .map(|kind| icons::icon(kind, size.icon(), ink.transition(motion::color())))
-        })
+        .child(move || kind.get().map(|kind| icons::icon(kind, size.icon(), ink)))
         .child(move || {
             percent.get().then(|| {
                 figure_text(

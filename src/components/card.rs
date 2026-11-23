@@ -2,7 +2,7 @@
 
 use guido::prelude::*;
 
-use crate::components::level::Level;
+use crate::components::level::{Level, level_ink};
 use crate::foundations::icons::{self, Icon};
 use crate::foundations::motion;
 use crate::foundations::tokens::{glow, icon as icon_box, radius, size, tint};
@@ -20,10 +20,9 @@ fn level_fill(c: &Palette, level: Level) -> Option<Color> {
 
 /// Quiet while normal, else the level's ink, as the palette is now.
 fn quiet_ink(t: Look, level: Level) -> Color {
-    let c = t.colors();
     match level {
-        Level::Normal => c.sub,
-        hot => c.ink(hot.hue()),
+        Level::Normal => t.colors().sub,
+        hot => level_ink(hot),
     }
 }
 
@@ -39,11 +38,7 @@ pub fn level_figure(
     let quiet = move || quiet_ink(t, level.get());
     container()
         .layout(centered_row(size::S1.px()))
-        .child(icons::icon(
-            icon,
-            icon_box::XSMALL.px(),
-            quiet.transition(motion::color()),
-        ))
+        .child(icons::icon(icon, icon_box::XSMALL.px(), quiet))
         .child(figure_text(figure, LABEL_SMALL, quiet))
 }
 
@@ -83,11 +78,7 @@ pub fn stat_card(
         .child(
             container()
                 .layout(centered_row(size::S1.px()))
-                .child(icons::icon(
-                    icon,
-                    icon_box::XSMALL.px(),
-                    quiet.transition(motion::color()),
-                ))
+                .child(icons::icon(icon, icon_box::XSMALL.px(), quiet))
                 .child(
                     text(label)
                         .typeset(LABEL_SMALL)
@@ -98,7 +89,7 @@ pub fn stat_card(
         .child(
             text(value)
                 .typeset(DISPLAY_XSMALL.em().tabular())
-                .color((move || t.colors().ink(level.get().hue())).transition(motion::color()))
+                .color((move || level_ink(level.get())).transition(motion::color()))
                 .nowrap(),
         )
         .children(children)

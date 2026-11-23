@@ -2,6 +2,7 @@
 //! material and motion. Set with [`provide_ui`], read with [`ui`].
 
 use guido::prelude::*;
+use guido::reactive::Prop;
 
 use crate::foundations::motion;
 use crate::theme::palette::Palette;
@@ -206,8 +207,14 @@ impl Ui {
 /// What it is given is worked out once per change, not once per colour
 /// read, and a change that leaves the `Ui` as it was repaints nothing.
 pub fn provide_ui<M>(ui: impl IntoSignal<Ui, M>) {
-    let ui = ui.into_signal();
-    provide_context(Provided(create_memo(move || ui.get()).into_signal()));
+    let ui = match ui.into_prop() {
+        // A memo, so a closure runs once per change rather than per colour
+        // read, and a change that leaves the `Ui` as it was repaints nothing.
+        Prop::Reactive(ui) => create_memo(move || ui.get()).into_signal(),
+        Prop::Const(ui) => create_stored(ui),
+        Prop::Unset => create_stored(Ui::default()),
+    };
+    provide_context(Provided(ui));
 }
 
 /// The `Ui` provided, as a signal: a fixed one is a signal that never
@@ -293,8 +300,7 @@ pub fn active_fill<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    let t = look();
-    lit(active, move || t.colors().accent.fill, off)
+    lit(active, look().color(|c| c.accent.fill), off)
 }
 
 /// The ink that reads on [`active_fill`]: `accent.on` while `active`, `off`
@@ -303,8 +309,7 @@ pub fn active_ink<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    let t = look();
-    lit(active, move || t.colors().accent.on, off)
+    lit(active, look().color(|c| c.accent.on), off)
 }
 
 /// `on` while `active`, `off` while not. A constant `off` is kept as it is,

@@ -84,11 +84,9 @@ pub fn row(
         .layout(centered_row(size::S3.px()))
         .child(move || {
             icon.get().map(|kind| {
-                icons::icon(
-                    kind,
-                    icon_box::SMALL.px(),
-                    (move || hue().unwrap_or(t.colors().sub)).transition(motion::color()),
-                )
+                icons::icon(kind, icon_box::SMALL.px(), move || {
+                    hue().unwrap_or(t.colors().sub)
+                })
             })
         })
         .child(words)
@@ -98,7 +96,7 @@ pub fn row(
                 icons::icon(
                     Icon::Check,
                     icon_box::SMALL.px(),
-                    t.eased(|c| c.accent.text),
+                    t.color(|c| c.accent.text),
                 )
             })
         })
@@ -138,7 +136,7 @@ pub fn empty(#[prop(required)] icon: Icon, #[prop(required)] message: String) ->
                 .spacing(size::S2.px())
                 .cross_alignment(CrossAlignment::Center),
         )
-        .child(icons::icon(icon, icon_box::LARGE.px(), t.eased(|c| c.dim)))
+        .child(icons::icon(icon, icon_box::LARGE.px(), t.color(|c| c.dim)))
         .child(
             text(message)
                 .typeset(LABEL_MEDIUM)

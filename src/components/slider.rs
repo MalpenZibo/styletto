@@ -263,7 +263,7 @@ pub fn slider_row(
             .width(Size::Sm.height())
             .height(Size::Sm.height())
             .layout(Flex::column().center())
-            .child(icons::icon(icon, Size::Sm.icon(), t.eased(|c| c.text))),
+            .child(icons::icon(icon, Size::Sm.icon(), t.color(|c| c.text))),
     };
     let tail = match on_more {
         Some(pressed) => container().child(

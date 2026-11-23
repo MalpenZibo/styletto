@@ -191,11 +191,7 @@ fn content(
     let mut children = Vec::new();
     if let Some(first) = kind.get_untracked() {
         let kind = move || kind.get().unwrap_or(first);
-        children.push(icons::icon(
-            kind,
-            size.icon(),
-            ink.transition(motion::color()),
-        ));
+        children.push(icons::icon(kind, size.icon(), ink));
     }
     if !label.with_untracked(String::is_empty) {
         children.push(

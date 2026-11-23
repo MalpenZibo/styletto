@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use guido::prelude::*;
 
+use crate::foundations::motion;
 use crate::foundations::tokens::{self, IconSize, TileSize, tile};
 use crate::foundations::typography::Typeset;
 
@@ -146,17 +147,17 @@ impl Icon {
 }
 
 /// `kind` drawn `size` square in `color`: a value, a signal or a closure,
-/// eased (`.transition(..)`) or not.
+/// easing into a new one at [`motion::color`], as text does.
 pub fn icon<M1, M2>(
     kind: impl IntoSignal<Icon, M1>,
     size: f32,
-    color: impl IntoAnimated<Color, M2>,
+    color: impl IntoSignal<Color, M2>,
 ) -> Container {
     let kind = kind.into_signal();
     container()
         .width(size)
         .height(size)
-        .child(image(move || kind.get().source()).tint(color))
+        .child(image(move || kind.get().source()).tint(color.transition(motion::color())))
 }
 
 /// An icon that turns while something runs.
