@@ -21,7 +21,9 @@ pub struct Sparkline {
     /// [`motion::color`]: it draws its line itself, so it moves the colour
     /// itself.
     ink: AnimationState<Color>,
-    /// False under `Motion::None`: a new accent is taken at once.
+    /// False under `Motion::None`: a new accent is taken at once. Guido's
+    /// instant transition there is a millisecond long, which would still
+    /// ask for a frame and draw the old accent in it.
     eases: bool,
     stroke: f32,
 }

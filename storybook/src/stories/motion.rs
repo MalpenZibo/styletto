@@ -294,18 +294,15 @@ pub fn island(ctx: &Ctx) -> Container {
                 },
             )
             .translate(Translate::NONE.timeline(shake_frames().played_by(shakes)))
-            .shadow(
-                (move || {
-                    let c = t.colors();
-                    island::shadow(match glow.get() {
-                        1 => c.accent.fill,
-                        2 => c.success.fill,
-                        3 => c.danger.fill,
-                        _ => Color::TRANSPARENT,
-                    })
+            .shadow(motion::eased_color(move || {
+                let c = t.colors();
+                island::shadow(match glow.get() {
+                    1 => c.accent.fill,
+                    2 => c.success.fill,
+                    3 => c.danger.fill,
+                    _ => Color::TRANSPARENT,
                 })
-                .transition(motion::color()),
-            ),
+            })),
         )
         .child(button().label("Shake").on_click(move || {
             shakes.update(|n| *n += 1);

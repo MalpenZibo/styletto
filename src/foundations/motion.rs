@@ -82,16 +82,16 @@ pub fn color() -> Transition {
 }
 
 /// Whether a colour eases into a new one: unless motion is off.
-pub(crate) fn colors_ease() -> bool {
+pub fn colors_ease() -> bool {
     with_ui(|u| u.motion) != Motion::None
 }
 
 /// `value` (a colour, or a shadow of one; a value, a signal or a closure)
 /// easing into each new value at [`color()`]. Under [`Motion::None`] it
-/// changes at once, with no motion kept for it: a panel paints many.
-pub(crate) fn eased_color<T: Clone + MovesAs + 'static, M>(
-    value: impl IntoSignal<T, M>,
-) -> Animated<T> {
+/// changes at once, with no motion kept for it: a panel paints many. For a
+/// colour worked out of more than the palette, as a shadow lit by a state;
+/// one picked from the palette is [`Look::eased`](crate::Look::eased).
+pub fn eased_color<T: Clone + MovesAs + 'static, M>(value: impl IntoSignal<T, M>) -> Animated<T> {
     if colors_ease() {
         value.transition(self::color())
     } else {

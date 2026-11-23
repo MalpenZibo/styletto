@@ -105,7 +105,9 @@ A component reads it two ways, both while it is built:
   into a new palette as into a new state, for a property with no motion of
   its own; one with a motion (a hover at `motion::hover()`, a toggling
   fill) moves with that. Under `Motion::None` it changes at once, and keeps
-  no motion. Every colour of the components eases so, those an app gives
+  no motion. `motion::eased_color(value)` does the same for a colour, or a
+  shadow of one, worked out of more than the palette (`colors_ease()` says
+  whether colours ease at all). Every colour of the components eases so, those an app gives
   them too (a dot's, a ring's, an app icon's, rolling digits'), a text
   field's text, placeholder, cursor and selection, an app icon's gradient
   and a sparkline's line. Nothing changes at once but under
