@@ -30,7 +30,8 @@ usage: styletto-storybook shot --list
            [--set \"Control=value\"]... [--select TEXT] [key=value]...
 
 --select types TEXT into the story's first field, which a Tab focuses, and
-selects it all.
+selects it all; it fails where the field doesn't end up holding TEXT
+selected, as a password field, whose text can't be copied out to check.
 
 key=value are the keys of the [appearance] table: theme, dark_flavor,
 light_flavor, accent, dark_accent, light_accent, seed, wallpaper,
@@ -235,7 +236,8 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
     h.step_at(start);
     read(&mut h, start)?;
     let start = match &shot.select {
-        Some(text) => select(&mut h, id, text, start),
+        Some(text) => select(&mut h, id, text, start)
+            .map_err(|why| format!("--select in {}/{}: {why}", story.group, story.name))?,
         None => start,
     };
     settle(&mut h, start, SETTLE);
@@ -269,16 +271,18 @@ fn read(h: &mut Headless, at: Instant) -> Result<(), String> {
 }
 
 /// Tabs into the first field, types `text` and selects it all, a key a
-/// frame from `at`; gives the moment of the last.
-fn select(h: &mut Headless, id: SurfaceId, text: &str, mut at: Instant) -> Instant {
+/// frame from `at`; gives the moment of the last. Checked, rather than sent
+/// blind: the Tab has to focus something, and copying what is selected has
+/// to give `text`, which says the field took it and has it all selected.
+fn select(h: &mut Headless, id: SurfaceId, text: &str, mut at: Instant) -> Result<Instant, String> {
+    use guido::reactive::clipboard::clipboard_paste;
+    use guido::reactive::focus::focused_widget;
+
     let ctrl = Modifiers {
         ctrl: true,
         ..Modifiers::default()
     };
-    let keys = std::iter::once((Key::Tab, Modifiers::default()))
-        .chain(text.chars().map(|c| (Key::Char(c), Modifiers::default())))
-        .chain([(Key::Char('a'), ctrl)]);
-    for (key, modifiers) in keys {
+    let mut press = |h: &mut Headless, key, modifiers| {
         at += FRAME;
         let down = Event::KeyDown {
             key,
@@ -287,8 +291,30 @@ fn select(h: &mut Headless, id: SurfaceId, text: &str, mut at: Instant) -> Insta
         };
         h.event_at(id, down, at);
         h.step_at(at);
+    };
+    press(h, Key::Tab, Modifiers::default());
+    if focused_widget().is_none() {
+        return Err("a Tab focused nothing: the story has no field".to_string());
     }
-    at
+    for c in text.chars() {
+        press(h, Key::Char(c), Modifiers::default());
+    }
+    press(h, Key::Char('a'), ctrl);
+    press(h, Key::Char('c'), ctrl);
+    // What the copy put on the clipboard, read back as a paste is: it is
+    // answered on a later step.
+    let copied = Rc::new(RefCell::new(None));
+    let into = copied.clone();
+    clipboard_paste(move |text| *into.borrow_mut() = Some(text));
+    at += FRAME;
+    h.step_at(at);
+    h.step_at(at);
+    match copied.take() {
+        Some(copied) if copied == text => Ok(at),
+        copied => Err(format!(
+            "the field a Tab focused has {copied:?} selected, not {text:?}"
+        )),
+    }
 }
 
 /// Steps a frame at a time through `time` of simulated time after `start`,
