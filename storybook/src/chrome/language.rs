@@ -3,7 +3,7 @@
 //! and bracketed, while it still reads.
 
 use styletto::provide_translations;
-use styletto::words::KEYS;
+use styletto::words::{KEYS, fill};
 
 #[derive(Clone, Copy, Debug, Default, PartialEq)]
 pub enum Language {
@@ -39,38 +39,35 @@ pub fn provide(language: impl Fn() -> Language + 'static) {
 /// 40% longer, in brackets, "[Ŀîĝĥţ··]"; its arguments, names, as they are.
 fn pseudo(key: &str, args: &[(&str, &str)]) -> Option<String> {
     let english = KEYS.iter().find(|(known, _)| *known == key)?.1;
-    let mut out = String::from("[");
-    let mut rest = english;
+    // Accented but for an argument's `{ $name }`, which `fill` fills in.
+    let mut within = false;
     let mut letters = 0;
-    while !rest.is_empty() {
-        // An argument, `{ $name }`, is filled in, not accented.
-        if let Some(after) = rest.strip_prefix("{ $")
-            && let Some((name, after)) = after.split_once(" }")
-        {
-            let value = args.iter().find(|(n, _)| *n == name).map_or("", |a| a.1);
-            out.push_str(value);
-            rest = after;
-            continue;
-        }
-        let c = rest.chars().next()?;
-        out.push(accented(c));
-        letters += usize::from(c.is_alphabetic());
-        rest = &rest[c.len_utf8()..];
-    }
+    let accented: String = english
+        .chars()
+        .map(|c| {
+            within = (within || c == '{') && c != '}';
+            letters += usize::from(!within && c.is_alphabetic());
+            if within { c } else { accented(c) }
+        })
+        .collect();
     // Rounded up, so even a short word grows.
-    out.extend(std::iter::repeat_n('·', (letters * 2).div_ceil(5)));
-    out.push(']');
-    Some(out)
+    let longer = "·".repeat((letters * 2).div_ceil(5));
+    Some(format!("[{}{longer}]", fill(&accented, args)))
 }
 
+/// Each letter of the English alphabet, lower case then upper, accented.
+const ACCENTED: [char; 52] = [
+    'á', 'ƀ', 'ç', 'ð', 'é', 'ƒ', 'ĝ', 'ĥ', 'î', 'ĵ', 'ķ', 'ļ', 'ɱ', 'ñ', 'ö', 'þ', 'ǫ', 'ŕ', 'š',
+    'ţ', 'û', 'ṽ', 'ŵ', 'ẋ', 'ý', 'ž', 'Å', 'Ɓ', 'Ç', 'Đ', 'É', 'Ƒ', 'Ĝ', 'Ĥ', 'Î', 'Ĵ', 'Ķ', 'Ŀ',
+    'Ṁ', 'Ñ', 'Ö', 'Þ', 'Ǫ', 'Ŕ', 'Š', 'Ţ', 'Û', 'Ṽ', 'Ŵ', 'Ẋ', 'Ý', 'Ž',
+];
+
 fn accented(c: char) -> char {
-    const PLAIN: &str = "abcdefghijklmnopqrstuvwxyzABCDEFGHIJKLMNOPQRSTUVWXYZ";
-    const ACCENTED: &str = "áƀçðéƒĝĥîĵķļɱñöþǫŕšţûṽŵẋýžÅƁÇĐÉƑĜĤÎĴĶĿṀÑÖÞǪŔŠŢÛṼŴẊÝŽ";
-    PLAIN
-        .chars()
-        .position(|p| p == c)
-        .and_then(|i| ACCENTED.chars().nth(i))
-        .unwrap_or(c)
+    match c {
+        'a'..='z' => ACCENTED[(c as u8 - b'a') as usize],
+        'A'..='Z' => ACCENTED[26 + (c as u8 - b'A') as usize],
+        _ => c,
+    }
 }
 
 #[cfg(test)]
@@ -85,7 +82,11 @@ mod tests {
         );
         // Names are filled in as they are.
         assert_eq!(
-            pseudo("styletto-note-showing", &[("shown", "Nord Polar")]).as_deref(),
+            pseudo(
+                "styletto-note-showing-preset",
+                &[("theme", "Nord"), ("flavour", "Polar")]
+            )
+            .as_deref(),
             Some("[Šĥöŵîñĝ Nord Polar···]")
         );
         assert_eq!(pseudo("not-a-key", &[]), None);

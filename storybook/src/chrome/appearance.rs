@@ -1,9 +1,10 @@
 //! What the stories are drawn with, and the page that chooses it: the
 //! library's appearance panel editing a `UiConfig`, beside a preview of what
-//! it makes, under the language styletto's words show in. The page hands the panel what reaches the system: the system's
-//! dark preference and a wallpaper chosen through the desktop portal, which
-//! the library reads; the panel finds the families installed itself, in
-//! Guido's list. The storybook's own chrome keeps the default.
+//! it makes, under the language styletto's words show in. The page hands
+//! the panel what reaches the system: the system's dark preference and a
+//! wallpaper chosen through the desktop portal, which the library reads;
+//! the panel finds the families installed itself, in Guido's list. The
+//! storybook's own chrome keeps the default.
 
 use std::path::PathBuf;
 

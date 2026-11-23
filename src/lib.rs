@@ -24,4 +24,5 @@ pub mod words;
 
 pub use foundations::icons::{Icon, icon};
 pub use primitives::layout::centered_row;
-pub use ui::{Look, Ui, look, provide_translations, provide_ui, themed, ui};
+pub use ui::{Look, Ui, look, provide_ui, themed, ui};
+pub use words::provide_translations;

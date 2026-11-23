@@ -1,15 +1,11 @@
 //! A surface's choices for its components: palette, density, shape, fonts,
-//! material and motion. Set with [`provide_ui`], read with [`ui`]. And the
-//! words they show, in the app's language: [`provide_translations`].
-
-use std::rc::Rc;
+//! material and motion. Set with [`provide_ui`], read with [`ui`].
 
 use guido::prelude::*;
 use guido::reactive::Prop;
 
 use crate::foundations::motion;
 use crate::theme::palette::Palette;
-use crate::words;
 
 /// How much room things take: type, controls and space move one step, and
 /// the lengths an app lays out with [`size::scaled`](crate::foundations::tokens::size::scaled)
@@ -340,63 +336,6 @@ thread_local! {
 pub(crate) fn with_ui<R>(f: impl Fn(&Ui) -> R) -> R {
     with_context(|provided: &Provided| provided.0.with_untracked(&f))
         .unwrap_or_else(|| DEFAULT.with(|ui| f(ui)))
-}
-
-/// What an app's translator is: a key of [`words::KEYS`] and its arguments,
-/// by name, to the words in the app's language, or `None` to leave them in
-/// English.
-type Translate = dyn Fn(&str, &[(&str, &str)]) -> Option<String>;
-
-/// The translator provided.
-#[derive(Clone, Copy)]
-// Only the appearance controls, with `serde`, show words.
-#[cfg_attr(not(feature = "serde"), allow(dead_code))]
-struct Translations(Signal<Rc<Translate>>);
-
-/// Gives the components built from here on the words of the app's language:
-/// `translate` is asked for each by its key in [`words::KEYS`], with its
-/// arguments by name (`[("shown", "Nord Polar")]`), and gives the words with
-/// those filled in, or `None` for the English of `KEYS`. A Fluent bundle's
-/// `format_pattern`, gettext or a map all fit.
-///
-/// Each word is asked for where it is drawn, so a translator that reads a
-/// signal, the app's language, puts a new language in place without
-/// building anything again. Without one, every word is English.
-pub fn provide_translations(translate: impl Fn(&str, &[(&str, &str)]) -> Option<String> + 'static) {
-    let translate: Rc<Translate> = Rc::new(translate);
-    provide_context(Translations(create_stored(translate)));
-}
-
-/// A handle on the nearest translator, taken while building, as [`look`]
-/// is, and asked inside the closures a widget's properties take.
-#[derive(Clone, Copy)]
-#[cfg_attr(not(feature = "serde"), allow(dead_code))]
-pub(crate) struct Words(Option<Signal<Rc<Translate>>>);
-
-/// The nearest translator, or English.
-#[cfg_attr(not(feature = "serde"), allow(dead_code))]
-pub(crate) fn words() -> Words {
-    Words(use_context::<Translations>().map(|translations| translations.0))
-}
-
-#[cfg_attr(not(feature = "serde"), allow(dead_code))]
-impl Words {
-    /// The words of `key` with `args` filled in, as the translator gives
-    /// them or else in English. Whatever the translator reads is tracked.
-    pub(crate) fn get(self, key: &str, args: &[(&str, &str)]) -> String {
-        // Called outside the stored signal's read, so a signal the
-        // translator reads is tracked as any other.
-        let translate = self.0.map(|t| t.with_untracked(Rc::clone));
-        translate
-            .and_then(|translate| translate(key, args))
-            .unwrap_or_else(|| words::fill(words::lookup(key).unwrap_or(key), args))
-    }
-
-    /// The words of `key`, which takes no argument, as a closure a property
-    /// takes.
-    pub(crate) fn of(self, key: &'static str) -> impl Fn() -> String + Copy + 'static {
-        move || self.get(key, &[])
-    }
 }
 
 /// The accent while `active`, `off` (a colour, a signal or a closure) while

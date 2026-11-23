@@ -1,6 +1,6 @@
 //! The words the components show, by key, with the English of each: what an
-//! app's translator ([`provide_translations`](crate::provide_translations))
-//! is asked for, and what shows where it has none.
+//! app's translator ([`provide_translations`]) is asked for, and what shows
+//! where it has none.
 //!
 //! A component asks for a key, never for English of its own: [`KEYS`] is the
 //! one place the English is written. Names stay as they are, in every
@@ -10,11 +10,16 @@
 //! [`KEYS`] is a Fluent message as it stands:
 //!
 //! ```text
-//! styletto-note-system = System: { $shown }
+//! styletto-note-system-preset = System: { $theme } { $flavour }
 //! ```
 
-// Only the appearance controls, with `serde`, show words: without it the
-// lookups below go unused.
+// Only the appearance controls, with `serde`, show words: without it, the
+// handle and the lookups go unused.
+#![cfg_attr(not(feature = "serde"), allow(dead_code))]
+
+use std::rc::Rc;
+
+use guido::prelude::*;
 
 /// Every word a component shows, as `(key, English)`. The key is what a
 /// translator is asked for; the English is what shows where it gives
@@ -74,26 +79,93 @@ pub const KEYS: &[(&str, &str)] = &[
     ("styletto-group-theme", "Theme"),
     ("styletto-group-layout", "Layout"),
     ("styletto-group-fonts", "Fonts"),
-    // What the mode shows: `shown` is one of the `styletto-shown-` words
-    // below, or a preset's theme and flavour, by name.
-    ("styletto-note-system", "System: { $shown }"),
+    // What the mode shows, one whole sentence for each: told by the system,
+    // with no system preference, or by the mode itself; of a preset, named,
+    // or of the colours made by hand, the wallpaper or the seed, by side.
     (
-        "styletto-note-no-system",
-        "No system preference: { $shown }",
-    ),
-    ("styletto-note-showing", "Showing { $shown }"),
-    ("styletto-shown-custom-light", "your light colours"),
-    ("styletto-shown-custom-dark", "your dark colours"),
-    (
-        "styletto-shown-wallpaper-light",
-        "the wallpaper's light colours",
+        "styletto-note-system-preset",
+        "System: { $theme } { $flavour }",
     ),
     (
-        "styletto-shown-wallpaper-dark",
-        "the wallpaper's dark colours",
+        "styletto-note-system-custom-dark",
+        "System: your dark colours",
     ),
-    ("styletto-shown-seed-light", "the seed's light colours"),
-    ("styletto-shown-seed-dark", "the seed's dark colours"),
+    (
+        "styletto-note-system-custom-light",
+        "System: your light colours",
+    ),
+    (
+        "styletto-note-system-wallpaper-dark",
+        "System: the wallpaper's dark colours",
+    ),
+    (
+        "styletto-note-system-wallpaper-light",
+        "System: the wallpaper's light colours",
+    ),
+    (
+        "styletto-note-system-seed-dark",
+        "System: the seed's dark colours",
+    ),
+    (
+        "styletto-note-system-seed-light",
+        "System: the seed's light colours",
+    ),
+    (
+        "styletto-note-no-system-preset",
+        "No system preference: { $theme } { $flavour }",
+    ),
+    (
+        "styletto-note-no-system-custom-dark",
+        "No system preference: your dark colours",
+    ),
+    (
+        "styletto-note-no-system-custom-light",
+        "No system preference: your light colours",
+    ),
+    (
+        "styletto-note-no-system-wallpaper-dark",
+        "No system preference: the wallpaper's dark colours",
+    ),
+    (
+        "styletto-note-no-system-wallpaper-light",
+        "No system preference: the wallpaper's light colours",
+    ),
+    (
+        "styletto-note-no-system-seed-dark",
+        "No system preference: the seed's dark colours",
+    ),
+    (
+        "styletto-note-no-system-seed-light",
+        "No system preference: the seed's light colours",
+    ),
+    (
+        "styletto-note-showing-preset",
+        "Showing { $theme } { $flavour }",
+    ),
+    (
+        "styletto-note-showing-custom-dark",
+        "Showing your dark colours",
+    ),
+    (
+        "styletto-note-showing-custom-light",
+        "Showing your light colours",
+    ),
+    (
+        "styletto-note-showing-wallpaper-dark",
+        "Showing the wallpaper's dark colours",
+    ),
+    (
+        "styletto-note-showing-wallpaper-light",
+        "Showing the wallpaper's light colours",
+    ),
+    (
+        "styletto-note-showing-seed-dark",
+        "Showing the seed's dark colours",
+    ),
+    (
+        "styletto-note-showing-seed-light",
+        "Showing the seed's light colours",
+    ),
     // A side's card.
     ("styletto-side-light", "Light"),
     ("styletto-side-dark", "Dark"),
@@ -124,7 +196,6 @@ pub const KEYS: &[(&str, &str)] = &[
 ];
 
 /// The English of `key`, if it is one of [`KEYS`].
-#[cfg_attr(not(feature = "serde"), allow(dead_code))]
 pub(crate) const fn lookup(key: &str) -> Option<&'static str> {
     let mut i = 0;
     while i < KEYS.len() {
@@ -138,7 +209,6 @@ pub(crate) const fn lookup(key: &str) -> Option<&'static str> {
 
 /// The English of `key`, which must be one of [`KEYS`]: in a constant, a key
 /// misspelt doesn't build.
-#[cfg_attr(not(feature = "serde"), allow(dead_code))]
 pub(crate) const fn english(key: &str) -> &'static str {
     match lookup(key) {
         Some(english) => english,
@@ -147,7 +217,6 @@ pub(crate) const fn english(key: &str) -> &'static str {
 }
 
 /// `str` equality, as a `const fn` can write it.
-#[cfg_attr(not(feature = "serde"), allow(dead_code))]
 const fn same(a: &str, b: &str) -> bool {
     let (a, b) = (a.as_bytes(), b.as_bytes());
     if a.len() != b.len() {
@@ -163,12 +232,75 @@ const fn same(a: &str, b: &str) -> bool {
     true
 }
 
-/// `text` with each `{ $name }` of `args` replaced by its value.
-#[cfg_attr(not(feature = "serde"), allow(dead_code))]
-pub(crate) fn fill(text: &str, args: &[(&str, &str)]) -> String {
+/// `text` with each `{ $name }` of `args` replaced by its value, as the
+/// English of [`KEYS`] is filled in: for a translator whose catalog writes
+/// its arguments so, a map or gettext's. An argument the text doesn't take
+/// is left out.
+///
+/// ```
+/// use styletto::words::fill;
+///
+/// let args = [("theme", "Nord"), ("flavour", "Polar")];
+/// assert_eq!(fill("Système : { $theme } { $flavour }", &args), "Système : Nord Polar");
+/// ```
+pub fn fill(text: &str, args: &[(&str, &str)]) -> String {
     args.iter().fold(text.to_string(), |text, (name, value)| {
         text.replace(&format!("{{ ${name} }}"), value)
     })
+}
+
+/// What an app's translator is: a key of [`KEYS`] and its arguments, by
+/// name, to the words in the app's language, or `None` to leave them in
+/// English.
+type Translate = dyn Fn(&str, &[(&str, &str)]) -> Option<String>;
+
+/// The translator provided.
+#[derive(Clone, Copy)]
+struct Translations(Signal<Rc<Translate>>);
+
+/// Gives the components built from here on the words of the app's language:
+/// `translate` is asked for each by its key in [`KEYS`], with its arguments
+/// by name (`[("theme", "Nord"), ("flavour", "Polar")]`), and gives the
+/// words with those filled in, or `None` for the English of `KEYS`. A Fluent
+/// bundle's `format_pattern`, gettext or a map all fit; [`fill`] fills in a
+/// catalog's `{ $name }`.
+///
+/// Each word is asked for where it is drawn, so a translator that reads a
+/// signal, the app's language, puts a new language in place without
+/// building anything again. Without one, every word is English.
+pub fn provide_translations(translate: impl Fn(&str, &[(&str, &str)]) -> Option<String> + 'static) {
+    let translate: Rc<Translate> = Rc::new(translate);
+    provide_context(Translations(create_stored(translate)));
+}
+
+/// A handle on the nearest translator, taken while building, as
+/// [`look`](crate::look) is, and asked inside the closures a widget's
+/// properties take.
+#[derive(Clone, Copy)]
+pub(crate) struct Words(Option<Signal<Rc<Translate>>>);
+
+/// The nearest translator, or English.
+pub(crate) fn words() -> Words {
+    Words(use_context::<Translations>().map(|translations| translations.0))
+}
+
+impl Words {
+    /// The words of `key` with `args` filled in, as the translator gives
+    /// them or else in English. Whatever the translator reads is tracked.
+    pub(crate) fn get(self, key: &str, args: &[(&str, &str)]) -> String {
+        // Called outside the stored signal's read, so a signal the
+        // translator reads is tracked as any other.
+        let translate = self.0.map(|t| t.with_untracked(Rc::clone));
+        translate
+            .and_then(|translate| translate(key, args))
+            .unwrap_or_else(|| fill(lookup(key).unwrap_or(key), args))
+    }
+
+    /// The words of `key`, which takes no argument, as a closure a property
+    /// takes.
+    pub(crate) fn of(self, key: &'static str) -> impl Fn() -> String + Copy + 'static {
+        move || self.get(key, &[])
+    }
 }
 
 #[cfg(test)]
@@ -244,7 +376,10 @@ mod tests {
     #[test]
     fn arguments_are_filled_in_by_name() {
         assert_eq!(
-            fill(english("styletto-note-system"), &[("shown", "Nord Polar")]),
+            fill(
+                english("styletto-note-system-preset"),
+                &[("theme", "Nord"), ("flavour", "Polar")]
+            ),
             "System: Nord Polar"
         );
         let both = fill(
@@ -253,6 +388,34 @@ mod tests {
         );
         assert_eq!(both, "a and a, b");
         // An argument the text doesn't take changes nothing.
-        assert_eq!(fill("Reading…", &[("shown", "x")]), "Reading…");
+        assert_eq!(fill("Reading…", &[("theme", "x")]), "Reading…");
+    }
+
+    #[test]
+    fn a_translator_with_no_words_leaves_the_english() {
+        use guido::reactive::__internal::with_owner;
+
+        let args = [("theme", "Nord"), ("flavour", "Polar")];
+        let english = |translate: bool| {
+            with_owner(|| {
+                if translate {
+                    provide_translations(|_, _| None);
+                }
+                let w = words();
+                [
+                    w.get("styletto-density-compact", &[]),
+                    w.get("styletto-note-no-system-preset", &args),
+                    w.get("styletto-note-showing-wallpaper-dark", &[]),
+                ]
+            })
+            .0
+        };
+        let expected = [
+            "Compact",
+            "No system preference: Nord Polar",
+            "Showing the wallpaper's dark colours",
+        ];
+        assert_eq!(english(true), expected);
+        assert_eq!(english(false), expected, "not as with no translator");
     }
 }

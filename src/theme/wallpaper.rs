@@ -18,6 +18,15 @@ use guido::reactive::GlobalSignal;
 use crate::theme::material;
 use crate::words::english;
 
+/// The keys of styletto's own reasons a picture can't be read, in
+/// [`KEYS`](crate::words::KEYS). [`Picture::Failed`] holds their English,
+/// as the log does: what an app reading [`picture`] itself gets. The theme
+/// picker shows them in the app's language; the system's reasons, as the
+/// system gave them.
+pub(crate) const NO_COLOUR: &str = "styletto-wallpaper-no-colour";
+pub(crate) const UNREADABLE: &str = "styletto-wallpaper-unreadable";
+pub(crate) const REASONS: [&str; 2] = [NO_COLOUR, UNREADABLE];
+
 /// A wallpaper as read for the colours a theme could be made of.
 #[derive(Clone, Debug, PartialEq)]
 pub enum Picture {
@@ -208,11 +217,9 @@ fn read(path: &Path) -> Picture {
     // A decoder that panics on a picture fails it, rather than leaving it
     // being read for ever.
     let seeds = std::panic::catch_unwind(|| material::seeds(path))
-        .unwrap_or_else(|_| Err(english("styletto-wallpaper-unreadable").to_string()));
+        .unwrap_or_else(|_| Err(const { english(UNREADABLE) }.to_string()));
     let picture = match seeds {
-        Ok(seeds) if seeds.is_empty() => {
-            Picture::Failed(english("styletto-wallpaper-no-colour").to_string())
-        }
+        Ok(seeds) if seeds.is_empty() => Picture::Failed(const { english(NO_COLOUR) }.to_string()),
         Ok(seeds) => Picture::Read(seeds),
         Err(err) => Picture::Failed(err),
     };

@@ -36,8 +36,8 @@ use crate::theme::palette::{Palette, Scheme, parse_hex, to_hex};
 use crate::theme::presets::{Mode, THEMES, ThemeChoice};
 #[cfg(feature = "wallpaper")]
 use crate::theme::wallpaper::{self, Picture};
-use crate::ui::{Density, Material, Motion, Shape, Words, look, words};
-use crate::words::english;
+use crate::ui::{Density, Material, Motion, Shape, look};
+use crate::words::{Words, english, words};
 
 /// A list of choices twice: by English name, public, and by key in
 /// [`KEYS`](crate::words::KEYS), what a control shows, translated. The
@@ -279,36 +279,29 @@ pub fn mode_picker(
         let system = system_dark.get();
         config.with(|c| {
             let light = !c.mode.is_dark(system);
-            // A whole phrase for each side, so a language that tells the
-            // two apart otherwise can.
-            let side = |dark, light_one| if light { light_one } else { dark };
-            let shown = match Source::of(c) {
-                Source::Custom => w.get(
-                    side("styletto-shown-custom-dark", "styletto-shown-custom-light"),
-                    &[],
-                ),
-                Source::Wallpaper if c.wallpaper_path().is_some() => w.get(
-                    side(
-                        "styletto-shown-wallpaper-dark",
-                        "styletto-shown-wallpaper-light",
-                    ),
-                    &[],
-                ),
-                Source::Seed => w.get(
-                    side("styletto-shown-seed-dark", "styletto-shown-seed-light"),
-                    &[],
-                ),
-                Source::Preset | Source::Wallpaper => {
+            // Who tells the side, then what shows it.
+            let told = match (c.mode, system) {
+                (Mode::Auto, Some(_)) => 0,
+                (Mode::Auto, None) => 1,
+                _ => 2,
+            };
+            let made = match Source::of(c) {
+                Source::Custom => Some(0),
+                Source::Wallpaper if c.wallpaper_path().is_some() => Some(1),
+                Source::Seed => Some(2),
+                Source::Preset | Source::Wallpaper => None,
+            };
+            match made {
+                Some(made) => w.get(MODE_NOTES[told][made][light as usize], &[]),
+                None => {
                     let choice = c.choice();
-                    format!("{} {}", choice.theme.name, choice.flavor_of(light).name)
+                    let args = [
+                        ("theme", choice.theme.name),
+                        ("flavour", choice.flavor_of(light).name),
+                    ];
+                    w.get(PRESET_NOTES[told], &args)
                 }
-            };
-            let note = match (c.mode, system) {
-                (Mode::Auto, Some(_)) => "styletto-note-system",
-                (Mode::Auto, None) => "styletto-note-no-system",
-                _ => "styletto-note-showing",
-            };
-            w.get(note, &[("shown", &shown)])
+            }
         })
     };
     choice(
@@ -320,6 +313,62 @@ pub fn mode_picker(
     )
     .note(note)
 }
+
+/// The mode's note of a preset, by who tells the side: the system, no one
+/// (no system preference), or the mode itself.
+const PRESET_NOTES: [&str; 3] = [
+    "styletto-note-system-preset",
+    "styletto-note-no-system-preset",
+    "styletto-note-showing-preset",
+];
+
+/// The mode's note of colours made by hand, from the wallpaper or from the
+/// seed, by who tells the side, then dark and light: each a whole sentence,
+/// so a language says each its own way.
+const MODE_NOTES: [[[&str; 2]; 3]; 3] = [
+    [
+        [
+            "styletto-note-system-custom-dark",
+            "styletto-note-system-custom-light",
+        ],
+        [
+            "styletto-note-system-wallpaper-dark",
+            "styletto-note-system-wallpaper-light",
+        ],
+        [
+            "styletto-note-system-seed-dark",
+            "styletto-note-system-seed-light",
+        ],
+    ],
+    [
+        [
+            "styletto-note-no-system-custom-dark",
+            "styletto-note-no-system-custom-light",
+        ],
+        [
+            "styletto-note-no-system-wallpaper-dark",
+            "styletto-note-no-system-wallpaper-light",
+        ],
+        [
+            "styletto-note-no-system-seed-dark",
+            "styletto-note-no-system-seed-light",
+        ],
+    ],
+    [
+        [
+            "styletto-note-showing-custom-dark",
+            "styletto-note-showing-custom-light",
+        ],
+        [
+            "styletto-note-showing-wallpaper-dark",
+            "styletto-note-showing-wallpaper-light",
+        ],
+        [
+            "styletto-note-showing-seed-dark",
+            "styletto-note-showing-seed-light",
+        ],
+    ],
+];
 
 /// The density, the shape, the material and the motion.
 #[component]
@@ -482,22 +531,23 @@ pub fn appearance(
 }
 
 /// Each option of a list, by the words of its key, for `choices`: in a new
-/// language, they change in place.
-fn labelled<T: Copy + 'static>(
+/// language, they change in place. A memo, so the words are asked for once
+/// per language, not on every read of an option.
+fn labelled<T: Copy + PartialEq + Send + 'static>(
     w: Words,
     options: &'static [(&'static str, T)],
-) -> impl Fn() -> Vec<(String, T)> + 'static {
-    move || {
+) -> Memo<Vec<(String, T)>> {
+    create_memo(move || {
         options
             .iter()
             .map(|&(key, value)| (w.get(key, &[]), value))
             .collect()
-    }
+    })
 }
 
 /// A setting, named by the key `name`, choosing one of `options`, by key,
 /// read from the config with `get` and written to it with `set`.
-fn choice<T: Copy + PartialEq + 'static>(
+fn choice<T: Copy + PartialEq + Send + 'static>(
     config: RwSignal<UiConfig>,
     name: &'static str,
     options: &'static [(&'static str, T)],
@@ -845,13 +895,10 @@ fn wallpaper_field(
 /// language, what the system said as it said it.
 #[cfg(feature = "wallpaper")]
 fn failed(w: Words, why: String) -> String {
-    [
-        "styletto-wallpaper-no-colour",
-        "styletto-wallpaper-unreadable",
-    ]
-    .into_iter()
-    .find(|key| english(key) == why)
-    .map_or(why, |key| w.get(key, &[]))
+    wallpaper::REASONS
+        .into_iter()
+        .find(|key| english(key) == why)
+        .map_or(why, |key| w.get(key, &[]))
 }
 
 /// A family to choose among those installed: the one chosen, written in

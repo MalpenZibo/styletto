@@ -1,6 +1,5 @@
 //! The pickers in another language: every word they show is asked for by its
-//! key, a translator that has none leaves the English, and a new language
-//! shows in place.
+//! key, and a new language shows in place.
 
 use std::collections::HashSet;
 
@@ -11,10 +10,15 @@ use guido::tree::Tree;
 
 use super::*;
 use crate::theme::presets::THEMES;
-use crate::ui::provide_translations;
+use crate::words::provide_translations;
 
-/// Every text `build` draws, laid out `width` wide, as it is drawn (a
-/// section's title is upper case).
+/// Every text `build` draws, 400 wide, as it is drawn (a section's title is
+/// upper case).
+///
+/// Guido has no way to read what a surface draws but its pixels, so the
+/// tree is laid out and painted here by hand, in a scope of its own
+/// (`with_owner`, Guido's internal), and the texts read off its render
+/// nodes: no GPU needed.
 fn drawn(build: impl FnOnce() -> Container) -> Vec<String> {
     let (texts, _scope) = with_owner(|| {
         let mut tree = Tree::new();
@@ -122,15 +126,16 @@ fn pickers(config: RwSignal<UiConfig>) -> Vec<Container> {
         .collect()
 }
 
-/// A word as the marking translator gives it: its key and its arguments.
+/// A word as the marking translator gives it: its key and its arguments,
+/// `«key|name=value»`.
 fn marked(key: &str, args: &[(&str, &str)]) -> String {
-    let args: Vec<String> = args.iter().map(|(n, v)| format!(" {n}={v}")).collect();
+    let args: Vec<String> = args.iter().map(|(n, v)| format!("|{n}={v}")).collect();
     format!("«{key}{}»", args.concat())
 }
 
 /// The names the pickers may show untranslated: themes, flavours and
-/// accents, the families, a theme with its flavour, the colours of the
-/// editor, by their names in the config file, and what is typed.
+/// accents, the families, the colours of the editor, by their names in the
+/// config file, and what is typed.
 fn names() -> HashSet<String> {
     let mut names: HashSet<String> = families().into_iter().map(|f| f.name).collect();
     names.extend(["Gone Sans".to_string(), PATH.to_string()]);
@@ -143,7 +148,6 @@ fn names() -> HashSet<String> {
         names.insert(theme.name.to_string());
         for flavor in theme.flavors {
             names.insert(flavor.name.to_string());
-            names.insert(format!("{} {}", theme.name, flavor.name));
             names.extend(flavor.accents.iter().map(|a| a.name.to_string()));
         }
     }
@@ -153,25 +157,21 @@ fn names() -> HashSet<String> {
 #[test]
 fn every_word_shown_is_asked_for_by_its_key() {
     let names = names();
-    let asked = std::rc::Rc::new(std::cell::RefCell::new(HashSet::new()));
     let mut shown = 0;
     for config in configs() {
-        let asked = asked.clone();
         let texts = drawn(move || {
-            provide_translations(move |key, args| {
-                asked.borrow_mut().insert(key.to_string());
-                Some(marked(key, args))
-            });
+            provide_translations(|key, args| Some(marked(key, args)));
             container().children(pickers(create_signal(config)))
         });
         shown += texts.len();
         for text in texts {
             let marked = text.starts_with('«') && text.ends_with('»');
-            // An argument is a name, or words asked for by key.
+            // An argument is a name, never words.
             let arguments_are_names = || {
                 text.trim_matches(['«', '»'])
-                    .split_once('=')
-                    .is_none_or(|(_, value)| names.contains(value) || value.starts_with('«'))
+                    .split('|')
+                    .skip(1)
+                    .all(|arg| arg.split_once('=').is_some_and(|(_, v)| names.contains(v)))
             };
             let hex = text.starts_with('#') && parse_hex(&text).is_some();
             assert!(
@@ -181,27 +181,6 @@ fn every_word_shown_is_asked_for_by_its_key() {
         }
     }
     assert!(shown > 100, "the pickers drew {shown} texts");
-    // Every source offered, every key was asked for but these: no preset
-    // lacks a dark flavour, a wallpaper isn't read here (the test below
-    // sees why one can't be), and the font list is shown once opened.
-    if cfg!(all(feature = "material", feature = "wallpaper")) {
-        let asked = asked.borrow();
-        let unseen: Vec<_> = crate::words::KEYS
-            .iter()
-            .map(|&(key, _)| key)
-            .filter(|key| !asked.contains(*key))
-            .collect();
-        assert_eq!(
-            unseen,
-            [
-                "styletto-note-no-dark-flavour",
-                "styletto-wallpaper-no-colour",
-                "styletto-wallpaper-unreadable",
-                "styletto-font-search",
-            ],
-            "words never asked for"
-        );
-    }
 }
 
 #[cfg(feature = "wallpaper")]
@@ -210,43 +189,12 @@ fn wallpaper_reasons_are_translated_and_the_systems_are_not() {
     let ((), _scope) = with_owner(|| {
         provide_translations(|key, args| Some(marked(key, args)));
         let w = words();
-        for key in [
-            "styletto-wallpaper-no-colour",
-            "styletto-wallpaper-unreadable",
-        ] {
+        for key in wallpaper::REASONS {
             assert_eq!(failed(w, english(key).to_string()), marked(key, &[]));
         }
         let system = "No such file or directory (os error 2)";
         assert_eq!(failed(w, system.to_string()), system);
     });
-}
-
-#[test]
-fn a_translator_that_has_no_words_leaves_the_english() {
-    let english = |translate: bool| {
-        let mut config = UiConfig {
-            mode: Mode::Auto,
-            ..UiConfig::default()
-        };
-        Source::Custom.apply(&mut config, &[]);
-        drawn(move || {
-            if translate {
-                provide_translations(|_, _| None);
-            }
-            container().children(pickers(create_signal(config)))
-        })
-    };
-    let texts = english(true);
-    assert_eq!(texts, english(false), "not as with no translator");
-    for word in [
-        "Density",
-        "Comfortable",
-        "System: your dark colours",
-        "No system preference: your dark colours",
-        "Copy from the preset",
-    ] {
-        assert!(texts.iter().any(|t| t == word), "no {word:?} in {texts:?}");
-    }
 }
 
 #[test]

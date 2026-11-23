@@ -32,10 +32,10 @@ themes and components. Every piece of it is on show in the
 | `theme` | `palette`, `presets`, `material`, `wallpaper`, `config`: colours by meaning, the preset themes, themes from a colour, the wallpapers read for theirs, the `[appearance]` table |
 | `primitives` | `text`, `layout`, `island`, `satellite`: plain functions an app can add to |
 | `components` | the components, below |
-| `words` | `KEYS`: every word a component shows, by key, with its English |
+| `words` | `KEYS`, every word a component shows, by key, with its English; `provide_translations`, and `fill`, which fills a text's `{ $name }` arguments |
 
 `Icon`, `icon`, `centered_row`, `Ui`, `provide_ui`, `ui`, `look`, `Look` and
-`provide_translations` are also at the root. Below, a path such as `tokens::size` is short for
+`provide_translations` (from `words`) are also at the root. Below, a path such as `tokens::size` is short for
 `foundations::tokens::size`.
 
 ## Use
@@ -674,15 +674,17 @@ language in place: nothing is built again, and whatever is open, typed or
 scrolled stays so, as with a new palette.
 
 A key is `styletto-` and what it names (`styletto-setting-density`,
-`styletto-note-system`). A sentence is whole, one key per case: "the
-wallpaper's dark colours" and "the wallpaper's light colours" are two keys,
-so a language that says the two otherwise, or a backend that can't select,
-still reads. An argument is a name only, written as Fluent writes it,
-`{ $name }`: a theme's (`{ $theme } has no light flavour: the dark one
-shows instead.`), or `shown`, what the mode shows, which is a theme and its
-flavour or the words of a `styletto-shown-` key. Names are never
-translated: themes, flavours, accents, font families, the colours of the
-config file, and what is typed.
+`styletto-note-system-wallpaper-dark`). A sentence is whole, one key per
+case, never built of pieces: the mode's note is a key for each of who
+tells the side (the system, no one, the mode), what shows it and which
+side, "System: the wallpaper's dark colours" one and "Showing the seed's
+light colours" another, so a language with cases, or a backend that can't
+select, still reads. An argument is a name only, written as Fluent writes
+it, `{ $name }`: a theme's and a flavour's
+(`System: { $theme } { $flavour }`,
+`{ $theme } has no light flavour: the dark one shows instead.`). Names are
+never translated: themes, flavours, accents, font families, the
+colours of the config file, and what is typed.
 
 Each line of `KEYS` is a Fluent message as it stands, so an app on Fluent
 passes the key through and its arguments as `FluentArgs`:
@@ -703,8 +705,10 @@ provide_translations(move |key, args| {
 });
 ```
 
-gettext, or a map, fits the same way: the key is the message id, and an
-argument is filled in where the translation has `{ $name }`. A test of the
+gettext, or a map, fits the same way: the key is the message id, and
+`words::fill(text, args)` fills in each `{ $name }` the translation has, as
+styletto does its English:
+`provide_translations(move |key, args| Some(words::fill(map.get(key)?, args)))`. A test of the
 app's own checks its catalogs against `KEYS`, the way its own words are
 checked, and the English of `KEYS` writes the catalog to start from:
 
