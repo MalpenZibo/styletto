@@ -483,7 +483,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use crate::stories::STORIES;
-    use crate::stories::mounted::{redraw, settle};
+    use crate::stories::mounted::{settle, unlike};
     use crate::stories::story::{Ctx, Story};
 
     thread_local! {
@@ -594,22 +594,11 @@ mod tests {
             let builds = BUILT.get();
             given.set(glass);
             settle(&mut h, &mut at);
-            redraw(&mut h, &[changed, built], at);
             let name = format!("{}/{}", story.group, story.name);
             assert_eq!(BUILT.get(), builds, "{name} was built again");
-            let (a, b) = (h.read_frame(changed), h.read_frame(built));
-            let differ: Vec<usize> = (0..a.len() / 4)
-                .filter(|&i| a[i * 4..i * 4 + 4] != b[i * 4..i * 4 + 4])
-                .collect();
-            assert!(
-                differ.is_empty(),
-                "{name} kept a colour of the old palette: {} pixels, first at {:?} {:?} {:?}, last at {:?}",
-                differ.len(),
-                differ.first().map(|i| (i % 800, i / 800)),
-                differ.first().map(|i| &a[i * 4..i * 4 + 4]),
-                differ.first().map(|i| &b[i * 4..i * 4 + 4]),
-                differ.last().map(|i| (i % 800, i / 800)),
-            );
+            if let Some(unlike) = unlike(&h.read_frame(changed), &h.read_frame(built), 800) {
+                panic!("{name} kept a colour of the old palette: {unlike}");
+            }
         }
     }
 

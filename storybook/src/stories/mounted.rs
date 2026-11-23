@@ -23,20 +23,28 @@ pub fn settle(h: &mut Headless, at: &mut Instant) {
     }
 }
 
-/// Lays out and paints `surfaces` again, whole, at `at`, so two frames
-/// compared are drawn at the same moment: one surface that changed nothing
-/// since its first frame would otherwise keep that frame, drawn while the
-/// renderer was still starting.
-pub fn redraw(h: &mut Headless, surfaces: &[SurfaceId], at: Instant) {
-    let sizes: Vec<_> = surfaces.iter().map(|&id| h.physical_size(id)).collect();
-    for (&id, &(width, height)) in surfaces.iter().zip(&sizes) {
-        h.configure_size(id, width + 1, height);
-    }
-    h.step_at(at);
-    for (&id, &(width, height)) in surfaces.iter().zip(&sizes) {
-        h.configure_size(id, width, height);
-    }
-    h.step_at(at);
+/// How far a channel may differ between two frames that draw the same: a
+/// blur drawn on two surfaces at once comes out a few levels apart on the
+/// software renderer CI draws with. A colour of another palette is tens of
+/// levels away.
+const NOISE: u8 = 16;
+
+/// Where two frames of the same surface size, `width` pixels wide, differ
+/// by more than [`NOISE`] in a channel: how many pixels, and the first and
+/// the last with what each frame has there. None where they draw the same.
+pub fn unlike(a: &[u8], b: &[u8], width: usize) -> Option<String> {
+    let far = |i: usize| (0..4).any(|c| a[i * 4 + c].abs_diff(b[i * 4 + c]) > NOISE);
+    let differ: Vec<usize> = (0..a.len().min(b.len()) / 4).filter(|&i| far(i)).collect();
+    let (&first, &last) = (differ.first()?, differ.last()?);
+    let at = |i: usize| (i % width, i / width);
+    Some(format!(
+        "{} pixels, the first at {:?}: {:?} and {:?}; the last at {:?}",
+        differ.len(),
+        at(first),
+        &a[first * 4..first * 4 + 4],
+        &b[first * 4..first * 4 + 4],
+        at(last),
+    ))
 }
 
 /// A tree mounted headless, 200 by 100, with what it asked.
