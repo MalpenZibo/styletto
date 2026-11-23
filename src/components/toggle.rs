@@ -7,7 +7,7 @@ use crate::foundations::motion;
 use crate::foundations::tokens::radius;
 use crate::foundations::tokens::{opacity, size};
 use crate::theme::palette::{DIM_CONTRAST, Palette, contrast, over};
-use crate::ui::{active_fill_by, active_ink_by, flip, look};
+use crate::ui::{flip, look};
 
 fn height() -> f32 {
     Size::Xxs.height()
@@ -51,10 +51,13 @@ pub fn toggle(
         .width(width())
         .height(height())
         .corners(radius::pill(height()))
-        .background(motion::eased_color(active_fill_by(
-            active,
-            t.color(|c| c.surface2),
-        )))
+        .background(t.eased(move |c| {
+            if active.get() {
+                c.accent.fill
+            } else {
+                c.surface2
+            }
+        }))
         .opacity(1.0.transition(motion::hover()))
         .when_disabled(|s| s.opacity(opacity::DISABLED))
         .enabled(enabled)
@@ -66,9 +69,13 @@ pub fn toggle(
                 .corners(radius::pill(knob()))
                 // As Material 3's: what reads on the accent while on, and on
                 // the track while off.
-                .background(motion::eased_color(active_ink_by(active, move || {
-                    knob_off(&t.colors())
-                })))
+                .background(t.eased(move |c| {
+                    if active.get() {
+                        c.accent.on
+                    } else {
+                        knob_off(c)
+                    }
+                }))
                 .translate(
                     (move || {
                         let x = if active.get() {

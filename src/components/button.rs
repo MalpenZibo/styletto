@@ -11,8 +11,8 @@ use crate::foundations::tokens::{lift, opacity, stroke};
 use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::typed;
-use crate::theme::palette::Hue;
-use crate::ui::{active_fill, active_fill_by, active_ink_by, look};
+use crate::theme::palette::{Hue, Palette};
+use crate::ui::look;
 
 /// What a button does, by its colour: anything, the main thing, or what
 /// can't be undone.
@@ -97,23 +97,26 @@ pub fn button(
     let size = size.get_untracked();
     // While off: the fill at rest, hovered, and the ink on both. A neutral
     // fill steps to the next surface, a hue brightens.
-    let off = move || {
-        let c = t.colors();
-        match (fill.get(), variant.get().hue().map(|hue| c.hue(hue))) {
-            (Fill::Solid, None) => (c.surface, c.surface2, c.text),
-            (Fill::Solid, Some(hue)) => (hue.fill, hovered(hue.fill), hue.on),
-            (Fill::Ghost, _) => (Color::TRANSPARENT, c.surface, c.ink(variant.get().hue())),
-        }
+    let off = move |c: &Palette| match (fill.get(), variant.get().hue().map(|hue| c.hue(hue))) {
+        (Fill::Solid, None) => (c.surface, c.surface2, c.text),
+        (Fill::Solid, Some(hue)) => (hue.fill, hovered(hue.fill), hue.on),
+        (Fill::Ghost, _) => (Color::TRANSPARENT, c.surface, c.ink(variant.get().hue())),
     };
-    let rest = active_fill_by(active, move || off().0);
-    // On, the accent brightens as a hue does.
-    let lifted = move || {
+    let rest = t.color(move |c| {
         if active.get() {
-            hovered(t.colors().accent.fill)
+            c.accent.fill
         } else {
-            off().1
+            off(c).0
         }
-    };
+    });
+    // On, the accent brightens as a hue does.
+    let lifted = t.color(move |c| {
+        if active.get() {
+            hovered(c.accent.fill)
+        } else {
+            off(c).1
+        }
+    });
     // As GTK's toggle button sends `clicked` before `toggled`. The state
     // asked for is the opposite of the one pressed, read before `on_click`
     // can change it or close the view it is in.
@@ -138,7 +141,7 @@ pub fn button(
     .children(content(
         label,
         icon,
-        active_ink_by(active, move || off().2),
+        t.color(move |c| if active.get() { c.accent.on } else { off(c).2 }),
         size,
     ))
 }
@@ -221,9 +224,16 @@ pub fn pill(
 ) -> impl Widget {
     let t = look();
     let size = Size::Sm;
-    let lifted = active_fill_by(active, t.color(|c| c.surface2));
+    let fill = move |off: Color| t.color(move |c| if active.get() { c.accent.fill } else { off });
+    let lifted = t.color(move |c| {
+        if active.get() {
+            c.accent.fill
+        } else {
+            c.surface2
+        }
+    });
     pill_box(size)
-        .background(active_fill(active, Color::TRANSPARENT).transition(motion::hover()))
+        .background(fill(Color::TRANSPARENT).transition(motion::hover()))
         .when_hovered(move |s| s.background(lifted))
         .when_pressed(move |s| s.ripple_with_color(t.color(|c| c.ripple)))
         .shadow(motion::eased_color(move || {
@@ -256,13 +266,19 @@ pub fn pill_text(
         LABEL_SMALL.resolve().weight,
         LABEL_SMALL.em().resolve().weight,
     );
-    let lifted = active_ink_by(active, t.color(|c| c.text));
+    let lifted = t.color(move |c| if active.get() { c.accent.on } else { c.text });
     typed(text, LABEL_SMALL.tabular())
         .font_weight(move || if bold.get() { emphasised } else { regular })
         .text_box(TextEdge::Cap, TextEdge::Alphabetic)
         .color(
-            active_ink_by(active, move || ink.get().unwrap_or_else(|| t.colors().sub))
-                .transition(motion::hover()),
+            t.color(move |c| {
+                if active.get() {
+                    c.accent.on
+                } else {
+                    ink.get().unwrap_or(c.sub)
+                }
+            })
+            .transition(motion::hover()),
         )
         .when_hovered(move |s| s.color(lifted))
         .nowrap()

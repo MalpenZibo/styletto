@@ -316,7 +316,16 @@ pub fn active_fill<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    active_fill_by(active, read(off))
+    // `into_prop` keeps a constant as it is, with no signal made for it,
+    // and always carries a value: the fallback is never read.
+    let (on, off) = (look().color(|c| c.accent.fill), off.into_prop());
+    move || {
+        if active.get() {
+            on()
+        } else {
+            off.get_or(Color::TRANSPARENT)
+        }
+    }
 }
 
 /// The ink that reads on [`active_fill`]: `accent.on` while `active`, `off`
@@ -325,41 +334,14 @@ pub fn active_ink<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    active_ink_by(active, read(off))
-}
-
-/// [`active_fill`] with a closure for `off`, called as it is: no signal is
-/// made for it, as [`IntoSignal`] makes for a closure.
-pub(crate) fn active_fill_by(
-    active: Signal<bool>,
-    off: impl Fn() -> Color + Copy + 'static,
-) -> impl Fn() -> Color + Copy + 'static {
-    lit(active, look().color(|c| c.accent.fill), off)
-}
-
-/// [`active_ink`] with a closure for `off`, as [`active_fill_by`].
-pub(crate) fn active_ink_by(
-    active: Signal<bool>,
-    off: impl Fn() -> Color + Copy + 'static,
-) -> impl Fn() -> Color + Copy + 'static {
-    lit(active, look().color(|c| c.accent.on), off)
-}
-
-/// `off` read as a closure. A constant is kept as it is, with no signal made
-/// for it: a pill in a bar takes a few.
-fn read<M>(off: impl IntoSignal<Color, M>) -> impl Fn() -> Color + Copy + 'static {
-    let off = off.into_prop();
-    // `into_prop` always carries a value: the fallback is never read.
-    move || off.get_or(Color::TRANSPARENT)
-}
-
-/// `on` while `active`, `off` while not.
-fn lit(
-    active: Signal<bool>,
-    on: impl Fn() -> Color + Copy + 'static,
-    off: impl Fn() -> Color + Copy + 'static,
-) -> impl Fn() -> Color + Copy + 'static {
-    move || if active.get() { on() } else { off() }
+    let (on, off) = (look().color(|c| c.accent.on), off.into_prop());
+    move || {
+        if active.get() {
+            on()
+        } else {
+            off.get_or(Color::TRANSPARENT)
+        }
+    }
 }
 
 /// Asks `on_toggle` for the opposite of `active`.
