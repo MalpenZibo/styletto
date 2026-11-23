@@ -234,19 +234,43 @@ const fn same(a: &str, b: &str) -> bool {
 
 /// `text` with each `{ $name }` of `args` replaced by its value, as the
 /// English of [`KEYS`] is filled in: for a translator whose catalog writes
-/// its arguments so, a map or gettext's. An argument the text doesn't take
-/// is left out.
+/// its arguments so, a map or gettext's. As in Fluent, the spaces inside
+/// the braces are free, `{$name}` as well. It is one pass over `text`, so
+/// a value is never filled in again. A placeholder `args` has no value for,
+/// or anything else in braces, is left as it is; an argument the text
+/// doesn't take is left out.
 ///
 /// ```
 /// use styletto::words::fill;
 ///
 /// let args = [("theme", "Nord"), ("flavour", "Polar")];
-/// assert_eq!(fill("Système : { $theme } { $flavour }", &args), "Système : Nord Polar");
+/// assert_eq!(fill("Système : { $theme } {$flavour}", &args), "Système : Nord Polar");
 /// ```
 pub fn fill(text: &str, args: &[(&str, &str)]) -> String {
-    args.iter().fold(text.to_string(), |text, (name, value)| {
-        text.replace(&format!("{{ ${name} }}"), value)
-    })
+    let mut filled = String::with_capacity(text.len());
+    let mut rest = text;
+    while let Some(open) = rest.find('{') {
+        filled.push_str(&rest[..open]);
+        let from = &rest[open..];
+        let value = from.find('}').and_then(|close| {
+            let name = from[1..close].trim().strip_prefix('$')?;
+            let (_, value) = args.iter().find(|(n, _)| *n == name)?;
+            Some((*value, close))
+        });
+        match value {
+            Some((value, close)) => {
+                filled.push_str(value);
+                rest = &from[close + 1..];
+            }
+            // Not an argument of `args`: kept, and read on past its brace.
+            None => {
+                filled.push('{');
+                rest = &from[1..];
+            }
+        }
+    }
+    filled.push_str(rest);
+    filled
 }
 
 /// What an app's translator is: a key of [`KEYS`] and its arguments, by
@@ -288,18 +312,27 @@ impl Words {
     /// The words of `key` with `args` filled in, as the translator gives
     /// them or else in English. Whatever the translator reads is tracked.
     pub(crate) fn get(self, key: &str, args: &[(&str, &str)]) -> String {
-        // Called outside the stored signal's read, so a signal the
-        // translator reads is tracked as any other.
-        let translate = self.0.map(|t| t.with_untracked(Rc::clone));
-        translate
-            .and_then(|translate| translate(key, args))
+        self.translated(key, args)
             .unwrap_or_else(|| fill(lookup(key).unwrap_or(key), args))
     }
 
     /// The words of `key`, which takes no argument, as a closure a property
-    /// takes.
+    /// takes. Its English is looked up once, here, not on every run.
     pub(crate) fn of(self, key: &'static str) -> impl Fn() -> String + Copy + 'static {
-        move || self.get(key, &[])
+        let english = lookup(key).unwrap_or(key);
+        move || {
+            self.translated(key, &[])
+                .unwrap_or_else(|| english.to_string())
+        }
+    }
+
+    /// What the translator gives for `key`, if there is one and it has
+    /// words for it.
+    fn translated(self, key: &str, args: &[(&str, &str)]) -> Option<String> {
+        // Called outside the stored signal's read, so a signal the
+        // translator reads is tracked as any other.
+        let translate = self.0?.with_untracked(Rc::clone);
+        translate(key, args)
     }
 }
 
@@ -389,6 +422,32 @@ mod tests {
         assert_eq!(both, "a and a, b");
         // An argument the text doesn't take changes nothing.
         assert_eq!(fill("Reading…", &[("theme", "x")]), "Reading…");
+    }
+
+    #[test]
+    fn any_spacing_fluent_allows_is_filled_in() {
+        let args = [("theme", "Nord")];
+        for text in ["{ $theme }", "{$theme}", "{  $theme}", "{$theme   }"] {
+            assert_eq!(fill(text, &args), "Nord", "{text:?}");
+        }
+    }
+
+    #[test]
+    fn a_value_is_never_filled_in_again() {
+        let args = [("theme", "A { $flavour }"), ("flavour", "Dark")];
+        assert_eq!(
+            fill("{ $theme } { $flavour }", &args),
+            "A { $flavour } Dark"
+        );
+    }
+
+    #[test]
+    fn what_has_no_value_is_left_as_it_is() {
+        let args = [("theme", "Nord")];
+        assert_eq!(
+            fill("{ $other } {theme} { $theme } {", &args),
+            "{ $other } {theme} Nord {"
+        );
     }
 
     #[test]

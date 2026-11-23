@@ -973,7 +973,8 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
         ));
     let list = move || {
         open.get().then(|| {
-            let option = move |label: Signal<String>, family: Option<String>| {
+            // The label's text, its words a name or the language's.
+            let option = move |label: Text, family: Option<String>| {
                 let picked = family.clone();
                 let face = drawn_in(&family);
                 container()
@@ -996,7 +997,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                         open.set(false);
                     })
                     .child(
-                        text(label)
+                        label
                             .typeset(LABEL_MEDIUM)
                             .font_family(face)
                             .color(t.eased(|c| c.text))
@@ -1011,7 +1012,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                     .filter(|f| !mono || f.monospace)
                     .map(|f| {
                         let lower = f.name.to_lowercase();
-                        option(f.name.clone().into_signal(), Some(f.name.clone()))
+                        option(text(f.name.clone()), Some(f.name.clone()))
                             .visible(move || needle.with(|n| lower.contains(n.as_str())))
                     })
                     .collect()
@@ -1029,7 +1030,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                 )
                 .child(
                     scroll_list(size::scaled(size::S60.px()))
-                        .child(option(w.of("styletto-font-system").into_signal(), None))
+                        .child(option(text(w.of("styletto-font-system")), None))
                         .children(options),
                 )
         })

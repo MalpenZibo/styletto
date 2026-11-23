@@ -85,14 +85,18 @@ fn buttons<T: Copy + PartialEq + 'static>(
     let count = create_memo(move || options.with(Vec::len));
     container().layout(layout).children(move || {
         (0..count.get()).map(move |index| {
-            let at = move || options.with(|options| options.get(index).cloned());
+            let value = move || options.with(|options| options.get(index).map(|o| o.1));
             button()
-                .label(move || at().map(|o| o.0).unwrap_or_default())
+                .label(move || {
+                    options
+                        .with(|options| options.get(index).map(|o| o.0.clone()))
+                        .unwrap_or_default()
+                })
                 .fill(fill)
-                .active(move || at().is_some_and(|o| chosen.get() == o.1))
+                .active(move || value().is_some_and(|value| chosen.get() == value))
                 .enabled(enabled)
                 .on_click(move || {
-                    if let (Some(on_choose), Some((_, value))) = (on_choose, at()) {
+                    if let (Some(on_choose), Some(value)) = (on_choose, value()) {
                         on_choose.run(value);
                     }
                 })

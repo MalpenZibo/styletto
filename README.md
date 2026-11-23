@@ -693,6 +693,9 @@ passes the key through and its arguments as `FluentArgs`:
 use fluent::{FluentArgs, FluentBundle};
 use styletto::provide_translations;
 
+// Each bundle is built with `bundle.set_use_isolating(false)`: else Fluent
+// wraps every argument in U+2068 and U+2069, which a font may draw as boxes,
+// and a word no longer matches its English.
 provide_translations(move |key, args| {
     let bundle = &bundles[language.get()]; // the app's own, by language
     let message = bundle.get_message(key)?;
@@ -706,8 +709,9 @@ provide_translations(move |key, args| {
 ```
 
 gettext, or a map, fits the same way: the key is the message id, and
-`words::fill(text, args)` fills in each `{ $name }` the translation has, as
-styletto does its English:
+`words::fill(text, args)` fills in each `{ $name }` the translation has
+(`{$name}` too), as styletto does its English, in one pass, leaving a
+placeholder it has no value for as it is:
 `provide_translations(move |key, args| Some(words::fill(map.get(key)?, args)))`. A test of the
 app's own checks its catalogs against `KEYS`, the way its own words are
 checked, and the English of `KEYS` writes the catalog to start from:

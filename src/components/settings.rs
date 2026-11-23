@@ -59,9 +59,9 @@ pub fn setting(
                         .layout(Flex::row().main_alignment(MainAlignment::End))
                         // Wrapped rather than cut short: a translation may
                         // be twice as long, and a note cut short says
-                        // nothing. A caption is never taller than the
-                        // name's label, so an empty one leaves the line as
-                        // it is.
+                        // nothing. One line of caption is never taller than
+                        // the name's label, so an empty or a short note
+                        // leaves the line as the name makes it.
                         .child(caption(note).wrap(true).align(TextAlign::End)),
                 ),
         )
