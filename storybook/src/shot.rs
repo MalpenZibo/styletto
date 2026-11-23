@@ -63,7 +63,7 @@ const SIZE: (u32, u32) = (960, 720);
 /// Simulated time an animation gets to settle, a frame at a time.
 const SETTLE: Duration = Duration::from_secs(4);
 const FRAME: Duration = Duration::from_millis(16);
-/// Real time a wallpaper gets to be read.
+/// Real time a picture the story reads gets to be read.
 const READING: Duration = Duration::from_secs(10);
 
 struct Shot {
@@ -186,23 +186,23 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
     log::set_max_level(log::LevelFilter::Warn);
 
     let mut h = Headless::new().ok_or("no GPU adapter: a frame has nowhere to land")?;
+    // The wallpaper is read here, into the store of the App `Headless` has
+    // just made, before the story is built: it is built once, already in
+    // the wallpaper's colours. Nothing it reads later changes this `Ui`, so
+    // a picture the story reads of its own doesn't build it again, which
+    // would reset the controls.
+    let ui = config.ui_blocking(None);
     let backdrop = config.wallpaper_path();
     let story = &STORIES[shot.story];
     let drawn: Rc<RefCell<Option<Rc<Ctx>>>> = Rc::default();
     let seen = drawn.clone();
-    let config = config.clone();
     let id = h.surface(SurfaceConfig::new(), move || {
         let ctx = Rc::new(Ctx::new(create_signal(Vec::new())));
         *seen.borrow_mut() = Some(ctx.clone());
         let backdrop = create_memo(move || backdrop.clone());
         let ctx = ctx.clone();
-        let config = config.clone();
-        // Drawn again once the wallpaper is read, as an app's surface is;
-        // only then, not as another picture lands, which would reset the
-        // controls.
-        let ui = create_memo(move || config.ui(None));
         container().width(fill()).height(fill()).child(move || {
-            provide_ui(ui.get());
+            provide_ui(ui);
             ctx.reset();
             canvas(backdrop, (story.render)(&ctx))
         })
@@ -214,16 +214,16 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
     // of a pixel elsewhere from one run to the next.
     let start = Instant::now();
     h.step_at(start);
-    // The wallpaper is read before the controls are set: the story is drawn
-    // again once it is.
-    read(&mut h, start)?;
 
     let ctx = drawn.borrow().clone().ok_or("the story was not drawn")?;
     let controls = ctx.controls();
     for (name, value) in &shot.controls {
         set(&controls, name, value)?;
     }
-    // And a picture a control has the story read.
+    // A picture the story reads of its own, as the Appearance story does
+    // with Colours=Wallpaper, is read on a thread: it is waited for here.
+    // The story reads it in a child of its own, so its landing doesn't
+    // build the whole story again, which would reset the controls.
     h.step_at(start);
     read(&mut h, start)?;
     settle(&mut h, start);
@@ -242,13 +242,13 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
     Ok(())
 }
 
-/// Steps, at `at`, until every wallpaper asked for is read: on a thread, in
-/// real time, while the frames are in simulated time.
+/// Steps, at `at`, until every picture the story asked for is read: on a
+/// thread, in real time, while the frames are in simulated time.
 fn read(h: &mut Headless, at: Instant) -> Result<(), String> {
     let deadline = Instant::now() + READING;
     while wallpaper::reading() {
         if Instant::now() > deadline {
-            return Err("a wallpaper took too long to read".to_string());
+            return Err("a picture the story reads took too long to read".to_string());
         }
         std::thread::sleep(Duration::from_millis(2));
         h.step_at(at);
