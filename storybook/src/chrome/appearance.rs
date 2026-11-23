@@ -19,14 +19,14 @@ use styletto::components::progress::ring;
 use styletto::components::slider::slider_row;
 use styletto::components::tile::small_tile;
 use styletto::components::toggle::toggle;
+use styletto::foundations::motion;
 use styletto::foundations::tokens::{icon as icon_box, radius, size as space};
 use styletto::foundations::typography as ty;
-use styletto::primitives::island as look;
 use styletto::primitives::text::typed;
 use styletto::theme::config::UiConfig;
 use styletto::theme::palette::Hue;
 use styletto::theme::wallpaper::{Picture, picture};
-use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
+use styletto::{Icon, Ui, centered_row, icon, look, provide_ui};
 
 use crate::chrome::widgets::{island, wallpaper};
 use crate::system::picker;
@@ -187,13 +187,17 @@ fn preview(a: Appearance) -> Container {
         silent: create_signal(false),
     };
     let drawn = create_memo(move || a.ui());
+    // Built again only for what sizes it; a new palette or material
+    // repaints it in place.
+    let sizes = create_memo(move || drawn.with(Ui::sizes));
     container()
         .width(fill())
         .height(fill())
         .padding(space::S3.px())
         .child(wallpaper(a.backdrop, move || {
-            provide_ui(drawn.get());
-            look::border(island(space::S4.px()))
+            sizes.get();
+            provide_ui(drawn);
+            styletto::primitives::island::border(island(space::S4.px()))
                 .width(space::S80.px())
                 .layout(Flex::column().spacing(space::S4.px()))
                 .child(panel(controls))
@@ -277,13 +281,17 @@ fn panel(c: Controls) -> Container {
 /// The two levels of text and the dim of an icon, on the island and on a
 /// surface.
 fn texts() -> Container {
-    let t = ui();
+    let t = look();
     let levels = || {
         container()
             .layout(Flex::column().spacing(space::S1.px()))
-            .child(typed("Text", ty::LABEL_MEDIUM.em()).color(t.colors.text))
-            .child(typed("Sub", ty::LABEL_SMALL).color(t.colors.sub))
-            .child(icon(Icon::ChevronRight, icon_box::SMALL.px(), t.colors.dim))
+            .child(typed("Text", ty::LABEL_MEDIUM.em()).color(t.eased(|c| c.text)))
+            .child(typed("Sub", ty::LABEL_SMALL).color(t.eased(|c| c.sub)))
+            .child(icon(
+                Icon::ChevronRight,
+                icon_box::SMALL.px(),
+                t.color(|c| c.dim),
+            ))
     };
     container()
         .width(fill())
@@ -299,7 +307,7 @@ fn texts() -> Container {
                 .width(fill())
                 .padding(space::S2.px())
                 .corners(radius::SMALL.corners())
-                .background(t.colors.surface)
+                .background(t.eased(|c| c.surface))
                 .child(levels()),
         )
 }
@@ -307,18 +315,18 @@ fn texts() -> Container {
 /// Each fill with the colour that reads on it, two to a row so a larger
 /// density keeps every name on its line.
 fn fills() -> Container {
-    let t = ui();
+    let t = look();
     let swatch = |hue: Hue| {
-        let colors = t.colors.hue(hue);
+        let colors = move || t.colors().hue(hue);
         container()
             .width(fill())
             .padding([space::S1.px(), space::S2.px()])
             .corners(radius::SMALL.corners())
-            .background(colors.fill)
+            .background((move || colors().fill).transition(motion::color()))
             .layout(Flex::row().main_alignment(MainAlignment::Center))
             .child(
                 typed(format!("{hue:?}"), ty::LABEL_SMALL.em())
-                    .color(colors.on)
+                    .color((move || colors().on).transition(motion::color()))
                     .nowrap(),
             )
     };
@@ -340,6 +348,7 @@ fn fills() -> Container {
 /// The states as the ink of a level: figures past their thresholds and the
 /// battery charging, low and nearly out.
 fn levels() -> Container {
+    let t = look();
     container()
         .width(fill())
         .layout(centered_row(0.0).main_alignment(MainAlignment::SpaceBetween))
@@ -349,11 +358,15 @@ fn levels() -> Container {
         .child(
             container().layout(centered_row(space::S2.px())).children(
                 [
-                    (0.64, ui().colors.success.fill),
-                    (0.24, ui().colors.warning.fill),
-                    (0.09, ui().colors.danger.fill),
+                    (0.64, Hue::Success),
+                    (0.24, Hue::Warning),
+                    (0.09, Hue::Danger),
                 ]
-                .map(|(value, color)| ring(value).color(color).size(icon_box::SMALL)),
+                .map(|(value, hue)| {
+                    ring(value)
+                        .color(move || t.colors().hue(hue).fill)
+                        .size(icon_box::SMALL)
+                }),
             ),
         )
 }
@@ -372,6 +385,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use super::Appearance;
+    use crate::stories::mounted::settle;
 
     #[test]
     fn the_page_keeps_the_sides_apart() {
@@ -496,6 +510,46 @@ mod tests {
                 mode: Mode::Light,
                 ..UiConfig::default()
             }
+        );
+    }
+
+    #[test]
+    fn a_new_palette_repaints_the_preview_as_built_with_it() {
+        let Some(mut h) = Headless::new_or_skip() else {
+            return;
+        };
+        let light = UiConfig {
+            mode: Mode::Light,
+            material: Material::Glass,
+            ..UiConfig::default()
+        };
+        // One preview whose config changes, one built with the config it
+        // changes to, stepped together.
+        let probe = Rc::new(Cell::new(None));
+        let seen = probe.clone();
+        let changed = h.surface(SurfaceConfig::new(), move || {
+            let a = Appearance::new();
+            seen.set(Some(a));
+            super::preview(a)
+        });
+        let given = light.clone();
+        let built = h.surface(SurfaceConfig::new(), move || {
+            let a = Appearance::new();
+            a.config.set(given.clone());
+            super::preview(a)
+        });
+        for id in [changed, built] {
+            h.configure(id, 400, 800, 1.0);
+        }
+        let mut at = std::time::Instant::now();
+        settle(&mut h, &mut at);
+        assert!(h.read_frame(changed) != h.read_frame(built));
+        let a: Appearance = probe.take().unwrap();
+        a.config.set(light);
+        settle(&mut h, &mut at);
+        assert!(
+            h.read_frame(changed) == h.read_frame(built),
+            "the preview kept a colour of the old palette"
         );
     }
 

@@ -26,7 +26,7 @@ use styletto::primitives::island;
 use styletto::primitives::text::{caption, heading};
 use styletto::theme::config::UiConfig;
 use styletto::theme::presets::THEMES;
-use styletto::{Icon, centered_row, icon, ui};
+use styletto::{Icon, centered_row, icon, look};
 
 use super::{CPU_LEVELS, TEMP_LEVELS, panel};
 use crate::stories::story::Ctx;
@@ -180,7 +180,7 @@ pub fn list_pages(ctx: &Ctx) -> Container {
     let connected = create_signal(0usize);
     let stack = create_signal(vec![Page::Main]);
     let chosen = ctx.action_with::<&'static str>("connect");
-    let t = ui();
+    let t = look();
     let push = move |page: Page| stack.update(|s| s.push(page));
 
     panel_frame().child(pages(stack, move |page| match page {
@@ -192,7 +192,11 @@ pub fn list_pages(ctx: &Ctx) -> Container {
                 row("Wi-Fi")
                     .icon(Icon::Wifi)
                     .subtitle(move || NETWORKS[connected.get()].0.to_string())
-                    .trailing(icon(Icon::ChevronRight, icon_box::SMALL.px(), t.colors.dim))
+                    .trailing(icon(
+                        Icon::ChevronRight,
+                        icon_box::SMALL.px(),
+                        t.color(|c| c.dim),
+                    ))
                     .on_click(move || push(Page::Wifi)),
             )
             .child(
@@ -244,7 +248,11 @@ pub fn list_pages(ctx: &Ctx) -> Container {
                                     let details = container()
                                         .layout(centered_row(space::S1.px()))
                                         .children(secured.then(|| {
-                                            icon(Icon::Lock, icon_box::SMALL.px(), t.colors.dim)
+                                            icon(
+                                                Icon::Lock,
+                                                icon_box::SMALL.px(),
+                                                t.color(|c| c.dim),
+                                            )
                                         }))
                                         .child(
                                             button()
@@ -337,7 +345,7 @@ pub fn notifications(ctx: &Ctx) -> Container {
     let folded = ctx.bool("Folded", false);
     let dismissed = ctx.action_with::<&'static str>("dismiss");
     let opened = ctx.action_with::<&'static str>("open");
-    let t = ui();
+    let t = look();
     let item = |who: &'static str, title: &str, body: &str, time: &str| {
         let (dismissed, opened) = (dismissed.clone(), opened.clone());
         notification(title)
@@ -365,7 +373,7 @@ pub fn notifications(ctx: &Ctx) -> Container {
             notification_group("Messages")
                 .count(2usize)
                 .folded(folded)
-                .lead(app_icon(Icon::Bell, t.colors.accent.fill).size(tile::XSMALL))
+                .lead(app_icon(Icon::Bell, t.color(|c| c.accent.fill)).size(tile::XSMALL))
                 .on_toggle(move || folded.set(!folded.get_untracked()))
                 .child(first)
                 .child(
@@ -380,7 +388,7 @@ pub fn notifications(ctx: &Ctx) -> Container {
                 .body("8% left. Plug in the charger.")
                 .time("now")
                 .urgent(urgent)
-                .lead(app_icon(Icon::Battery, t.colors.danger.fill))
+                .lead(app_icon(Icon::Battery, t.color(|c| c.danger.fill)))
                 .on_dismiss(move || dismissed("battery")),
         )
 }
@@ -613,7 +621,7 @@ pub fn tabs_and_steps(ctx: &Ctx) -> Container {
     let enabled = ctx.bool("Enabled", true);
     let closed = ctx.action("close");
     let done = ctx.action("done");
-    let t = ui();
+    let t = look();
     let header = container()
         .width(fill())
         .layout(centered_row(space::S2.px()))
@@ -668,7 +676,7 @@ pub fn tabs_and_steps(ctx: &Ctx) -> Container {
                     .width(fill())
                     .height(space::S40.px())
                     .corners(tokens::radius::SMALL.corners())
-                    .background(t.colors.surface)
+                    .background(t.eased(|c| c.surface))
                     .layout(Flex::column().center())
                     .child(caption(move || {
                         format!(

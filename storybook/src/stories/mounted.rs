@@ -2,13 +2,23 @@
 
 use std::cell::{Cell, RefCell};
 use std::rc::Rc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use guido::prelude::*;
 use guido::testing::Headless;
 
 /// What a tree asks its owner, in order.
 pub type Asked<T> = Rc<RefCell<Vec<T>>>;
+
+/// Steps every surface of `h` a frame every 32 ms for a second after `at`,
+/// long enough for a colour to ease into a new palette, and moves `at` to
+/// the last frame. Surfaces stepped together this way move alike.
+pub fn settle(h: &mut Headless, at: &mut Instant) {
+    for _ in 0..32 {
+        *at += Duration::from_millis(32);
+        h.step_at(*at);
+    }
+}
 
 /// A tree mounted headless, 200 by 100, with what it asked.
 pub struct Mounted<T> {

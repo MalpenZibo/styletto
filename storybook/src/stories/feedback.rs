@@ -14,7 +14,7 @@ use styletto::foundations::tokens::{TileSize, icon as icon_box, size as space, t
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
 use styletto::primitives::text::caption;
-use styletto::{Icon, centered_row, icon, ui};
+use styletto::{Icon, centered_row, icon, look};
 
 use super::{ICON_SIZES, ICON_STEPS};
 use crate::stories::story::Ctx;
@@ -22,12 +22,15 @@ use crate::stories::story::Ctx;
 pub fn progress(ctx: &Ctx) -> Container {
     let value = ctx.number("Value", 0.0..=100.0, 40.0);
     let size = ctx.choice("Ring size", ICON_STEPS, 4);
-    let t = ui();
+    let t = look();
     let fraction = move || value.get() / 100.0;
-    let color = move || match value.get() {
-        v if v <= 15.0 => t.colors.danger.fill,
-        v if v <= 30.0 => t.colors.warning.fill,
-        _ => t.colors.accent.fill,
+    let color = move || {
+        let c = t.colors();
+        match value.get() {
+            v if v <= 15.0 => c.danger.fill,
+            v if v <= 30.0 => c.warning.fill,
+            _ => c.accent.fill,
+        }
     };
     container()
         .layout(
@@ -89,14 +92,14 @@ const LOOK_TYPES: [ty::Type; 5] = [
 pub fn rolling(ctx: &Ctx) -> Container {
     let value = ctx.number("Value", 0.0..=999.0, 128.0);
     let ticking = ctx.bool("Tick every second", true);
-    let look = ctx.choice("Type", LOOKS, 3);
+    let kind = ctx.choice("Type", LOOKS, 3);
     let seconds = create_signal(0u32);
     set_interval(Duration::from_secs(1), move || {
         if ticking.get_untracked() {
             seconds.update(|s| *s += 1);
         }
     });
-    let t = ui();
+    let t = look();
     container()
         .layout(
             Flex::column()
@@ -108,13 +111,13 @@ pub fn rolling(ctx: &Ctx) -> Container {
                 let s = seconds.get();
                 format!("{:02}:{:02}", s / 60 % 60, s % 60)
             })
-            .look(LOOK_TYPES[look.get()].em())
-            .color(t.colors.text)
+            .look(LOOK_TYPES[kind.get()].em())
+            .color(t.color(|c| c.text))
         }))
         .child(
             roll::rolling(move || format!("{:.0}%", value.get()))
                 .look(ty::DISPLAY_XSMALL.em())
-                .color(t.colors.accent.text),
+                .color(t.color(|c| c.accent.text)),
         )
 }
 
@@ -212,7 +215,7 @@ pub fn badges(ctx: &Ctx) -> Container {
     let camera = ctx.bool("Camera", true);
     let screen = ctx.bool("Screen share", false);
     let name = ctx.text("Initial of", "Firefox");
-    let t = ui();
+    let t = look();
     // A screen shared is graver than a microphone or a camera in use.
     let tone = move || {
         if screen.get() {
@@ -232,10 +235,11 @@ pub fn badges(ctx: &Ctx) -> Container {
             "unread",
             MARK,
             dot(move || {
+                let c = t.colors();
                 if urgent.get() {
-                    t.colors.danger.fill
+                    c.danger.fill
                 } else {
-                    t.colors.accent.fill
+                    c.accent.fill
                 }
             }),
         ))
@@ -256,7 +260,7 @@ pub fn badges(ctx: &Ctx) -> Container {
         .child(labelled(
             "alert",
             MARK,
-            icon_tile(Icon::Battery, t.colors.danger.text),
+            icon_tile(Icon::Battery, t.color(|c| c.danger.text)),
         ))
         .child(labelled("initial", MARK, initial(name)))
         .child(labelled(
@@ -264,7 +268,7 @@ pub fn badges(ctx: &Ctx) -> Container {
             MARK,
             spinning(Icon::Refresh)
                 .size(icon_box::MEDIUM)
-                .color(t.colors.accent.text),
+                .color(t.color(|c| c.accent.text)),
         ))
 }
 
@@ -284,7 +288,7 @@ pub fn tags(ctx: &Ctx) -> Container {
     let tone = ctx.choice("Tone", TONES, 1);
     let glow = ctx.bool("Glow", false);
     let chosen = ctx.bool("Player chosen", true);
-    let t = ui();
+    let t = look();
     let tone = move || TONE_OF[tone.get()];
     let player = move || {
         if chosen.get() {
@@ -330,11 +334,15 @@ pub fn tags(ctx: &Ctx) -> Container {
             "Medium",
             tag()
                 .size(Size::Sm)
-                .child(icon(Icon::Headphones, icon_box::SMALL.px(), t.colors.sub))
+                .child(icon(
+                    Icon::Headphones,
+                    icon_box::SMALL.px(),
+                    t.color(|c| c.sub),
+                ))
                 .child(
                     text("WH-1000XM4 · 70%")
                         .typeset(ty::LABEL_XSMALL)
-                        .color(t.colors.sub)
+                        .color(t.eased(|c| c.sub))
                         .nowrap(),
                 ),
         ))
@@ -343,11 +351,15 @@ pub fn tags(ctx: &Ctx) -> Container {
             "Large",
             tag()
                 .size(Size::Md)
-                .child(icon(Icon::Battery, icon_box::MEDIUM.px(), t.colors.text))
+                .child(icon(
+                    Icon::Battery,
+                    icon_box::MEDIUM.px(),
+                    t.color(|c| c.text),
+                ))
                 .child(
                     text("84%")
                         .typeset(ty::LABEL_MEDIUM.em())
-                        .color(t.colors.text)
+                        .color(t.eased(|c| c.text))
                         .nowrap(),
                 )
                 .child(caption("Empty in 3h 10m")),
@@ -376,7 +388,7 @@ const TILE_SIZES: [TileSize; 6] = [
 pub fn pictures(ctx: &Ctx) -> Container {
     let found = ctx.bool("Found", true);
     let size = ctx.choice("Size", TILES, 2);
-    let t = ui();
+    let t = look();
     container()
         .layout(centered_row(space::S8.px()))
         .child(labelled(
@@ -398,7 +410,7 @@ pub fn pictures(ctx: &Ctx) -> Container {
                 artwork()
                     .source(found.get().then(|| svg(COVER_SVG)))
                     .size(size)
-                    .fallback(app_icon(Icon::Music, t.colors.accent.fill).size(size))
+                    .fallback(app_icon(Icon::Music, t.color(|c| c.accent.fill)).size(size))
             }),
         ))
 }

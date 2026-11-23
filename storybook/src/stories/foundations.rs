@@ -7,12 +7,13 @@ use styletto::components::tag::tag;
 use styletto::components::tile::small_tile;
 use styletto::components::toggle::toggle;
 use styletto::foundations::control::Size;
+use styletto::foundations::motion;
 use styletto::foundations::tokens::{radius, size, stroke};
 use styletto::foundations::typography as ty;
 use styletto::primitives::island;
 use styletto::primitives::text::{caption, typed};
 use styletto::theme::palette::Hue;
-use styletto::{Icon, centered_row, icon, provide_ui, ui};
+use styletto::{Icon, centered_row, icon, look, provide_ui, ui};
 
 use super::{ICON_SIZES, ICON_STEPS};
 use crate::stories::story::Ctx;
@@ -20,21 +21,27 @@ use crate::stories::story::Ctx;
 /// Every colour the components read, then each fill with the colour that
 /// reads on it, and each hue as text on the island.
 pub fn colors(_: &Ctx) -> Container {
-    let c = ui().colors;
+    let t = look();
     container()
         .layout(Flex::column().spacing(size::S6.px()))
         .child(grid(
-            c.named()
+            // Only the names are read here, the same in every palette; each
+            // colour is read where it is painted.
+            ui().colors
+                .named()
                 .into_iter()
-                .map(|(name, color)| {
+                .enumerate()
+                .map(|(index, (name, _))| {
                     named(
                         name,
                         container()
                             .width(size::S15.px())
                             .height(size::S10.px())
                             .corners(radius::SMALL.corners())
-                            .background(color)
-                            .border(stroke::HAIRLINE, c.line),
+                            .background(
+                                (move || t.colors().named()[index].1).transition(motion::color()),
+                            )
+                            .border(stroke::HAIRLINE, t.eased(|c| c.line)),
                     )
                 })
                 .collect(),
@@ -43,12 +50,15 @@ pub fn colors(_: &Ctx) -> Container {
             container()
                 .layout(centered_row(size::S3.px()))
                 .children(Hue::ALL.map(|hue| {
-                    let colors = c.hue(hue);
                     container()
                         .padding([size::S2.px(), size::S4.px()])
                         .corners(radius::SMALL.corners())
-                        .background(colors.fill)
-                        .child(typed(format!("{hue:?}"), ty::LABEL_MEDIUM.em()).color(colors.on))
+                        .background((move || t.colors().hue(hue).fill).transition(motion::color()))
+                        .child(
+                            typed(format!("{hue:?}"), ty::LABEL_MEDIUM.em()).color(
+                                (move || t.colors().hue(hue).on).transition(motion::color()),
+                            ),
+                        )
                 })),
         )
         .child(
@@ -56,7 +66,8 @@ pub fn colors(_: &Ctx) -> Container {
                 .layout(centered_row(size::S3.px()))
                 .children(Hue::ALL.map(|hue| {
                     container().padding([size::S2.px(), size::S4.px()]).child(
-                        typed(format!("{hue:?}"), ty::LABEL_MEDIUM.em()).color(c.hue(hue).text),
+                        typed(format!("{hue:?}"), ty::LABEL_MEDIUM.em())
+                            .color((move || t.colors().hue(hue).text).transition(motion::color())),
                     )
                 })),
         )
@@ -109,7 +120,7 @@ pub fn typography(ctx: &Ctx) -> Container {
     let sample = ctx.text("Sample", "Wi-Fi 12:45 87%");
     let em = ctx.bool("Emphasised", false);
     let lines = ctx.bool("Show line boxes", false);
-    let t = ui();
+    let t = look();
     container().child(move || {
         let emphasised = em.get();
         container()
@@ -117,7 +128,7 @@ pub fn typography(ctx: &Ctx) -> Container {
             .children(CATEGORIES.iter().zip(SCALE).map(move |(category, kinds)| {
                 container()
                     .layout(Flex::column().spacing(size::S2.px()))
-                    .child(typed(*category, ty::MICRO_XSMALL.em()).color(t.colors.sub))
+                    .child(typed(*category, ty::MICRO_XSMALL.em()).color(t.eased(|c| c.sub)))
                     .children(SIZES.into_iter().zip(kinds).map(move |(name, kind)| {
                         let kind = if emphasised { kind.em() } else { kind };
                         container()
@@ -128,14 +139,17 @@ pub fn typography(ctx: &Ctx) -> Container {
                             })))
                             .child(
                                 container()
-                                    .background(move || {
-                                        if lines.get() {
-                                            t.colors.surface
-                                        } else {
-                                            Color::TRANSPARENT
-                                        }
-                                    })
-                                    .child(typed(sample, kind).color(t.colors.text).nowrap()),
+                                    .background(
+                                        (move || {
+                                            if lines.get() {
+                                                t.colors().surface
+                                            } else {
+                                                Color::TRANSPARENT
+                                            }
+                                        })
+                                        .transition(motion::color()),
+                                    )
+                                    .child(typed(sample, kind).color(t.eased(|c| c.text)).nowrap()),
                             )
                     }))
             }))
@@ -144,7 +158,7 @@ pub fn typography(ctx: &Ctx) -> Container {
 
 /// The one scale every gap, padding and length is taken from.
 pub fn scale(_: &Ctx) -> Container {
-    let t = ui();
+    let t = look();
     let steps = [
         ("S0_5", size::S0_5.px()),
         ("S1", size::S1.px()),
@@ -174,7 +188,7 @@ pub fn scale(_: &Ctx) -> Container {
                         .width(step)
                         .height(size::S3.px())
                         .corners(radius::XSMALL.corners())
-                        .background(t.colors.accent.fill),
+                        .background(t.eased(|c| c.accent.fill)),
                 )
         }))
 }
@@ -182,7 +196,7 @@ pub fn scale(_: &Ctx) -> Container {
 /// The corners: a box's at each step, continuous as a squircle's, and a
 /// pill's round ends.
 pub fn radii(_: &Ctx) -> Container {
-    let t = ui();
+    let t = look();
     let steps = [
         ("XSMALL", radius::XSMALL),
         ("SMALL", radius::SMALL),
@@ -194,7 +208,7 @@ pub fn radii(_: &Ctx) -> Container {
             .width(width)
             .height(size::S20.px())
             .corners(corners)
-            .background(t.colors.surface2)
+            .background(t.eased(|c| c.surface2))
     };
     container()
         .layout(centered_row(size::S6.px()))
@@ -221,7 +235,7 @@ const CONTROLS: [(&str, Size); 5] = [
 /// Every control size: its height, its icon and its label, as an icon
 /// button, a button and a tag.
 pub fn controls(_: &Ctx) -> Container {
-    let t = ui();
+    let t = look();
     container()
         .layout(Flex::column().spacing(size::S4.px()))
         .children(CONTROLS.into_iter().map(move |(name, control)| {
@@ -243,11 +257,15 @@ pub fn controls(_: &Ctx) -> Container {
                 .child(
                     tag()
                         .size(control)
-                        .child(icon(Icon::Download, control.icon(), t.colors.accent.text))
+                        .child(icon(
+                            Icon::Download,
+                            control.icon(),
+                            t.color(|c| c.accent.text),
+                        ))
                         .child(
                             typed("12", control.label().em())
                                 .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-                                .color(t.colors.accent.text)
+                                .color(t.eased(|c| c.accent.text))
                                 .nowrap(),
                         ),
                 )
@@ -257,12 +275,12 @@ pub fn controls(_: &Ctx) -> Container {
 pub fn icons(ctx: &Ctx) -> Container {
     let side = ctx.choice("Size", ICON_STEPS, 1);
     let colored = ctx.bool("Accent", false);
-    let t = ui();
+    let t = look();
     let color = move || {
         if colored.get() {
-            t.colors.accent.text
+            t.colors().accent.text
         } else {
-            t.colors.text
+            t.colors().text
         }
     };
     container().child(move || {
@@ -291,7 +309,7 @@ fn named(name: impl Into<String>, shown: impl Widget + 'static) -> Container {
         .child(shown)
         .child(
             typed(name.into(), ty::LABEL_XSMALL)
-                .color(ui().colors.sub)
+                .color(look().eased(|c| c.sub))
                 .nowrap()
                 .overflow(TextOverflow::Ellipsis),
         )
@@ -313,16 +331,23 @@ fn grid(cells: Vec<Container>) -> Container {
 /// The same piece of a panel in every density and shape, side by side, so
 /// a change to a token shows wherever it lands.
 pub fn matrix(_: &Ctx) -> Container {
-    let base = ui();
+    let (base, t) = (ui(), look());
     container()
         .layout(Flex::column().spacing(size::S4.px()))
         .children(DENSITIES.iter().map(move |&(density_name, density)| {
             container()
                 .layout(Flex::row().spacing(size::S4.px()))
                 .children(SHAPES.iter().map(move |&(shape_name, shape)| {
-                    let drawn = base.with_density(density).with_shape(shape);
+                    let sized = base.with_density(density).with_shape(shape);
                     container().child(move || {
-                        provide_ui(drawn);
+                        // Its own sizes, and the story's colours and material
+                        // as they change, so a new palette repaints it too.
+                        provide_ui(move || {
+                            let mut drawn = sized;
+                            drawn.colors = t.colors();
+                            drawn.material = t.material();
+                            drawn
+                        });
                         named(format!("{density_name} · {shape_name}"), sample())
                     })
                 }))

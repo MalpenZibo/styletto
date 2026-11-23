@@ -9,7 +9,7 @@ use styletto::foundations::tokens::{icon as icon_box, size as space};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
 use styletto::primitives::text::label;
-use styletto::{Icon, icon, ui};
+use styletto::{Icon, icon, look};
 
 use crate::stories::story::Ctx;
 
@@ -49,21 +49,22 @@ pub fn field(ctx: &Ctx) -> Container {
     let small = ctx.bool("Small", false);
     let typed = create_signal(String::new());
     let submitted = ctx.action_with::<String>("on_submit");
-    let t = ui();
+    let t = look();
     container().width(space::S80.px()).child(move || {
         let submitted = submitted.clone();
         frame()
             .size(if small.get() { Size::Sm } else { Size::Md })
             .refused(refused)
-            .child(icon(Icon::Search, icon_box::SMALL.px(), t.colors.dim))
+            .child(icon(Icon::Search, icon_box::SMALL.px(), t.color(|c| c.dim)))
             .child(
                 container().width(fill()).child(
+                    // A field's text takes no motion: it changes at once.
                     text_input(typed)
                         .typeset(ty::TITLE_XSMALL)
-                        .color(t.colors.text)
+                        .color(t.color(|c| c.text))
                         .placeholder("Search apps".to_string())
-                        .placeholder_color(t.colors.sub)
-                        .cursor_color(t.colors.accent.text)
+                        .placeholder_color(t.color(|c| c.sub))
+                        .cursor_color(t.color(|c| c.accent.text))
                         .on_submit(move |value| submitted(value.to_string())),
                 ),
             )
@@ -81,7 +82,7 @@ pub fn password_field(ctx: &Ctx) -> Container {
     let submitted = ctx.action("on_submit");
     let revealed = ctx.action("reveal");
     let password = create_password();
-    let t = ui();
+    let t = look();
     container().width(space::S80.px()).child(move || {
         let reveal = revealer.get().then(|| {
             button()
@@ -95,15 +96,15 @@ pub fn password_field(ctx: &Ctx) -> Container {
             .busy(busy)
             .held(held)
             .on_submit(submitted.clone())
-            .child(icon(Icon::Lock, icon_box::SMALL.px(), t.colors.sub))
+            .child(icon(Icon::Lock, icon_box::SMALL.px(), t.color(|c| c.sub)))
             .child(
                 container().width(fill()).child(
                     password_input(password)
                         .typeset(ty::LABEL_MEDIUM)
-                        .color(t.colors.text)
+                        .color(t.color(|c| c.text))
                         .placeholder("Password".to_string())
-                        .placeholder_color(t.colors.sub)
-                        .cursor_color(t.colors.accent.text)
+                        .placeholder_color(t.color(|c| c.sub))
+                        .cursor_color(t.color(|c| c.accent.text))
                         .readonly(held)
                         .on_submit(submitted.clone()),
                 ),
@@ -123,7 +124,7 @@ mod tests {
     use styletto::components::input::field;
     use styletto::components::slider::{Slider, slider};
     use styletto::foundations::tokens::opacity;
-    use styletto::ui;
+    use styletto::look;
 
     use crate::stories::mounted::{Asked, Mounted};
 
@@ -298,7 +299,7 @@ mod tests {
     #[test]
     fn a_field_is_ringed_in_the_accent_and_refused_in_danger() {
         let Some((mut m, (refused, own))) = Mounted::<()>::new(|_| {
-            let c = ui().colors;
+            let t = look();
             let refused = create_signal(false);
             let own = create_signal(Some(Color::rgb(0.0, 1.0, 0.0)));
             // The field, the rule's two rings set by hand beside it, and a
@@ -307,8 +308,8 @@ mod tests {
                 .width(200.0)
                 .layout(Flex::row())
                 .child(field().refused(refused))
-                .child(field().ring(c.accent.fill.with_alpha(opacity::RING)))
-                .child(field().ring(c.danger.fill))
+                .child(field().ring(move || Some(t.colors().accent.fill.with_alpha(opacity::RING))))
+                .child(field().ring(move || Some(t.colors().danger.fill)))
                 .child(field().refused(refused).ring(own));
             (row, (refused, own))
         }) else {

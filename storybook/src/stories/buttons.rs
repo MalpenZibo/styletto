@@ -4,7 +4,7 @@ use styletto::components::button::{self, Fill, Variant, pill_text};
 use styletto::foundations::control::Size;
 use styletto::foundations::tokens::{icon as icon_box, size as space};
 use styletto::ui::active_ink;
-use styletto::{centered_row, icon, ui};
+use styletto::{centered_row, icon, look};
 
 use crate::stories::story::Ctx;
 
@@ -60,7 +60,7 @@ pub fn button(ctx: &Ctx) -> Container {
 pub fn bar_pill(ctx: &Ctx) -> Container {
     let active = ctx.choice("Active", &["Workspace 1", "Workspace 2", "None"], 0);
     let chosen = ctx.action_with::<usize>("on_press");
-    let t = ui();
+    let t = look();
     container()
         .padding(space::S1.px())
         .layout(centered_row(space::S0_5.px()))
@@ -81,13 +81,17 @@ pub fn bar_pill(ctx: &Ctx) -> Container {
                         .child(icon(
                             kind,
                             icon_box::SMALL.px(),
-                            active_ink(on, t.colors.sub),
+                            active_ink(on, t.color(|c| c.sub)),
                         ))
                 }),
         )
         .child(
             button::pill()
-                .child(icon(Icon::Calendar, icon_box::SMALL.px(), t.colors.sub))
+                .child(icon(
+                    Icon::Calendar,
+                    icon_box::SMALL.px(),
+                    t.color(|c| c.sub),
+                ))
                 .child(pill_text("Tuesday 20 October")),
         )
 }
@@ -100,7 +104,7 @@ mod tests {
     use styletto::components::button::{Variant, button};
     use styletto::foundations::control::Size;
     use styletto::foundations::motion;
-    use styletto::{Icon, ui};
+    use styletto::{Icon, look};
 
     use crate::stories::mounted::Mounted;
 
@@ -200,13 +204,14 @@ mod tests {
     #[test]
     fn a_toggle_after_one_that_changed_nothing_eases_as_a_toggle() {
         let Some((mut m, (active, variant))) = Mounted::<()>::new(|_| {
-            let c = ui().colors;
+            let t = look();
             let (active, variant) = (create_signal(false), create_signal(Variant::Accent));
             // The accent while on, the surface while off, at a toggle's and
             // at a hover's speed.
             let eased = |transition: Transition| {
                 container().width(side()).height(side()).background(
                     (move || {
+                        let c = t.colors();
                         if active.get() {
                             c.accent.fill
                         } else {
