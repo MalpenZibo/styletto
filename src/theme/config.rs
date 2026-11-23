@@ -160,17 +160,26 @@ impl UiConfig {
     }
 
     /// Reads the wallpaper on the calling thread, as [`ui_blocking`] does,
-    /// and builds nothing: every [`ui`] called after it, in a memo or not, is
-    /// in its colours at once. For an app whose `Ui` is a memo over the
-    /// config, so its first run already has them:
+    /// and builds no `Ui`: for an app whose `Ui` is a memo over the config,
+    /// so the memo's first run finds the picture read and is already in its
+    /// colours.
     ///
-    /// ```ignore
-    /// config.with_untracked(|c| c.appearance.read_wallpaper_blocking());
-    /// let ui = create_memo(move || config.with(|c| c.appearance.ui(None)));
+    /// ```no_run
+    /// # use guido::prelude::*;
+    /// # use styletto::theme::config::UiConfig;
+    /// let config = create_signal(UiConfig::default());
+    /// config.with_untracked(|c| c.read_wallpaper_blocking());
+    /// let ui = create_memo(move || config.with(|c| c.ui(None)));
     /// ```
     ///
-    /// Without a wallpaper chosen, or without the `wallpaper` feature, it
-    /// does nothing.
+    /// As with [`ui_blocking`]: a picture the store has already, read or
+    /// failed, is left as it is, and one that can't be read is logged, so
+    /// the theme shows. Call it once, before the app draws, on the `App`'s
+    /// thread (the store is that thread's), and not in a reactive closure:
+    /// it blocks for the read and writes the store the closure reads. A
+    /// wallpaper set later is read as [`ui`] reads it, on a thread of its
+    /// own. Without a wallpaper chosen, or without the `wallpaper` feature,
+    /// it does nothing.
     ///
     /// [`ui`]: Self::ui
     /// [`ui_blocking`]: Self::ui_blocking
