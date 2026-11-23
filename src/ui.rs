@@ -210,14 +210,18 @@ impl Ui {
 /// What it is given is worked out once per change, not once per colour
 /// read, and a change that leaves the `Ui` as it was repaints nothing.
 pub fn provide_ui<M>(ui: impl IntoSignal<Ui, M>) {
-    let ui = match ui.into_prop() {
-        // A memo, so a closure runs once per change rather than per colour
-        // read, and a change that leaves the `Ui` as it was repaints nothing.
+    provide_context(Provided(held(ui)));
+}
+
+/// `ui` as a signal worked out once per change: a memo, so a closure runs
+/// once per change rather than per read, and a change that leaves the `Ui`
+/// as it was repaints nothing.
+fn held<M>(ui: impl IntoSignal<Ui, M>) -> Signal<Ui> {
+    match ui.into_prop() {
         Prop::Reactive(ui) => create_memo(move || ui.get()).into_signal(),
         Prop::Const(ui) => create_stored(ui),
         Prop::Unset => create_stored(Ui::default()),
-    };
-    provide_context(Provided(ui));
+    }
 }
 
 /// What `build` makes, given `ui` (a value, or a signal or a closure that
@@ -228,11 +232,12 @@ pub fn themed<M, W: Widget + 'static>(
     ui: impl IntoSignal<Ui, M>,
     build: impl Fn() -> W + 'static,
 ) -> Container {
-    let ui = ui.into_signal();
+    // Worked out once per change, for the sizes and for what is built.
+    let ui = held(ui);
     let sizes = create_memo(move || ui.with(Ui::sizes));
     container().child(move || {
         sizes.get();
-        provide_ui(ui);
+        provide_context(Provided(ui));
         build()
     })
 }
@@ -283,7 +288,13 @@ impl Look {
     /// into a new palette or a new pick at [`motion::color`]: for a property
     /// with no motion of its own. Under [`Motion::None`] it changes at once.
     pub fn eased(self, role: impl Fn(&Palette) -> Color + Copy + 'static) -> Animated<Color> {
-        motion::eased_color(self.color(role))
+        // Its own Ui's motion, not the nearest one where it is read: a Look
+        // taken in one subtree may be read in another.
+        let motion = match self.0 {
+            Some(ui) => ui.with_untracked(|ui| ui.motion),
+            None => DEFAULT.with(|ui| ui.motion),
+        };
+        motion::eased_color_in(motion, self.color(role))
     }
 
     /// The whole `Ui` as it is now, tracked: for a subtree that provides a
@@ -423,7 +434,8 @@ mod tests {
                         let selected = contrast(colors.text, over(colors.selection, field));
                         let alpha = colors.selection.a;
                         assert!(
-                            selected >= DIM_CONTRAST && alpha > 0.2 && alpha <= opacity::SELECTION,
+                            selected >= DIM_CONTRAST
+                                && (opacity::SELECTION_MIN..=opacity::SELECTION).contains(&alpha),
                             "{}: selection at {alpha:.2}, its text at {selected:.2}",
                             named()
                         );
@@ -431,6 +443,74 @@ mod tests {
                 }
             }
         }
+    }
+
+    #[test]
+    fn a_selection_shows_where_no_opacity_keeps_its_text_at_three_to_one() {
+        // Text set to the island's own colour, under an accent of the same:
+        // no band keeps it at 3:1 on a solid island, and the selection still
+        // shows, at the floor; never less on a see-through one, whose text
+        // is pushed away from the island.
+        use crate::foundations::tokens::opacity;
+        let mut palette = ThemeChoice::default().palette_of(false);
+        palette.text = palette.island;
+        palette.accent.fill = palette.island;
+        let solid = Ui::new(palette).colors.selection;
+        assert_eq!(solid.a, opacity::SELECTION_MIN);
+        for material in Material::ALL {
+            let selection = Ui::new(palette).with_material(material).colors.selection;
+            assert!(
+                selection.a >= opacity::SELECTION_MIN,
+                "{material:?}: {}",
+                selection.a
+            );
+        }
+    }
+
+    #[test]
+    fn themed_works_its_ui_out_once_per_change() {
+        use std::cell::Cell;
+        use std::rc::Rc;
+
+        use guido::testing::Headless;
+
+        let Some(mut h) = Headless::new_or_skip() else {
+            return;
+        };
+        let choice = ThemeChoice::default();
+        let [dark, light] = [false, true].map(|light| Ui::new(choice.palette_of(light)));
+        let given = create_signal(dark);
+        let runs = Rc::new(Cell::new(0));
+        let counted = runs.clone();
+        let id = h.surface(SurfaceConfig::new(), move || {
+            let counted = counted.clone();
+            let ui = move || {
+                counted.set(counted.get() + 1);
+                given.get()
+            };
+            themed(ui, || container().child(look_at_text()))
+        });
+        h.configure(id, 64, 64, 1.0);
+        h.step();
+        for ui in [light, light.with_density(Density::Compact)] {
+            let before = runs.get();
+            given.set(ui);
+            h.step();
+            assert_eq!(
+                runs.get(),
+                before + 1,
+                "worked out again for {:?}",
+                ui.sizes()
+            );
+        }
+    }
+
+    /// A box in the text's colour, read through `look`.
+    fn look_at_text() -> Container {
+        container()
+            .width(8.0)
+            .height(8.0)
+            .background(look().color(|c| c.text))
     }
 
     #[test]

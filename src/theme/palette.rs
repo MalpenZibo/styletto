@@ -139,7 +139,12 @@ pub struct Palette {
     /// A field's selection: the accent's fill, at as much of
     /// [`opacity::SELECTION`](crate::foundations::tokens::opacity::SELECTION)
     /// as keeps `text` at 3:1 on it, on a field, on the island it is for: a
-    /// see-through one ([`Ui::colors`](crate::Ui::colors)) has its own.
+    /// see-through one ([`Ui::colors`](crate::Ui::colors)) has its own. Never
+    /// less than [`opacity::SELECTION_MIN`](crate::foundations::tokens::opacity::SELECTION_MIN).
+    ///
+    /// Derived, as the text over a see-through island is: worked out from
+    /// the accent, the text and the field when the palette is built and
+    /// again when a `Ui` is, so a value set here is replaced.
     pub selection: Color,
 }
 
@@ -221,16 +226,17 @@ impl Palette {
 
     /// The palette with its `selection` worked out: the accent's fill at the
     /// most of `opacity::SELECTION` that keeps `text` at 3:1 on it, on a
-    /// field (`surface`) with the worst behind the island.
+    /// field (`surface`) with the worst behind the island, and no less than
+    /// `opacity::SELECTION_MIN` where nothing does.
     fn with_selection(self) -> Palette {
-        use crate::foundations::tokens::opacity;
+        use crate::foundations::tokens::opacity::{SELECTION, SELECTION_MIN};
 
         let field = self.grounds(self.worst_backdrop())[1];
         let fill = self.accent.fill;
         let alpha = (0..=STEPS)
-            .map(|step| opacity::SELECTION * (1.0 - step as f32 / STEPS as f32))
+            .map(|step| SELECTION - (SELECTION - SELECTION_MIN) * step as f32 / STEPS as f32)
             .find(|&alpha| contrast(self.text, over(fill.with_alpha(alpha), field)) >= DIM_CONTRAST)
-            .unwrap_or(0.0);
+            .unwrap_or(SELECTION_MIN);
         Palette {
             selection: fill.with_alpha(alpha),
             ..self

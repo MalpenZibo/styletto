@@ -144,7 +144,9 @@ Fixed values: `stroke::HAIRLINE` 1, `RING` 1.5, `BOLD` 2, `HEAVY` 3;
 `opacity::DISABLED` 0.4, `RING` 0.7 (a field's ring in the accent),
 `SELECTION` 0.4 (the most of the accent a field's selection takes; each
 palette's `selection` takes as much of it as keeps its text at 3:1, for
-each material),
+each material) and `SELECTION_MIN` 0.2 (the least it takes, where nothing
+keeps 3:1, as an accent set near the text's colour: a faint selection
+beats none),
 `STACKED` 0.6 (a share of `surface`'s alpha, for the edge below a folded
 group of notifications), `HALO` 0.5 (a share of the glow's alpha, for the
 island's halo); `glow::SMALL` 4, `MEDIUM` 8, `LARGE` 16 (the island's
@@ -220,7 +222,8 @@ Components read the `Palette` derived from it: `island`, `surface`,
 accent's fill at as much of `opacity::SELECTION` (0.4) as keeps `text` at
 3:1 on it, on a field, worked out when the palette is built and again for
 each material, as its text is (0.39 to 0.4 on a solid island, from 0.26
-with the palest accents to 0.4 on a see-through one). Each hue is a `HueColors`: its `fill`,
+with the palest accents to 0.4 on a see-through one). It is derived, as the
+text over glass is: a value set by hand is replaced when a `Ui` is built. Each hue is a `HueColors`: its `fill`,
 the colour `on` it and its `text`; `palette.hue(Hue::Danger)` reads one by
 its `Hue` (`Scheme::fill(hue)` its theme's colours), `Hue::ALL` lists the
 four and `hue.name()` names one. `palette.ink(hue)` is the hue as text, or
