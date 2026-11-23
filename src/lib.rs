@@ -11,14 +11,17 @@
 //!
 //! A surface's choices among all of these are its [`Ui`], declared with
 //! [`provide_ui`], read with [`ui()`] for what sizes a widget and with
-//! [`look()`] for its colours, which follow a new palette in place.
+//! [`look()`] for its colours, which follow a new palette in place. The
+//! words the components show are in [`words`], by key, translated by the
+//! app with [`provide_translations`].
 
 pub mod components;
 pub mod foundations;
 pub mod primitives;
 pub mod theme;
 pub mod ui;
+pub mod words;
 
 pub use foundations::icons::{Icon, icon};
 pub use primitives::layout::centered_row;
-pub use ui::{Look, Ui, look, provide_ui, themed, ui};
+pub use ui::{Look, Ui, look, provide_translations, provide_ui, themed, ui};

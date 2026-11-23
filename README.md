@@ -17,6 +17,8 @@ themes and components. Every piece of it is on show in the
   colour a name in the palette. Components hold no numbers of their own.
 - What a surface chose (palette, density, shape, fonts, material, motion)
   is its `Ui`, declared once and read where the tree is built.
+- A word a component shows is asked for by its key, in the app's language,
+  and is English where the app has none.
 - Components are `#[component]`s: closed, set through their props, slots
   and callbacks. Primitives stay plain functions returning a container, so
   an app can add to them: `icon`, the text styles, `centered_row`,
@@ -30,9 +32,10 @@ themes and components. Every piece of it is on show in the
 | `theme` | `palette`, `presets`, `material`, `wallpaper`, `config`: colours by meaning, the preset themes, themes from a colour, the wallpapers read for theirs, the `[appearance]` table |
 | `primitives` | `text`, `layout`, `island`, `satellite`: plain functions an app can add to |
 | `components` | the components, below |
+| `words` | `KEYS`: every word a component shows, by key, with its English |
 
-`Icon`, `icon`, `centered_row`, `Ui`, `provide_ui`, `ui`, `look` and `Look`
-are also at the root. Below, a path such as `tokens::size` is short for
+`Icon`, `icon`, `centered_row`, `Ui`, `provide_ui`, `ui`, `look`, `Look` and
+`provide_translations` are also at the root. Below, a path such as `tokens::size` is short for
 `foundations::tokens::size`.
 
 ## Use
@@ -507,7 +510,9 @@ other end of the line if given, and what sets it underneath; `choices(options,
 chosen)` is a row of buttons that wraps, one per option, the one whose value
 is `chosen` `active`. It is generic over the value, any `Copy + PartialEq`
 type, and controlled as a toggle is: a press calls `on_choose` with the
-option's value, and the app sets `chosen`. With `enabled` false, its
+option's value, and the app sets `chosen`. Options given as a closure or a
+signal are followed: new labels, as in a new language, or new values change
+the buttons in place, and only a new number of options builds them again. With `enabled` false, its
 options fade and take no press, as a disabled button does.
 
 ```rust
@@ -582,7 +587,9 @@ within a step (a variable face, anywhere along its `wght` axis).
 A wallpaper is read by styletto, once per path, on a thread of its own, and
 kept for the whole process until it is read again: `wallpaper::picture(path)` is how far it is
 read (`Reading`, `Read` with the colours it yields best first, as
-`material::seeds` gives them, or `Failed` with why). `UiConfig::ui` never
+`material::seeds` gives them, or `Failed` with why: the system's words, or
+styletto's own, "No colour found" or "Can't be read", in the English of
+`words::KEYS`, which the theme picker shows translated). `UiConfig::ui` never
 reads it on the thread that calls it: until it is read, the theme shows, and
 the closure that called it runs again once it is, as every surface that
 asked shares the one read. The theme picker reads the same store: it notes
@@ -644,8 +651,79 @@ edit not finished.
 what the source before had set but the theme chosen, to go back to; it
 starts from what shows, a wallpaper as the colours read from it (the theme
 picker hands it those of `wallpaper::picture`). `MODES`, `DENSITIES`, `SHAPES`, `MATERIALS`, `MOTIONS`,
-`VARIANTS`, `CONTRASTS` and `SOURCES` list each choice by the name a
-control shows.
+`VARIANTS`, `CONTRASTS` and `SOURCES` list each choice by the English name
+a control shows; it shows it in the app's language, by its key in
+`words::KEYS` (`styletto-mode-light`, `styletto-density-compact`).
+
+## Translations
+
+Every word a component shows (the appearance controls' names, choices,
+notes, placeholders and sentences) is asked for by a key of `words::KEYS`,
+which lists each with its English: `("styletto-mode-light", "Light")`.
+Components write no English of their own. `provide_translations(translate)`
+gives the components built from there on the app's words, as `provide_ui`
+gives them a `Ui`, as a context of its own: `translate(key, args)` gives the
+words of `key` in the app's language, with its arguments filled in, or
+`None`, and `None`, or no translator at all, shows the English of `KEYS`.
+
+Each word is asked for where it is drawn, inside the closure of its text,
+so a translator that reads a signal, the app's language, puts a new
+language in place: nothing is built again, and whatever is open, typed or
+scrolled stays so, as with a new palette.
+
+A key is `styletto-` and what it names (`styletto-setting-density`,
+`styletto-note-system`). A sentence is whole, one key per case: "the
+wallpaper's dark colours" and "the wallpaper's light colours" are two keys,
+so a language that says the two otherwise, or a backend that can't select,
+still reads. An argument is a name only, written as Fluent writes it,
+`{ $name }`: a theme's (`{ $theme } has no light flavour: the dark one
+shows instead.`), or `shown`, what the mode shows, which is a theme and its
+flavour or the words of a `styletto-shown-` key. Names are never
+translated: themes, flavours, accents, font families, the colours of the
+config file, and what is typed.
+
+Each line of `KEYS` is a Fluent message as it stands, so an app on Fluent
+passes the key through and its arguments as `FluentArgs`:
+
+```rust
+use fluent::{FluentArgs, FluentBundle};
+use styletto::provide_translations;
+
+provide_translations(move |key, args| {
+    let bundle = &bundles[language.get()]; // the app's own, by language
+    let message = bundle.get_message(key)?;
+    let mut fluent = FluentArgs::new();
+    for (name, value) in args {
+        fluent.set(*name, *value);
+    }
+    let mut errors = Vec::new();
+    Some(bundle.format_pattern(message.value()?, Some(&fluent), &mut errors).into_owned())
+});
+```
+
+gettext, or a map, fits the same way: the key is the message id, and an
+argument is filled in where the translation has `{ $name }`. A test of the
+app's own checks its catalogs against `KEYS`, the way its own words are
+checked, and the English of `KEYS` writes the catalog to start from:
+
+```rust
+#[test]
+fn every_catalog_has_styletto_s_words() {
+    for (language, bundle) in &bundles {
+        for (key, _) in styletto::words::KEYS {
+            assert!(bundle.has_message(key), "{language} lacks {key}");
+        }
+    }
+}
+
+// en.ftl, as styletto writes it.
+for (key, english) in styletto::words::KEYS {
+    println!("{key} = {english}");
+}
+```
+
+The public API only grows: a key is never taken away, nor are its arguments
+changed, and a new one shows in English until the app's catalog has it.
 
 ## Licence
 

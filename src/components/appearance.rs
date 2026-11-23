@@ -11,6 +11,8 @@
 //! seed is offered with the `material` feature, a wallpaper with `wallpaper`.
 
 mod fonts;
+#[cfg(test)]
+mod translated;
 
 pub use fonts::installed_families;
 
@@ -34,50 +36,69 @@ use crate::theme::palette::{Palette, Scheme, parse_hex, to_hex};
 use crate::theme::presets::{Mode, THEMES, ThemeChoice};
 #[cfg(feature = "wallpaper")]
 use crate::theme::wallpaper::{self, Picture};
-use crate::ui::{Density, Material, Motion, Shape, look};
+use crate::ui::{Density, Material, Motion, Shape, Words, look, words};
+use crate::words::english;
 
-/// The choices of each kind, by the name a control shows.
-pub const MODES: &[(&str, Mode)] = &[
-    ("Light", Mode::Light),
-    ("Dark", Mode::Dark),
-    ("Auto", Mode::Auto),
-];
-pub const DENSITIES: &[(&str, Density)] = &[
-    ("Compact", Density::Compact),
-    ("Default", Density::Default),
-    ("Comfortable", Density::Comfortable),
-];
-pub const SHAPES: &[(&str, Shape)] = &[
-    ("Square", Shape::Square),
-    ("Soft", Shape::Soft),
-    ("Round", Shape::Round),
-];
-pub const MATERIALS: &[(&str, Material)] = &[
-    ("Solid", Material::Solid),
-    ("Translucent", Material::Translucent),
-    ("Glass", Material::Glass),
-];
-pub const MOTIONS: &[(&str, Motion)] = &[
-    ("Full", Motion::Full),
-    ("Reduced", Motion::Reduced),
-    ("None", Motion::None),
-];
-pub const VARIANTS: &[(&str, Variant)] = &[
-    ("Tonal spot", Variant::TonalSpot),
-    ("Vibrant", Variant::Vibrant),
-    ("Expressive", Variant::Expressive),
-    ("Content", Variant::Content),
-    ("Fidelity", Variant::Fidelity),
-    ("Neutral", Variant::Neutral),
-    ("Monochrome", Variant::Monochrome),
-    ("Rainbow", Variant::Rainbow),
-    ("Fruit salad", Variant::FruitSalad),
-];
-pub const CONTRASTS: &[(&str, Contrast)] = &[
-    ("Standard", Contrast::Standard),
-    ("Medium", Contrast::Medium),
-    ("High", Contrast::High),
-];
+/// A list of choices twice: by English name, public, and by key in
+/// [`KEYS`](crate::words::KEYS), what a control shows, translated. The
+/// English is taken from `KEYS`, so it is written once.
+macro_rules! choices_of {
+    ($(#[$doc:meta])* $named:ident, $(#[$own:meta])* $keyed:ident: $kind:ty = [
+        $($(#[$attr:meta])* $key:literal => $value:expr,)*
+    ]) => {
+        $(#[$doc])*
+        pub const $named: &[(&str, $kind)] = &[$($(#[$attr])* (english($key), $value),)*];
+        $(#[$own])*
+        const $keyed: &[(&str, $kind)] = &[$($(#[$attr])* ($key, $value),)*];
+    };
+}
+
+choices_of!(
+    /// The choices of each kind, by the English name a control shows,
+    /// translated by its key in [`KEYS`](crate::words::KEYS).
+    MODES, MODE_KEYS: Mode = [
+        "styletto-mode-light" => Mode::Light,
+        "styletto-mode-dark" => Mode::Dark,
+        "styletto-mode-auto" => Mode::Auto,
+    ]
+);
+choices_of!(DENSITIES, DENSITY_KEYS: Density = [
+    "styletto-density-compact" => Density::Compact,
+    "styletto-density-default" => Density::Default,
+    "styletto-density-comfortable" => Density::Comfortable,
+]);
+choices_of!(SHAPES, SHAPE_KEYS: Shape = [
+    "styletto-shape-square" => Shape::Square,
+    "styletto-shape-soft" => Shape::Soft,
+    "styletto-shape-round" => Shape::Round,
+]);
+choices_of!(MATERIALS, MATERIAL_KEYS: Material = [
+    "styletto-material-solid" => Material::Solid,
+    "styletto-material-translucent" => Material::Translucent,
+    "styletto-material-glass" => Material::Glass,
+]);
+choices_of!(MOTIONS, MOTION_KEYS: Motion = [
+    "styletto-motion-full" => Motion::Full,
+    "styletto-motion-reduced" => Motion::Reduced,
+    "styletto-motion-none" => Motion::None,
+]);
+// What only a seed or a wallpaper offers.
+choices_of!(VARIANTS, #[cfg(feature = "material")] VARIANT_KEYS: Variant = [
+    "styletto-variant-tonal-spot" => Variant::TonalSpot,
+    "styletto-variant-vibrant" => Variant::Vibrant,
+    "styletto-variant-expressive" => Variant::Expressive,
+    "styletto-variant-content" => Variant::Content,
+    "styletto-variant-fidelity" => Variant::Fidelity,
+    "styletto-variant-neutral" => Variant::Neutral,
+    "styletto-variant-monochrome" => Variant::Monochrome,
+    "styletto-variant-rainbow" => Variant::Rainbow,
+    "styletto-variant-fruit-salad" => Variant::FruitSalad,
+]);
+choices_of!(CONTRASTS, #[cfg(feature = "material")] CONTRAST_KEYS: Contrast = [
+    "styletto-contrast-standard" => Contrast::Standard,
+    "styletto-contrast-medium" => Contrast::Medium,
+    "styletto-contrast-high" => Contrast::High,
+]);
 
 /// Where a config's colours come from, as [`theme_picker`] offers it.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -93,16 +114,18 @@ pub enum Source {
     Custom,
 }
 
-/// The sources this build offers: a seed needs the `material` feature, a
-/// wallpaper the `wallpaper` one.
-pub const SOURCES: &[(&str, Source)] = &[
-    ("Preset", Source::Preset),
-    #[cfg(feature = "material")]
-    ("Seed", Source::Seed),
-    #[cfg(feature = "wallpaper")]
-    ("Wallpaper", Source::Wallpaper),
-    ("Custom", Source::Custom),
-];
+choices_of!(
+    /// The sources this build offers: a seed needs the `material` feature, a
+    /// wallpaper the `wallpaper` one.
+    SOURCES, SOURCE_KEYS: Source = [
+        "styletto-source-preset" => Source::Preset,
+        #[cfg(feature = "material")]
+        "styletto-source-seed" => Source::Seed,
+        #[cfg(feature = "wallpaper")]
+        "styletto-source-wallpaper" => Source::Wallpaper,
+        "styletto-source-custom" => Source::Custom,
+    ]
+);
 
 impl Source {
     /// The source `config` takes its colours from: custom while any colour
@@ -209,6 +232,7 @@ pub fn theme_picker(
     chooser_note: String,
 ) -> impl Widget {
     let config = config.get_untracked();
+    let w = words();
     let source = create_memo(move || config.with(Source::of));
     let showing = move |light: bool| !config.with(|c| c.mode).is_dark(system_dark.get()) == light;
     #[cfg(not(feature = "wallpaper"))]
@@ -216,15 +240,15 @@ pub fn theme_picker(
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
-        .child(
-            setting("Colours").child(choices(labelled(SOURCES), source).on_choose(
+        .child(setting(w.of("styletto-setting-colours")).child(
+            choices(labelled(w, SOURCE_KEYS), source).on_choose(
                 // What shows of the wallpaper is what the next starts from.
                 move |chosen: Source| {
                     let found = config.with_untracked(wallpaper_colors);
                     config.update(|c| chosen.apply(c, &found))
                 },
-            )),
-        )
+            ),
+        ))
         .child(move || match source.get() {
             Source::Preset => preset(config, showing),
             #[cfg(feature = "material")]
@@ -250,30 +274,51 @@ pub fn mode_picker(
     system_dark: Option<bool>,
 ) -> impl Widget {
     let config = config.get_untracked();
+    let w = words();
     let note = move || {
         let system = system_dark.get();
         config.with(|c| {
             let light = !c.mode.is_dark(system);
-            let kind = if light { "light" } else { "dark" };
+            // A whole phrase for each side, so a language that tells the
+            // two apart otherwise can.
+            let side = |dark, light_one| if light { light_one } else { dark };
             let shown = match Source::of(c) {
-                Source::Custom => format!("your {kind} colours"),
-                Source::Wallpaper if c.wallpaper_path().is_some() => {
-                    format!("the wallpaper's {kind} colours")
-                }
-                Source::Seed => format!("the seed's {kind} colours"),
+                Source::Custom => w.get(
+                    side("styletto-shown-custom-dark", "styletto-shown-custom-light"),
+                    &[],
+                ),
+                Source::Wallpaper if c.wallpaper_path().is_some() => w.get(
+                    side(
+                        "styletto-shown-wallpaper-dark",
+                        "styletto-shown-wallpaper-light",
+                    ),
+                    &[],
+                ),
+                Source::Seed => w.get(
+                    side("styletto-shown-seed-dark", "styletto-shown-seed-light"),
+                    &[],
+                ),
                 Source::Preset | Source::Wallpaper => {
                     let choice = c.choice();
                     format!("{} {}", choice.theme.name, choice.flavor_of(light).name)
                 }
             };
-            match (c.mode, system) {
-                (Mode::Auto, Some(_)) => format!("System: {shown}"),
-                (Mode::Auto, None) => format!("No system preference: {shown}"),
-                _ => format!("Showing {shown}"),
-            }
+            let note = match (c.mode, system) {
+                (Mode::Auto, Some(_)) => "styletto-note-system",
+                (Mode::Auto, None) => "styletto-note-no-system",
+                _ => "styletto-note-showing",
+            };
+            w.get(note, &[("shown", &shown)])
         })
     };
-    choice(config, "Mode", MODES, |c| c.mode, |c, mode| c.mode = mode).note(note)
+    choice(
+        config,
+        "styletto-setting-mode",
+        MODE_KEYS,
+        |c| c.mode,
+        |c, mode| c.mode = mode,
+    )
+    .note(note)
 }
 
 /// The density, the shape, the material and the motion.
@@ -285,29 +330,29 @@ pub fn layout_picker(#[prop(required)] config: RwSignal<UiConfig>) -> impl Widge
         .layout(Flex::column().spacing(size::S4.px()))
         .child(choice(
             config,
-            "Density",
-            DENSITIES,
+            "styletto-setting-density",
+            DENSITY_KEYS,
             |c| c.density,
             |c, v| c.density = v,
         ))
         .child(choice(
             config,
-            "Shape",
-            SHAPES,
+            "styletto-setting-shape",
+            SHAPE_KEYS,
             |c| c.shape,
             |c, v| c.shape = v,
         ))
         .child(choice(
             config,
-            "Material",
-            MATERIALS,
+            "styletto-setting-material",
+            MATERIAL_KEYS,
             |c| c.material,
             |c, v| c.material = v,
         ))
         .child(choice(
             config,
-            "Motion",
-            MOTIONS,
+            "styletto-setting-motion",
+            MOTION_KEYS,
             |c| c.motion,
             |c, v| c.motion = v,
         ))
@@ -386,12 +431,14 @@ pub fn color_editor(
         .layout(Flex::column().spacing(size::S2.px()))
         .children(Scheme::default().named().map(|(name, _)| field(name)))
         .child(
-            container().child(button().label("Copy from the preset").on_click(move || {
-                config.update(|c| {
-                    let preset = c.choice().scheme_of(light);
-                    *side_mut(c, light) = colors(&preset);
-                })
-            })),
+            container().child(button().label(words().of("styletto-copy-preset")).on_click(
+                move || {
+                    config.update(|c| {
+                        let preset = c.choice().scheme_of(light);
+                        *side_mut(c, light) = colors(&preset);
+                    })
+                },
+            )),
         )
 }
 
@@ -413,11 +460,12 @@ pub fn appearance(
     chooser_note: String,
 ) -> impl Widget {
     let config = config.get_untracked();
+    let w = words();
     container()
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
         .child(
-            setting_group("Theme")
+            setting_group(w.of("styletto-group-theme"))
                 .child(mode_picker(config).system_dark(system_dark))
                 .child(
                     theme_picker(config)
@@ -426,20 +474,29 @@ pub fn appearance(
                         .chooser_note(chooser_note),
                 ),
         )
-        .child(setting_group("Layout").child(layout_picker(config)))
-        .child(setting_group("Fonts").child(font_picker(config).families(families)))
+        .child(setting_group(w.of("styletto-group-layout")).child(layout_picker(config)))
+        .child(
+            setting_group(w.of("styletto-group-fonts"))
+                .child(font_picker(config).families(families)),
+        )
 }
 
-/// Each option of a list, by the name it shows, for `choices`.
-fn labelled<T: Copy>(options: &[(&'static str, T)]) -> Vec<(String, T)> {
-    options
-        .iter()
-        .map(|&(name, value)| (name.to_string(), value))
-        .collect()
+/// Each option of a list, by the words of its key, for `choices`: in a new
+/// language, they change in place.
+fn labelled<T: Copy + 'static>(
+    w: Words,
+    options: &'static [(&'static str, T)],
+) -> impl Fn() -> Vec<(String, T)> + 'static {
+    move || {
+        options
+            .iter()
+            .map(|&(key, value)| (w.get(key, &[]), value))
+            .collect()
+    }
 }
 
-/// A setting choosing one of `options`, read from the config with `get`
-/// and written to it with `set`.
+/// A setting, named by the key `name`, choosing one of `options`, by key,
+/// read from the config with `get` and written to it with `set`.
 fn choice<T: Copy + PartialEq + 'static>(
     config: RwSignal<UiConfig>,
     name: &'static str,
@@ -447,8 +504,9 @@ fn choice<T: Copy + PartialEq + 'static>(
     get: fn(&UiConfig) -> T,
     set: fn(&mut UiConfig, T),
 ) -> Setting {
-    setting(name).child(
-        choices(labelled(options), move || config.with(get))
+    let w = words();
+    setting(w.of(name)).child(
+        choices(labelled(w, options), move || config.with(get))
             .on_choose(move |value| config.update(|c| set(c, value))),
     )
 }
@@ -469,6 +527,7 @@ fn side_card(
     body: impl Widget + 'static,
 ) -> Container {
     let t = look();
+    let w = words();
     container()
         .width(fill())
         .padding(size::S3.px())
@@ -498,13 +557,21 @@ fn side_card(
                             t.color(|c| c.sub),
                         ))
                         .child(
-                            text(if light { "Light" } else { "Dark" })
-                                .typeset(TITLE_XSMALL.em())
-                                .color(t.eased(|c| c.text)),
+                            text(w.of(if light {
+                                "styletto-side-light"
+                            } else {
+                                "styletto-side-dark"
+                            }))
+                            .typeset(TITLE_XSMALL.em())
+                            .color(t.eased(|c| c.text)),
                         ),
                 )
                 .child(caption(move || {
-                    if showing(light) { "Showing" } else { "" }.to_string()
+                    if showing(light) {
+                        w.get("styletto-side-showing", &[])
+                    } else {
+                        String::new()
+                    }
                 })),
         )
         .child(body)
@@ -522,7 +589,7 @@ fn preset(
         .width(fill())
         .layout(Flex::column().spacing(size::S4.px()))
         .child(
-            setting("Preset").child(
+            setting(words().of("styletto-setting-preset")).child(
                 choices(
                     THEMES
                         .iter()
@@ -549,6 +616,7 @@ fn flavor_and_accent(
     light: bool,
 ) -> Container {
     let t = look();
+    let w = words();
     let theme = config.with_untracked(|c| c.choice().theme);
     let flavors = theme.flavors(light);
     let flavor = create_memo(move || choice.get().flavor_of(light));
@@ -556,18 +624,20 @@ fn flavor_and_accent(
     // a caption's one line.
     let none = flavors.is_empty().then(|| {
         container().width(fill()).child(
-            text(format!(
-                "{} has no {} flavour: the {} one shows instead.",
-                theme.name,
-                if light { "light" } else { "dark" },
-                if light { "dark" } else { "light" }
-            ))
+            text(move || {
+                let none = if light {
+                    "styletto-note-no-light-flavour"
+                } else {
+                    "styletto-note-no-dark-flavour"
+                };
+                w.get(none, &[("theme", theme.name)])
+            })
             .typeset(BODY_SMALL)
             .color(t.eased(|c| c.sub)),
         )
     });
     let flavors = (!flavors.is_empty()).then(|| {
-        setting("Flavour").child(
+        setting(w.of("styletto-setting-flavour")).child(
             choices(
                 flavors
                     .iter()
@@ -595,15 +665,15 @@ fn flavor_and_accent(
         .child(flavors)
         .child(move || {
             let flavor = flavor.get();
-            setting("Accent").note(move || accent().to_string()).child(
-                container().layout(centered_row(size::S1.px())).children(
+            setting(w.of("styletto-setting-accent"))
+                .note(move || accent().to_string())
+                .child(container().layout(centered_row(size::S1.px())).children(
                     flavor.accents.iter().map(move |a| {
                         let name = a.name;
                         swatch(a.color, move || accent() == name)
                             .on_click(move || config.update(|c| c.set_accent(light, name)))
                     }),
-                ),
-            )
+                ))
         })
 }
 
@@ -617,15 +687,15 @@ fn generated(config: RwSignal<UiConfig>, from: impl Widget + 'static) -> Contain
         .child(from)
         .child(choice(
             config,
-            "Variant",
-            VARIANTS,
+            "styletto-setting-variant",
+            VARIANT_KEYS,
             |c| c.variant,
             |c, v| c.variant = v,
         ))
         .child(choice(
             config,
-            "Contrast",
-            CONTRASTS,
+            "styletto-setting-contrast",
+            CONTRAST_KEYS,
             |c| c.contrast,
             |c, v| c.contrast = v,
         ))
@@ -641,7 +711,7 @@ fn seed_field(config: RwSignal<UiConfig>) -> Setting {
         |text| parse_hex(text).is_some(),
         |c, text| c.seed = Some(text.to_string()),
     );
-    setting("Seed").child(
+    setting(words().of("styletto-setting-seed")).child(
         container()
             .width(fill())
             .layout(centered_row(size::S2.px()))
@@ -681,6 +751,7 @@ fn wallpaper_field(
     pick: Option<Callback>,
     chooser_note: Signal<String>,
 ) -> Setting {
+    let w = words();
     let set = create_memo(move || config.with(|c| c.wallpaper.clone().unwrap_or_default()));
     let picture = create_memo(move || {
         config
@@ -698,7 +769,7 @@ fn wallpaper_field(
     });
     let input = text_input(typed)
         .typeset(MONO_SMALL)
-        .placeholder("~/Pictures/wallpaper.jpg".to_string())
+        .placeholder(w.of("styletto-wallpaper-placeholder"))
         .on_submit(move |path: &str| {
             let path = path.trim().to_string();
             let typed = UiConfig {
@@ -734,9 +805,9 @@ fn wallpaper_field(
             return said;
         }
         match picture.get() {
-            None => "Choose one, or type a path and Enter".to_string(),
-            Some(Picture::Reading) => "Reading…".to_string(),
-            Some(Picture::Failed(why)) => why,
+            None => w.get("styletto-wallpaper-none", &[]),
+            Some(Picture::Reading) => w.get("styletto-wallpaper-reading", &[]),
+            Some(Picture::Failed(why)) => failed(w, why),
             Some(Picture::Read(_)) => String::new(),
         }
     };
@@ -759,13 +830,28 @@ fn wallpaper_field(
             )
         })
     };
-    setting("Wallpaper").note(note).child(
-        container()
-            .width(fill())
-            .layout(Flex::column().spacing(size::S2.px()))
-            .child(field)
-            .child(found),
-    )
+    setting(w.of("styletto-setting-wallpaper"))
+        .note(note)
+        .child(
+            container()
+                .width(fill())
+                .layout(Flex::column().spacing(size::S2.px()))
+                .child(field)
+                .child(found),
+        )
+}
+
+/// Why a wallpaper can't be read: styletto's own reasons in the app's
+/// language, what the system said as it said it.
+#[cfg(feature = "wallpaper")]
+fn failed(w: Words, why: String) -> String {
+    [
+        "styletto-wallpaper-no-colour",
+        "styletto-wallpaper-unreadable",
+    ]
+    .into_iter()
+    .find(|key| english(key) == why)
+    .map_or(why, |key| w.get(key, &[]))
 }
 
 /// A family to choose among those installed: the one chosen, written in
@@ -773,6 +859,7 @@ fn wallpaper_field(
 /// only for `mono`; the system's first.
 fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Family>>) -> Setting {
     let t = look();
+    let w = words();
     let chosen = create_memo(move || {
         config.with(|c| if mono { &c.fonts.mono } else { &c.fonts.sans }.clone())
     });
@@ -802,8 +889,8 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
         };
         families.with(|families| {
             match families.iter().find(|f| f.name.eq_ignore_ascii_case(&name)) {
-                None => "Not installed".to_string(),
-                Some(family) if !family.semibold => "No semibold: the nearest".to_string(),
+                None => w.get("styletto-font-not-installed", &[]),
+                Some(family) if !family.semibold => w.get("styletto-font-no-semibold", &[]),
                 Some(_) => String::new(),
             }
         })
@@ -817,10 +904,14 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
         .on_click(move || open.set(!open.get_untracked()))
         .layout(centered_row(0.0).main_alignment(MainAlignment::SpaceBetween))
         .child(
-            text(move || chosen.get().unwrap_or_else(|| "System".to_string()))
-                .typeset(LABEL_MEDIUM)
-                .font_family(move || chosen.with(drawn_in))
-                .color(t.eased(|c| c.text)),
+            text(move || {
+                chosen
+                    .get()
+                    .unwrap_or_else(|| w.get("styletto-font-system", &[]))
+            })
+            .typeset(LABEL_MEDIUM)
+            .font_family(move || chosen.with(drawn_in))
+            .color(t.eased(|c| c.text)),
         )
         .child(icon(
             move || {
@@ -835,7 +926,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
         ));
     let list = move || {
         open.get().then(|| {
-            let option = move |label: String, family: Option<String>| {
+            let option = move |label: Signal<String>, family: Option<String>| {
                 let picked = family.clone();
                 let face = drawn_in(&family);
                 container()
@@ -873,7 +964,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                     .filter(|f| !mono || f.monospace)
                     .map(|f| {
                         let lower = f.name.to_lowercase();
-                        option(f.name.clone(), Some(f.name.clone()))
+                        option(f.name.clone().into_signal(), Some(f.name.clone()))
                             .visible(move || needle.with(|n| lower.contains(n.as_str())))
                     })
                     .collect()
@@ -885,26 +976,30 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                     input_field().size(Size::Sm).child(typing(
                         text_input(query)
                             .typeset(LABEL_MEDIUM)
-                            .placeholder("Search the installed fonts".to_string())
+                            .placeholder(w.of("styletto-font-search"))
                             .autofocus(),
                     )),
                 )
                 .child(
                     scroll_list(size::scaled(size::S60.px()))
-                        .child(option("System".to_string(), None))
+                        .child(option(w.of("styletto-font-system").into_signal(), None))
                         .children(options),
                 )
         })
     };
-    setting(if mono { "Mono" } else { "Sans" })
-        .note(note)
-        .child(
-            container()
-                .width(fill())
-                .layout(Flex::column().spacing(size::S1.px()))
-                .child(current)
-                .child(list),
-        )
+    setting(w.of(if mono {
+        "styletto-setting-mono"
+    } else {
+        "styletto-setting-sans"
+    }))
+    .note(note)
+    .child(
+        container()
+            .width(fill())
+            .layout(Flex::column().spacing(size::S1.px()))
+            .child(current)
+            .child(list),
+    )
 }
 
 /// What is typed in a field, in the text's colours, filling the field up

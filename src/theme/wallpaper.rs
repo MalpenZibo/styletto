@@ -16,6 +16,7 @@ use guido::prelude::{Color, RwSignal};
 use guido::reactive::GlobalSignal;
 
 use crate::theme::material;
+use crate::words::english;
 
 /// A wallpaper as read for the colours a theme could be made of.
 #[derive(Clone, Debug, PartialEq)]
@@ -207,9 +208,11 @@ fn read(path: &Path) -> Picture {
     // A decoder that panics on a picture fails it, rather than leaving it
     // being read for ever.
     let seeds = std::panic::catch_unwind(|| material::seeds(path))
-        .unwrap_or_else(|_| Err("Can't be read".to_string()));
+        .unwrap_or_else(|_| Err(english("styletto-wallpaper-unreadable").to_string()));
     let picture = match seeds {
-        Ok(seeds) if seeds.is_empty() => Picture::Failed("No colour found".to_string()),
+        Ok(seeds) if seeds.is_empty() => {
+            Picture::Failed(english("styletto-wallpaper-no-colour").to_string())
+        }
         Ok(seeds) => Picture::Read(seeds),
         Err(err) => Picture::Failed(err),
     };
