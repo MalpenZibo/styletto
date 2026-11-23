@@ -8,7 +8,6 @@ use guido::widget_prelude::*;
 use guido::widgets::container::AnimationState;
 
 use crate::foundations::motion;
-use crate::ui::{Motion, with_ui};
 
 /// A colour on its way to the last value it was given, at
 /// [`motion::color`]'s pace and curve: Guido's own state for a property,
@@ -27,7 +26,7 @@ impl ColorEase {
     pub(crate) fn new() -> Self {
         Self {
             state: AnimationState::new(Color::TRANSPARENT, motion::color()),
-            moves: with_ui(|u| u.motion) != Motion::None,
+            moves: motion::colors_ease(),
             frame: create_trigger(),
         }
     }
@@ -38,8 +37,13 @@ impl ColorEase {
     }
 
     /// Heads for `target`, as the widget laid out in `ctx` reads it, and asks
-    /// the frame that moves it. The first value is taken at once.
+    /// the frame that moves it. The first value is taken at once. A measure
+    /// pass leaves it alone, as Guido's own properties do: the layout after
+    /// it is where a change starts, and a colour sizes nothing.
     pub(crate) fn retarget(&mut self, ctx: &mut LayoutCtx, target: Color) {
+        if ctx.measuring() {
+            return;
+        }
         if self.state.is_initial() || !self.moves {
             self.state.set_immediate(ctx, target);
             return;
@@ -52,14 +56,18 @@ impl ColorEase {
     }
 
     /// Moves it on to `now`, and asks the next frame for widget `id` while it
-    /// is still on its way; true while it is.
+    /// is still on its way; true if it moved.
     pub(crate) fn advance(&mut self, now: FrameInstant, id: WidgetId) -> bool {
-        self.state.advance(now);
-        let moving = self.state.is_animating();
-        if moving {
+        let moved = self.state.advance(now).is_changed();
+        if self.moving() {
             self.ask_frame(id);
         }
-        moving
+        moved
+    }
+
+    /// Whether it is still on its way.
+    pub(crate) fn moving(&self) -> bool {
+        self.state.is_animating()
     }
 
     /// Queues the widget's animation job: Guido runs a widget's job when
@@ -103,9 +111,10 @@ impl Widget for Easer {
     }
 
     fn advance_animations(&mut self, tree: &mut Tree, id: WidgetId) -> bool {
-        let moving = self.ease.advance(tree.frame_instant(), id);
-        self.shown.set(self.ease.color());
-        moving
+        if self.ease.advance(tree.frame_instant(), id) {
+            self.shown.set(self.ease.color());
+        }
+        self.ease.moving()
     }
 
     fn layout(&mut self, ctx: &mut LayoutCtx, constraints: Constraints) -> Size {

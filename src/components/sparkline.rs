@@ -37,9 +37,10 @@ impl Sparkline {
 
 impl Widget for Sparkline {
     fn advance_animations(&mut self, tree: &mut Tree, id: WidgetId) -> bool {
-        let moving = self.ink.advance(tree.frame_instant(), id);
-        tree.mark_needs_paint(id);
-        moving
+        if self.ink.advance(tree.frame_instant(), id) {
+            tree.mark_needs_paint(id);
+        }
+        self.ink.moving()
     }
 
     fn layout(&mut self, ctx: &mut LayoutCtx, constraints: Constraints) -> Size {

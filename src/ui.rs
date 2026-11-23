@@ -313,7 +313,7 @@ pub fn active_fill<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    active_fill_or(active, read(off))
+    active_fill_by(active, read(off))
 }
 
 /// The ink that reads on [`active_fill`]: `accent.on` while `active`, `off`
@@ -322,20 +322,20 @@ pub fn active_ink<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    active_ink_or(active, read(off))
+    active_ink_by(active, read(off))
 }
 
 /// [`active_fill`] with a closure for `off`, called as it is: no signal is
 /// made for it, as [`IntoSignal`] makes for a closure.
-pub(crate) fn active_fill_or(
+pub(crate) fn active_fill_by(
     active: Signal<bool>,
     off: impl Fn() -> Color + Copy + 'static,
 ) -> impl Fn() -> Color + Copy + 'static {
     lit(active, look().color(|c| c.accent.fill), off)
 }
 
-/// [`active_ink`] with a closure for `off`, as [`active_fill_or`].
-pub(crate) fn active_ink_or(
+/// [`active_ink`] with a closure for `off`, as [`active_fill_by`].
+pub(crate) fn active_ink_by(
     active: Signal<bool>,
     off: impl Fn() -> Color + Copy + 'static,
 ) -> impl Fn() -> Color + Copy + 'static {

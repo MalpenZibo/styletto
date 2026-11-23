@@ -12,7 +12,7 @@ use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::typed;
 use crate::theme::palette::Hue;
-use crate::ui::{active_fill, active_fill_or, active_ink_or, look};
+use crate::ui::{active_fill, active_fill_by, active_ink_by, look};
 
 /// What a button does, by its colour: anything, the main thing, or what
 /// can't be undone.
@@ -105,7 +105,7 @@ pub fn button(
             (Fill::Ghost, _) => (Color::TRANSPARENT, c.surface, c.ink(variant.get().hue())),
         }
     };
-    let rest = active_fill_or(active, move || off().0);
+    let rest = active_fill_by(active, move || off().0);
     // On, the accent brightens as a hue does.
     let lifted = move || {
         if active.get() {
@@ -138,7 +138,7 @@ pub fn button(
     .children(content(
         label,
         icon,
-        active_ink_or(active, move || off().2),
+        active_ink_by(active, move || off().2),
         size,
     ))
 }
@@ -221,23 +221,20 @@ pub fn pill(
 ) -> impl Widget {
     let t = look();
     let size = Size::Sm;
-    let lifted = active_fill_or(active, t.color(|c| c.surface2));
+    let lifted = active_fill_by(active, t.color(|c| c.surface2));
     pill_box(size)
         .background(active_fill(active, Color::TRANSPARENT).transition(motion::hover()))
         .when_hovered(move |s| s.background(lifted))
         .when_pressed(move |s| s.ripple_with_color(t.color(|c| c.ripple)))
-        .shadow(
-            (move || {
-                Shadow::new(
-                    (0.0, 0.0),
-                    0.0,
-                    stroke::RING,
-                    ring.get().unwrap_or(Color::TRANSPARENT),
-                )
-                .inset()
-            })
-            .transition(motion::color()),
-        )
+        .shadow(motion::eased_color(move || {
+            Shadow::new(
+                (0.0, 0.0),
+                0.0,
+                stroke::RING,
+                ring.get().unwrap_or(Color::TRANSPARENT),
+            )
+            .inset()
+        }))
         .on_click(on_click)
         .layout(centered_row(size.gap()))
         .children(children)
@@ -259,12 +256,12 @@ pub fn pill_text(
         LABEL_SMALL.resolve().weight,
         LABEL_SMALL.em().resolve().weight,
     );
-    let lifted = active_ink_or(active, t.color(|c| c.text));
+    let lifted = active_ink_by(active, t.color(|c| c.text));
     typed(text, LABEL_SMALL.tabular())
         .font_weight(move || if bold.get() { emphasised } else { regular })
         .text_box(TextEdge::Cap, TextEdge::Alphabetic)
         .color(
-            active_ink_or(active, move || ink.get().unwrap_or_else(|| t.colors().sub))
+            active_ink_by(active, move || ink.get().unwrap_or_else(|| t.colors().sub))
                 .transition(motion::hover()),
         )
         .when_hovered(move |s| s.color(lifted))

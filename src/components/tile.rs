@@ -11,7 +11,7 @@ use crate::foundations::tokens::{radius, shade, size};
 use crate::foundations::typography::{LABEL_MEDIUM, LABEL_SMALL, Typeset};
 use crate::primitives::layout::centered_row;
 use crate::theme::palette;
-use crate::ui::{active_fill_or, active_ink_or, flip, look};
+use crate::ui::{active_fill_by, active_ink_by, flip, look};
 
 fn icon_box() -> f32 {
     Size::Lg.height()
@@ -63,7 +63,7 @@ pub fn tile(
     on_open: (),
 ) -> impl Widget {
     let t = look();
-    let ink = active_ink_or(active, t.color(|c| c.text));
+    let ink = active_ink_by(active, t.color(|c| c.text));
     let toggle = flip(active, on_toggle);
     let label_click = move || match on_open {
         Some(open) => open.run(),
@@ -125,7 +125,7 @@ pub fn tile(
                     .typeset(LABEL_SMALL)
                     // On a fill the on-colour is the only one that reads; off
                     // it, the secondary text.
-                    .color(motion::eased_color(active_ink_or(
+                    .color(motion::eased_color(active_ink_by(
                         active,
                         t.color(|c| c.sub),
                     )))
@@ -143,7 +143,7 @@ pub fn tile(
     //
     // Under the pointer the body lights up as a small tile does, unless the
     // pointer is on the icon box.
-    let body = active_fill_or(active, t.color(|c| c.surface));
+    let body = active_fill_by(active, t.color(|c| c.surface));
     let body_lifted = move || {
         if over_box.get() {
             body()
@@ -178,7 +178,7 @@ pub fn small_tile(
     #[prop(callback)] on_toggle: fn(bool),
 ) -> impl Widget {
     let t = look();
-    let rest = active_fill_or(active, t.color(|c| c.surface));
+    let rest = active_fill_by(active, t.color(|c| c.surface));
     pressable(
         toggled(
             container()
@@ -197,6 +197,6 @@ pub fn small_tile(
     .child(icons::icon(
         icon,
         Size::Md.icon(),
-        active_ink_or(active, t.color(|c| c.text)),
+        active_ink_by(active, t.color(|c| c.text)),
     ))
 }

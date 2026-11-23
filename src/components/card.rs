@@ -66,10 +66,9 @@ pub fn stat_card(
             };
             level_fill(c, level).map_or(c.surface, |fill| fill.with_alpha(alpha))
         }))
-        .shadow(
-            (move || glow::halo(level_fill(&t.colors(), level.get()), glow::MEDIUM))
-                .transition(motion::color()),
-        )
+        .shadow(motion::eased_color(move || {
+            glow::halo(level_fill(&t.colors(), level.get()), glow::MEDIUM)
+        }))
         .layout(Flex::column().spacing(size::S1.px()))
         .child(
             container()

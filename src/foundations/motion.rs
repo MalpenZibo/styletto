@@ -5,6 +5,7 @@
 use std::cell::Cell;
 use std::time::Duration;
 
+use guido::animation::MovesAs;
 use guido::prelude::*;
 
 use crate::foundations::tokens::size;
@@ -80,13 +81,21 @@ pub fn color() -> Transition {
     easing(COLOR_MS)
 }
 
-/// `color` (a colour, a signal or a closure) easing into each new value at
-/// [`color()`]. Under [`Motion::None`] it changes at once, with no motion
-/// kept for it: a panel paints many.
-pub(crate) fn eased_color<M>(color: impl IntoSignal<Color, M>) -> Animated<Color> {
-    match with_ui(|u| u.motion) {
-        Motion::None => color.into_animated(),
-        Motion::Full | Motion::Reduced => color.transition(self::color()),
+/// Whether a colour eases into a new one: unless motion is off.
+pub(crate) fn colors_ease() -> bool {
+    with_ui(|u| u.motion) != Motion::None
+}
+
+/// `value` (a colour, or a shadow of one; a value, a signal or a closure)
+/// easing into each new value at [`color()`]. Under [`Motion::None`] it
+/// changes at once, with no motion kept for it: a panel paints many.
+pub(crate) fn eased_color<T: Clone + MovesAs + 'static, M>(
+    value: impl IntoSignal<T, M>,
+) -> Animated<T> {
+    if colors_ease() {
+        value.transition(self::color())
+    } else {
+        value.into_animated()
     }
 }
 

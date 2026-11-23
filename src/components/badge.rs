@@ -21,17 +21,14 @@ pub fn dot(
         .height(side)
         .corners(radius::pill(side))
         .background(motion::eased_color(color))
-        .shadow(
-            (move || {
-                Shadow::new(
-                    (0.0, 0.0),
-                    0.0,
-                    stroke::BOLD,
-                    ring.get().unwrap_or(Color::TRANSPARENT),
-                )
-            })
-            .transition(motion::color()),
-        )
+        .shadow(motion::eased_color(move || {
+            Shadow::new(
+                (0.0, 0.0),
+                0.0,
+                stroke::BOLD,
+                ring.get().unwrap_or(Color::TRANSPARENT),
+            )
+        }))
 }
 
 /// An icon on a tinted squircle, heading an alert. `color` draws the icon

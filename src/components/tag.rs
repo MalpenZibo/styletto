@@ -77,7 +77,9 @@ pub fn tag(
     };
     pill_box(size)
         .background(t.eased(move |c| tone.get().tint_in(c)))
-        .shadow((move || spread::halo(lit(), spread::SMALL)).transition(motion::color()))
+        .shadow(motion::eased_color(move || {
+            spread::halo(lit(), spread::SMALL)
+        }))
         .layout(centered_row(size.gap()))
         .children(children)
 }
