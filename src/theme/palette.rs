@@ -138,7 +138,8 @@ pub struct Palette {
     pub ripple: Color,
     /// A field's selection: the accent's fill, at as much of
     /// [`opacity::SELECTION`](crate::foundations::tokens::opacity::SELECTION)
-    /// as keeps `text` at 3:1 on it, on a field, on every material.
+    /// as keeps `text` at 3:1 on it, on a field, on the island it is for: a
+    /// see-through one ([`Ui::colors`](crate::Ui::colors)) has its own.
     pub selection: Color,
 }
 
@@ -218,31 +219,22 @@ impl Palette {
         away(self.text, self.island)
     }
 
-    /// The accent's fill as a field's selection, at the most of
-    /// `opacity::SELECTION` that keeps `text` at 3:1 on it over `surface`,
-    /// with the island solid or as see-through as a material makes it, its
-    /// text as each makes it, and the worst behind.
-    fn work_out_selection(&self) -> Color {
+    /// The palette with its `selection` worked out: the accent's fill at the
+    /// most of `opacity::SELECTION` that keeps `text` at 3:1 on it, on a
+    /// field (`surface`) with the worst behind the island.
+    fn with_selection(self) -> Palette {
         use crate::foundations::tokens::opacity;
-        use crate::ui::Material;
 
-        let fields = [Material::Solid, Material::Translucent, Material::Glass].map(|material| {
-            let palette = match material.opacity() {
-                1.0 => *self,
-                opacity => self.see_through(opacity),
-            };
-            (palette.text, palette.grounds(palette.worst_backdrop())[1])
-        });
+        let field = self.grounds(self.worst_backdrop())[1];
         let fill = self.accent.fill;
         let alpha = (0..=STEPS)
             .map(|step| opacity::SELECTION * (1.0 - step as f32 / STEPS as f32))
-            .find(|&alpha| {
-                fields.iter().all(|&(text, field)| {
-                    contrast(text, over(fill.with_alpha(alpha), field)) >= DIM_CONTRAST
-                })
-            })
+            .find(|&alpha| contrast(self.text, over(fill.with_alpha(alpha), field)) >= DIM_CONTRAST)
             .unwrap_or(0.0);
-        fill.with_alpha(alpha)
+        Palette {
+            selection: fill.with_alpha(alpha),
+            ..self
+        }
     }
 
     /// The palette with the island at `opacity`, its text darkened or
@@ -252,7 +244,8 @@ impl Palette {
     /// the text: black behind a light island turns it grey under dark text,
     /// white behind a dark one turns it grey under light text. Where not
     /// even black or white would read, the island is drawn as much denser
-    /// as lets them.
+    /// as lets them. Its selection is worked out again, for that text on
+    /// that island.
     pub(crate) fn see_through(&self, opacity: f32) -> Palette {
         // The text moves toward the same extreme that is worst behind.
         let worst = self.worst_backdrop();
@@ -282,7 +275,7 @@ impl Palette {
             let floor = SEE_THROUGH_HUE_CONTRAST.min(lowest(*ink, solid));
             *ink = shade(*ink, worst, grounds, floor);
         }
-        palette
+        palette.with_selection()
     }
 }
 
@@ -618,7 +611,7 @@ impl Scheme {
                 text: self.text_of(fill, grounds),
             }
         });
-        let mut palette = Palette {
+        Palette {
             island: self.background,
             surface: self.tint(SURFACE),
             surface2: self.tint(SURFACE2),
@@ -632,9 +625,8 @@ impl Scheme {
             danger,
             ripple: self.tint(RIPPLE),
             selection: Color::TRANSPARENT,
-        };
-        palette.selection = palette.work_out_selection();
-        palette
+        }
+        .with_selection()
     }
 
     /// Surfaces, line and ripple at `alpha`: white over a dark background,

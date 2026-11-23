@@ -99,6 +99,9 @@ pub enum Material {
 }
 
 impl Material {
+    /// Every material, from the most solid.
+    pub const ALL: [Material; 3] = [Material::Solid, Material::Translucent, Material::Glass];
+
     /// The island's opacity. Glass stops at 0.75: past it, an island over a
     /// backdrop of its opposite turns so grey that its text can't keep its
     /// levels apart and still read.
@@ -393,20 +396,37 @@ mod tests {
     #[test]
     fn text_reads_on_every_material_over_the_worst_backdrop() {
         // The text, and every hue as text with each of the accents; `sub`
-        // to 4.5:1 on a solid island and to 3:1 on a see-through one.
+        // to 4.5:1 on a solid island and to 3:1 on a see-through one. And
+        // the text on a field's selection at the 3:1 a control keeps, the
+        // selection no more of the accent than `opacity::SELECTION` and
+        // never so little it doesn't show.
+        use crate::foundations::tokens::opacity;
+        use crate::theme::palette::{DIM_CONTRAST, over};
         for theme in THEMES {
             for flavor in theme.flavors {
                 for (index, accent) in flavor.accents.iter().enumerate() {
                     let palette = flavor.scheme(index).palette();
-                    for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                    for material in Material::ALL {
                         let colors = Ui::new(palette).with_material(material).colors;
+                        let named = || {
+                            format!(
+                                "{} {} {} {material:?}",
+                                theme.name, flavor.name, accent.name
+                            )
+                        };
                         assert_eq!(
                             colors.unreadable(palette.worst_backdrop()),
                             None,
-                            "{} {} {} {material:?}",
-                            theme.name,
-                            flavor.name,
-                            accent.name
+                            "{}",
+                            named()
+                        );
+                        let field = colors.grounds(palette.worst_backdrop())[1];
+                        let selected = contrast(colors.text, over(colors.selection, field));
+                        let alpha = colors.selection.a;
+                        assert!(
+                            selected >= DIM_CONTRAST && alpha > 0.2 && alpha <= opacity::SELECTION,
+                            "{}: selection at {alpha:.2}, its text at {selected:.2}",
+                            named()
                         );
                     }
                 }
@@ -423,7 +443,7 @@ mod tests {
             for flavor in theme.flavors {
                 for (index, accent) in flavor.accents.iter().enumerate() {
                     let palette = flavor.scheme(index).palette();
-                    for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                    for material in Material::ALL {
                         let colors = Ui::new(palette).with_material(material).colors;
                         let island = colors.grounds(palette.worst_backdrop())[0];
                         let [text, sub] =
@@ -662,35 +682,5 @@ mod tests {
         assert_eq!(after, light);
         assert_eq!(midway, after, "eased with no motion");
         assert_eq!(builds, 1, "built again");
-    }
-
-    #[test]
-    fn selected_text_reads_on_every_material() {
-        // The text on a field's selection over `surface`, with every accent
-        // of every preset, at the 3:1 a control keeps, over the worst
-        // backdrop; and the selection as much of the accent as it may be.
-        use crate::foundations::tokens::opacity;
-        use crate::theme::palette::{DIM_CONTRAST, over};
-        for theme in THEMES {
-            for flavor in theme.flavors {
-                for (index, accent) in flavor.accents.iter().enumerate() {
-                    let palette = flavor.scheme(index).palette();
-                    for material in [Material::Solid, Material::Translucent, Material::Glass] {
-                        let c = Ui::new(palette).with_material(material).colors;
-                        let field = c.grounds(palette.worst_backdrop())[1];
-                        assert!(c.selection.a <= opacity::SELECTION);
-                        let band = over(c.selection, field);
-                        let reads = contrast(c.text, band);
-                        assert!(
-                            reads >= DIM_CONTRAST,
-                            "{} {} {} {material:?}: {reads:.2}",
-                            theme.name,
-                            flavor.name,
-                            accent.name
-                        );
-                    }
-                }
-            }
-        }
     }
 }

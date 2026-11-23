@@ -100,7 +100,7 @@ mod tests {
             for flavor in theme.flavors {
                 for (index, accent) in flavor.accents.iter().enumerate() {
                     let palette = flavor.scheme(index).palette();
-                    for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                    for material in Material::ALL {
                         let ui = Ui::new(palette).with_material(material);
                         let colors = ui.colors;
                         let [_, _, track] = colors.grounds(palette.worst_backdrop());
