@@ -346,14 +346,12 @@ pub fn active_fill<M>(
 ) -> impl Fn() -> Color + Copy + 'static {
     // `into_prop` keeps a constant as it is, with no signal made for it,
     // and always carries a value: the fallback is never read.
-    let (on, off) = (look().color(|c| c.accent.fill), off.into_prop());
-    move || {
-        if active.get() {
-            on()
-        } else {
-            off.get_or(Color::TRANSPARENT)
-        }
-    }
+    let off = off.into_prop();
+    look().color(switch(
+        active,
+        |c| c.accent.fill,
+        move |_| off.get_or(Color::TRANSPARENT),
+    ))
 }
 
 /// The ink that reads on [`active_fill`]: `accent.on` while `active`, `off`
@@ -362,14 +360,22 @@ pub fn active_ink<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    let (on, off) = (look().color(|c| c.accent.on), off.into_prop());
-    move || {
-        if active.get() {
-            on()
-        } else {
-            off.get_or(Color::TRANSPARENT)
-        }
-    }
+    let off = off.into_prop();
+    look().color(switch(
+        active,
+        |c| c.accent.on,
+        move |_| off.get_or(Color::TRANSPARENT),
+    ))
+}
+
+/// The role `on` picks while `active`, the one `off` picks while not: what
+/// turns on and off, as `t.color(switch(active, |c| c.accent.fill, |c| c.surface))`.
+pub(crate) fn switch(
+    active: Signal<bool>,
+    on: impl Fn(&Palette) -> Color + Copy + 'static,
+    off: impl Fn(&Palette) -> Color + Copy + 'static,
+) -> impl Fn(&Palette) -> Color + Copy + 'static {
+    move |c| if active.get() { on(c) } else { off(c) }
 }
 
 /// Asks `on_toggle` for the opposite of `active`.

@@ -115,6 +115,10 @@ pub struct HueColors {
 /// the island's [`shadow`](crate::foundations::tokens::shadow) alpha.
 pub const SHADE: Color = Color::BLACK;
 
+/// A colour of the palette, picked from it: what [`Look::color`](crate::Look::color)
+/// takes, as `|c| c.text`.
+pub type Role = fn(&Palette) -> Color;
+
 /// The colours the components read.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Palette {
@@ -179,32 +183,36 @@ impl Palette {
         }
     }
 
-    /// Every colour with its name, in the order a picker lists them: a
-    /// hue's as `accent`, `on_accent` and `accent_text`.
+    /// Every colour's name and the role that picks it, in the order a
+    /// picker lists them: a hue's as `accent`, `on_accent` and
+    /// `accent_text`. A role is what [`Look::color`](crate::Look::color)
+    /// takes, to follow the palette.
+    pub const ROLES: [(&'static str, Role); 20] = [
+        ("island", |c| c.island),
+        ("surface", |c| c.surface),
+        ("surface2", |c| c.surface2),
+        ("line", |c| c.line),
+        ("text", |c| c.text),
+        ("sub", |c| c.sub),
+        ("dim", |c| c.dim),
+        ("accent", |c| c.accent.fill),
+        ("on_accent", |c| c.accent.on),
+        ("accent_text", |c| c.accent.text),
+        ("success", |c| c.success.fill),
+        ("on_success", |c| c.success.on),
+        ("success_text", |c| c.success.text),
+        ("warning", |c| c.warning.fill),
+        ("on_warning", |c| c.warning.on),
+        ("warning_text", |c| c.warning.text),
+        ("danger", |c| c.danger.fill),
+        ("on_danger", |c| c.danger.on),
+        ("danger_text", |c| c.danger.text),
+        ("ripple", |c| c.ripple),
+    ];
+
+    /// Every colour with its name, as [`ROLES`](Self::ROLES) lists them.
     pub fn named(&self) -> [(&'static str, Color); 20] {
-        let [a, s, w, d] = [self.accent, self.success, self.warning, self.danger];
-        [
-            ("island", self.island),
-            ("surface", self.surface),
-            ("surface2", self.surface2),
-            ("line", self.line),
-            ("text", self.text),
-            ("sub", self.sub),
-            ("dim", self.dim),
-            ("accent", a.fill),
-            ("on_accent", a.on),
-            ("accent_text", a.text),
-            ("success", s.fill),
-            ("on_success", s.on),
-            ("success_text", s.text),
-            ("warning", w.fill),
-            ("on_warning", w.on),
-            ("warning_text", w.text),
-            ("danger", d.fill),
-            ("on_danger", d.on),
-            ("danger_text", d.text),
-            ("ripple", self.ripple),
-        ]
+        Self::ROLES.map(|(name, role)| (name, role(self)))
     }
 
     /// What a text can sit on: the island, as it shows over `backdrop`, and

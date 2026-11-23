@@ -11,7 +11,7 @@ use crate::foundations::tokens::{radius, shade, size};
 use crate::foundations::typography::{LABEL_MEDIUM, LABEL_SMALL, Typeset};
 use crate::primitives::layout::centered_row;
 use crate::theme::palette;
-use crate::ui::{flip, look};
+use crate::ui::{flip, look, switch};
 
 fn icon_box() -> f32 {
     Size::Lg.height()
@@ -64,28 +64,23 @@ pub fn tile(
 ) -> impl Widget {
     let t = look();
     // What reads on the tile: the accent's on-colour while on.
-    let on = move |on: Color, off: Color| if active.get() { on } else { off };
-    let ink = t.color(move |c| on(c.accent.on, c.text));
+    let ink = t.color(switch(active, |c| c.accent.on, |c| c.text));
     let toggle = flip(active, on_toggle);
     let label_click = move || match on_open {
         Some(open) => open.run(),
         None => toggle(),
     };
 
-    let rest = move || {
-        if active.get() {
-            palette::SHADE.with_alpha(shade::REST)
-        } else {
-            t.colors().surface2
-        }
-    };
-    let lifted = move || {
-        if active.get() {
-            palette::SHADE.with_alpha(shade::HOVER)
-        } else {
-            hovered(t.colors().surface2)
-        }
-    };
+    let rest = t.color(switch(
+        active,
+        |_| palette::SHADE.with_alpha(shade::REST),
+        |c| c.surface2,
+    ));
+    let lifted = t.color(switch(
+        active,
+        |_| palette::SHADE.with_alpha(shade::HOVER),
+        |c| hovered(c.surface2),
+    ));
     // Where the pointer is on the icon box, a press toggles: the box lights
     // up and the body, whose press opens, stays at rest.
     let over_box = create_signal(false);
@@ -127,7 +122,7 @@ pub fn tile(
                     .typeset(LABEL_SMALL)
                     // On a fill the on-colour is the only one that reads; off
                     // it, the secondary text.
-                    .color(t.eased(move |c| on(c.accent.on, c.sub)))
+                    .color(t.eased(switch(active, |c| c.accent.on, |c| c.sub)))
                     // A long one, as a German one often is, takes a second
                     // line before it is cut.
                     .max_lines(Some(2))
@@ -142,7 +137,7 @@ pub fn tile(
     //
     // Under the pointer the body lights up as a small tile does, unless the
     // pointer is on the icon box.
-    let body = t.color(move |c| on(c.accent.fill, c.surface));
+    let body = t.color(switch(active, |c| c.accent.fill, |c| c.surface));
     let body_lifted = move || {
         if over_box.get() {
             body()
@@ -177,8 +172,7 @@ pub fn small_tile(
     #[prop(callback)] on_toggle: fn(bool),
 ) -> impl Widget {
     let t = look();
-    let on = move |on: Color, off: Color| if active.get() { on } else { off };
-    let rest = t.color(move |c| on(c.accent.fill, c.surface));
+    let rest = t.color(switch(active, |c| c.accent.fill, |c| c.surface));
     pressable(
         toggled(
             container()
@@ -197,6 +191,6 @@ pub fn small_tile(
     .child(icons::icon(
         icon,
         Size::Md.icon(),
-        t.color(move |c| on(c.accent.on, c.text)),
+        t.color(switch(active, |c| c.accent.on, |c| c.text)),
     ))
 }

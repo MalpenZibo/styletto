@@ -11,8 +11,8 @@ use styletto::foundations::tokens::{radius, size, stroke};
 use styletto::foundations::typography as ty;
 use styletto::primitives::island;
 use styletto::primitives::text::{caption, typed};
-use styletto::theme::palette::Hue;
-use styletto::{Icon, centered_row, icon, look, provide_ui, ui};
+use styletto::theme::palette::{Hue, Palette};
+use styletto::{Icon, centered_row, icon, look, provide_ui};
 
 use super::{ICON_SIZES, ICON_STEPS};
 use crate::stories::story::Ctx;
@@ -24,20 +24,16 @@ pub fn colors(_: &Ctx) -> Container {
     container()
         .layout(Flex::column().spacing(size::S6.px()))
         .child(grid(
-            // Only the names are read here, the same in every palette; each
-            // colour is read where it is painted.
-            ui().colors
-                .named()
+            Palette::ROLES
                 .into_iter()
-                .enumerate()
-                .map(|(index, (name, _))| {
+                .map(|(name, role)| {
                     named(
                         name,
                         container()
                             .width(size::S15.px())
                             .height(size::S10.px())
                             .corners(radius::SMALL.corners())
-                            .background(t.eased(move |c| c.named()[index].1))
+                            .background(t.eased(role))
                             .border(stroke::HAIRLINE, t.eased(|c| c.line)),
                     )
                 })

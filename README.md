@@ -228,8 +228,11 @@ the colour `on` it and its `text`; `palette.hue(Hue::Danger)` reads one by
 its `Hue` (`Scheme::fill(hue)` its theme's colours), `Hue::ALL` lists the
 four and `hue.name()` names one. `palette.ink(hue)` is the hue as text, or
 `text` without one (`None`), what a component toned or left neutral writes
-in. One colour is the same in every theme: `palette::SHADE`, the black of a
-shadow or of a box sunk into a fill.
+in. `Palette::ROLES` lists every colour but `selection` by its name with
+the `Role` that picks it (`fn(&Palette) -> Color`, what `t.color` takes),
+and `palette.named()` gives them with their colours. One colour is the same
+in every theme: `palette::SHADE`, the black of a shadow or of a box sunk
+into a fill.
 
 Two inks are worked out where they are drawn, as Material 3 does. A
 switch's knob is `accent.on` while on, and `sub` while off: as `sub` reads
