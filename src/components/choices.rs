@@ -11,7 +11,8 @@ use crate::primitives::layout::centered_row;
 /// One of `options` to choose, as buttons, the chosen one `active`, as
 /// many to a line as fit. A press calls `on_choose` with its value; the
 /// app sets `chosen`, as it does a toggle's `active`. Generic over the
-/// value, an app's own enum as well as styletto's.
+/// value, an app's own enum as well as styletto's. Disabled, every option
+/// fades as a disabled button does and takes no press.
 #[component]
 pub fn choices<T: Copy + PartialEq + 'static>(
     /// Each option's label and value, in the order they show.
@@ -20,6 +21,9 @@ pub fn choices<T: Copy + PartialEq + 'static>(
     /// The value chosen; an option is `active` while its value is it.
     #[prop(required)]
     chosen: T,
+    /// Whether the options take a press.
+    #[prop(default = true)]
+    enabled: bool,
     /// Called with the value of the option pressed.
     #[prop(callback)]
     on_choose: fn(T),
@@ -29,6 +33,7 @@ pub fn choices<T: Copy + PartialEq + 'static>(
         Fill::Solid,
         options,
         chosen,
+        enabled,
         on_choose,
     )
     .width(fill())
@@ -38,7 +43,7 @@ pub fn choices<T: Copy + PartialEq + 'static>(
 /// one `active`, as tall as a header's buttons, to sit between its title
 /// and its close button. They never wrap: a header holds as many as fit on
 /// its line. As [`choices`], a press calls `on_choose` with its value and
-/// the app sets `chosen`.
+/// the app sets `chosen`, and disabled they fade and take no press.
 #[component]
 pub fn tabs<T: Copy + PartialEq + 'static>(
     /// Each tab's label and value, in the order they show.
@@ -47,6 +52,9 @@ pub fn tabs<T: Copy + PartialEq + 'static>(
     /// The current tab's value.
     #[prop(required)]
     chosen: T,
+    /// Whether the tabs take a press.
+    #[prop(default = true)]
+    enabled: bool,
     /// Called with the value of the tab pressed.
     #[prop(callback)]
     on_choose: fn(T),
@@ -56,6 +64,7 @@ pub fn tabs<T: Copy + PartialEq + 'static>(
         Fill::Ghost,
         options,
         chosen,
+        enabled,
         on_choose,
     )
 }
@@ -67,6 +76,7 @@ fn buttons<T: Copy + PartialEq + 'static>(
     fill: Fill,
     options: Signal<Vec<(String, T)>>,
     chosen: Signal<T>,
+    enabled: Signal<bool>,
     on_choose: Option<Callback<(T,)>>,
 ) -> Container {
     container().layout(layout).children(move || {
@@ -75,6 +85,7 @@ fn buttons<T: Copy + PartialEq + 'static>(
                 .label(name)
                 .fill(fill)
                 .active(move || chosen.get() == value)
+                .enabled(enabled)
                 .on_click(move || {
                     if let Some(on_choose) = on_choose {
                         on_choose.run(value);

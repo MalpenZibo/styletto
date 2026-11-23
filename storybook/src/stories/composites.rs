@@ -540,6 +540,7 @@ enum Hours {
 /// spaced the same.
 pub fn settings(ctx: &Ctx) -> Container {
     let notes = ctx.bool("Notes", true);
+    let enabled = ctx.bool("Enabled", true);
     let chose_edge = ctx.action_with::<Edge>("edge");
     let chose_hours = ctx.action_with::<Hours>("hours");
     let edge = create_signal(Edge::Top);
@@ -568,6 +569,7 @@ pub fn settings(ctx: &Ctx) -> Container {
                                     ],
                                     edge,
                                 )
+                                .enabled(enabled)
                                 .on_choose(move |chosen| {
                                     edge.set(chosen);
                                     chose_edge(chosen);
@@ -583,6 +585,7 @@ pub fn settings(ctx: &Ctx) -> Container {
                                 ],
                                 hours,
                             )
+                            .enabled(enabled)
                             .on_choose(move |chosen| {
                                 hours.set(chosen);
                                 chose_hours(chosen);
@@ -607,6 +610,7 @@ const STEPS: &[&str] = &["1", "2", "3", "4", "5"];
 pub fn tabs_and_steps(ctx: &Ctx) -> Container {
     let tab = ctx.choice("Tab", TABS, 1);
     let page = ctx.choice("Page", STEPS, 1);
+    let enabled = ctx.bool("Enabled", true);
     let closed = ctx.action("close");
     let done = ctx.action("done");
     let t = ui();
@@ -622,6 +626,7 @@ pub fn tabs_and_steps(ctx: &Ctx) -> Container {
                     .collect::<Vec<_>>(),
                 tab,
             )
+            .enabled(enabled)
             .on_choose(move |index| tab.set(index)),
         )
         .child(side(
@@ -703,10 +708,12 @@ fn panel_frame() -> Container {
 mod tests {
     use guido::prelude::*;
     use styletto::Icon;
+    use styletto::components::choices::{choices, tabs};
     use styletto::components::tile::{small_tile, tile};
     use styletto::foundations::control::Size;
     use styletto::foundations::tokens::size as space;
 
+    use super::Edge;
     use crate::stories::mounted::Mounted;
 
     /// The middle of a wide tile's icon box, its sides inset as much from
@@ -782,5 +789,56 @@ mod tests {
         active.set(true);
         m.step();
         assert_eq!(m.click(50.0, 20.0), [false]);
+    }
+
+    #[test]
+    fn disabled_choices_take_no_press() {
+        let Some((mut m, enabled)) = Mounted::<Edge>::new(|log| {
+            let enabled = create_signal(true);
+            let edges = choices(
+                vec![
+                    ("Top".to_string(), Edge::Top),
+                    ("Bottom".to_string(), Edge::Bottom),
+                ],
+                Edge::Bottom,
+            )
+            .enabled(enabled)
+            .on_choose(move |edge| log.borrow_mut().push(edge));
+            (container().width(200.0).child(edges), enabled)
+        }) else {
+            return;
+        };
+
+        assert_eq!(m.click(8.0, 8.0), [Edge::Top]);
+        enabled.set(false);
+        m.step();
+        assert_eq!(m.click(8.0, 8.0), []);
+        enabled.set(true);
+        m.step();
+        assert_eq!(m.click(8.0, 8.0), [Edge::Top]);
+    }
+
+    #[test]
+    fn disabled_tabs_take_no_press() {
+        let Some((mut m, enabled)) = Mounted::<Edge>::new(|log| {
+            let enabled = create_signal(false);
+            let edges = tabs(
+                vec![
+                    ("Top".to_string(), Edge::Top),
+                    ("Bottom".to_string(), Edge::Bottom),
+                ],
+                Edge::Bottom,
+            )
+            .enabled(enabled)
+            .on_choose(move |edge| log.borrow_mut().push(edge));
+            (container().child(edges), enabled)
+        }) else {
+            return;
+        };
+
+        assert_eq!(m.click(8.0, 8.0), []);
+        enabled.set(true);
+        m.step();
+        assert_eq!(m.click(8.0, 8.0), [Edge::Top]);
     }
 }

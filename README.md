@@ -446,7 +446,8 @@ other end of the line if given, and what sets it underneath; `choices(options,
 chosen)` is a row of buttons that wraps, one per option, the one whose value
 is `chosen` `active`. It is generic over the value, any `Copy + PartialEq`
 type, and controlled as a toggle is: a press calls `on_choose` with the
-option's value, and the app sets `chosen`.
+option's value, and the app sets `chosen`. With `enabled` false, its
+options fade and take no press, as a disabled button does.
 
 ```rust
 use styletto::components::appearance::layout_picker; // with the `serde` feature
@@ -471,12 +472,12 @@ setting_group("Layout").child(layout_picker(config));
 `tabs(options, chosen)` is the same choice as a window's tabs: ghost
 buttons on one line, the current one `active`, as tall as a header's
 buttons, to sit between its title and its close button; it takes the same
-values and `on_choose`. Where a flow of pages stands, as a first start's
-steps, is a `page_indicator(count, current)`: a dot for each page in
-`dim`, the current one stretched into a short pill in the accent as text,
-which reads on the island on every material (the fill may not). It takes
-no press: the flow's own buttons move it, Back and Next at the footer's
-ends.
+values, `enabled` and `on_choose`. Where a flow of pages stands, as a
+first start's steps, is a `page_indicator(count, current)`: a dot for each
+page in `dim`, the current one stretched into a short pill in the accent
+as text, which reads on the island on every material (the fill may not).
+It takes no press: the flow's own buttons move it, Back and Next at the
+footer's ends.
 
 ```rust
 use styletto::components::choices::tabs;
