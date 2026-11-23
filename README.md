@@ -595,7 +595,10 @@ draws and not in a reactive closure: it reads a picture not read yet on the
 calling thread, which waits for it, and puts it in the same store, so the
 surfaces after it take it at once and nothing reads it again. A picture that
 can't be read is logged and the theme shows, as with `ui`; without the
-`wallpaper` feature it is `ui`.
+`wallpaper` feature it is `ui`. An app whose `Ui` is a memo over the config
+calls `config.read_wallpaper_blocking()` instead, at the same moment (once,
+before it draws, outside the memo): the same read, building no `Ui`, so the
+memo's first run is already in the wallpaper's colours.
 A picture changed at the same path is read again with
 `config.update(UiConfig::reread_wallpaper)`, from the app's own file
 watcher (styletto watches no file) on the `App`'s thread, or on Enter over

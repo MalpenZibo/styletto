@@ -4,8 +4,9 @@
 //! `UiConfig` whose source is a wallpaper reads it here, and so do the
 //! appearance controls, which show what the reading came to. An app whose
 //! first frame must already be in the wallpaper's colours reads it once on
-//! the calling thread instead, with `UiConfig::ui_blocking`: what it finds
-//! goes into the same store, so nothing reads it again.
+//! the calling thread instead, with `UiConfig::ui_blocking` (or
+//! `read_wallpaper_blocking`, which builds no `Ui`): what it finds goes
+//! into the same store, so nothing reads it again.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -95,8 +96,9 @@ fn started<R>(store: RwSignal<Pictures>, f: impl FnOnce(&mut Started) -> R) -> R
 ///
 /// Call it on the `App`'s thread: the store is that thread's. A program
 /// with no running `App`, as a one-off render, never sees a read end: it
-/// asks with `UiConfig::ui_blocking` (`serde` feature), which reads the
-/// picture on its thread, or reads it itself with [`material::seeds`].
+/// asks with `UiConfig::ui_blocking` or `read_wallpaper_blocking` (`serde`
+/// feature), which read the picture on its thread, or reads it itself with
+/// [`material::seeds`].
 pub fn picture(path: &Path) -> Picture {
     let pictures = PICTURES.get();
     if let Some(picture) = pictures.with(|read| read.get(path).cloned()) {
@@ -412,6 +414,35 @@ mod tests {
         assert_eq!(config.ui_blocking(None), read);
         assert_eq!(reads(&path), 1, "read more than once");
         std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn a_blocking_read_alone_gives_a_memo_the_wallpaper_on_its_first_run() {
+        let Some(mut h) = Headless::new_or_skip() else {
+            return;
+        };
+        let path = write_picture("blocking-alone");
+        let file = path.clone();
+        let read = read_now(&config(&path));
+        let runs: Seen = Seen::default();
+        let log = runs.clone();
+        let id = h.surface(SurfaceConfig::new(), move || {
+            // As an app does: the read, then a memo over the config signal.
+            let config = create_signal(config(&path));
+            config.with_untracked(|c| c.read_wallpaper_blocking());
+            let ui = create_memo(move || config.with(|c| c.ui(None)));
+            let log = log.clone();
+            create_effect(move || log.borrow_mut().push(ui.get()));
+            container()
+        });
+        h.configure(id, 10, 10, 1.0);
+        h.step();
+        h.step();
+        assert!(!reading());
+        // One run, in the colours already: no theme first, no second read.
+        assert_eq!(*runs.borrow(), [read]);
+        assert_eq!(reads(&file), 1, "read more than once");
+        std::fs::remove_file(&file).ok();
     }
 
     #[test]

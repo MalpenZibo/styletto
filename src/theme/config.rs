@@ -147,17 +147,47 @@ impl UiConfig {
     /// Call it once, before the app draws, on the `App`'s thread if there is
     /// one. Not in a reactive closure: it blocks the thread for the read, and
     /// writes the store the closure reads; there, [`ui`] follows the config.
+    /// For a `Ui` worked out in a memo, see [`read_wallpaper_blocking`].
     ///
     /// [`ui`]: Self::ui
+    /// [`read_wallpaper_blocking`]: Self::read_wallpaper_blocking
     pub fn ui_blocking(&self, system_dark: Option<bool>) -> Ui {
-        #[cfg(feature = "wallpaper")]
-        if let Some(path) = self.wallpaper_path() {
-            crate::theme::wallpaper::read_blocking(&path);
-        }
+        self.read_wallpaper_blocking();
         // Called outside a reactive closure, as it is meant to be: Guido's
         // debug builds would warn there that the store's read is a snapshot,
         // which is what this asks for. It silences the warning, nothing else.
         guido::reactive::diagnostics::snapshot_zone(|| self.ui(system_dark))
+    }
+
+    /// Reads the wallpaper on the calling thread, as [`ui_blocking`] does,
+    /// and builds no `Ui`: for an app whose `Ui` is a memo over the config,
+    /// so the memo's first run finds the picture read and is already in its
+    /// colours.
+    ///
+    /// ```no_run
+    /// # use guido::prelude::*;
+    /// # use styletto::theme::config::UiConfig;
+    /// let config = create_signal(UiConfig::default());
+    /// config.with_untracked(|c| c.read_wallpaper_blocking());
+    /// let ui = create_memo(move || config.with(|c| c.ui(None)));
+    /// ```
+    ///
+    /// As with [`ui_blocking`]: a picture the store has already, read or
+    /// failed, is left as it is, and one that can't be read is logged, so
+    /// the theme shows. Call it once, before the app draws, on the `App`'s
+    /// thread (the store is that thread's), and not in a reactive closure:
+    /// it blocks for the read and writes the store the closure reads. A
+    /// wallpaper set later is read as [`ui`] reads it, on a thread of its
+    /// own. Without a wallpaper chosen, or without the `wallpaper` feature,
+    /// it does nothing.
+    ///
+    /// [`ui`]: Self::ui
+    /// [`ui_blocking`]: Self::ui_blocking
+    pub fn read_wallpaper_blocking(&self) {
+        #[cfg(feature = "wallpaper")]
+        if let Some(path) = self.wallpaper_path() {
+            crate::theme::wallpaper::read_blocking(&path);
+        }
     }
 
     /// Both sides, the dark one first, with their colours set over them.
