@@ -58,14 +58,12 @@ pub fn field(ctx: &Ctx) -> Container {
             .child(icon(Icon::Search, icon_box::SMALL.px(), t.color(|c| c.dim)))
             .child(
                 container().width(fill()).child(
-                    // Guido gives a placeholder and a cursor no motion: they
-                    // change palette at once.
                     text_input(typed)
                         .typeset(ty::TITLE_XSMALL)
                         .color(t.eased(|c| c.text))
                         .placeholder("Search apps".to_string())
-                        .placeholder_color(t.color(|c| c.sub))
-                        .cursor_color(t.color(|c| c.accent.text))
+                        .placeholder_color(t.eased(|c| c.sub))
+                        .cursor_color(t.eased(|c| c.accent.text))
                         .on_submit(move |value| submitted(value.to_string())),
                 ),
             )
@@ -104,8 +102,8 @@ pub fn password_field(ctx: &Ctx) -> Container {
                         .typeset(ty::LABEL_MEDIUM)
                         .color(t.eased(|c| c.text))
                         .placeholder("Password".to_string())
-                        .placeholder_color(t.color(|c| c.sub))
-                        .cursor_color(t.color(|c| c.accent.text))
+                        .placeholder_color(t.eased(|c| c.sub))
+                        .cursor_color(t.eased(|c| c.accent.text))
                         .readonly(held)
                         .on_submit(submitted.clone()),
                 ),

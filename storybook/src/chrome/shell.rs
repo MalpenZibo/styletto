@@ -483,7 +483,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use crate::stories::STORIES;
-    use crate::stories::mounted::settle;
+    use crate::stories::mounted::{redraw, settle};
     use crate::stories::story::{Ctx, Story};
 
     thread_local! {
@@ -594,6 +594,7 @@ mod tests {
             let builds = BUILT.get();
             given.set(glass);
             settle(&mut h, &mut at);
+            redraw(&mut h, &[changed, built], at);
             let name = format!("{}/{}", story.group, story.name);
             assert_eq!(BUILT.get(), builds, "{name} was built again");
             let (a, b) = (h.read_frame(changed), h.read_frame(built));

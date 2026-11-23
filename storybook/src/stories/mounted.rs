@@ -12,12 +12,31 @@ pub type Asked<T> = Rc<RefCell<Vec<T>>>;
 
 /// Steps every surface of `h` a frame every 32 ms for a second after `at`,
 /// long enough for a colour to ease into a new palette, and moves `at` to
-/// the last frame. Surfaces stepped together this way move alike.
+/// the last frame. Surfaces stepped together this way move alike. Each frame
+/// waits for the pictures being decoded, as the shot tool does: they arrive
+/// in real time, which a simulated second doesn't wait for.
 pub fn settle(h: &mut Headless, at: &mut Instant) {
     for _ in 0..32 {
         *at += Duration::from_millis(32);
+        h.wait_for_image_decodes();
         h.step_at(*at);
     }
+}
+
+/// Lays out and paints `surfaces` again, whole, at `at`, so two frames
+/// compared are drawn at the same moment: one surface that changed nothing
+/// since its first frame would otherwise keep that frame, drawn while the
+/// renderer was still starting.
+pub fn redraw(h: &mut Headless, surfaces: &[SurfaceId], at: Instant) {
+    let sizes: Vec<_> = surfaces.iter().map(|&id| h.physical_size(id)).collect();
+    for (&id, &(width, height)) in surfaces.iter().zip(&sizes) {
+        h.configure_size(id, width + 1, height);
+    }
+    h.step_at(at);
+    for (&id, &(width, height)) in surfaces.iter().zip(&sizes) {
+        h.configure_size(id, width, height);
+    }
+    h.step_at(at);
 }
 
 /// A tree mounted headless, 200 by 100, with what it asked.

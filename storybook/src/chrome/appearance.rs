@@ -383,7 +383,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use super::Appearance;
-    use crate::stories::mounted::settle;
+    use crate::stories::mounted::{redraw, settle};
 
     #[test]
     fn the_page_keeps_the_sides_apart() {
@@ -469,6 +469,7 @@ mod tests {
             c.dark.insert("accent".to_string(), "#00ff00".to_string());
         });
         settle(&mut h, &mut at);
+        redraw(&mut h, &[changed, built], at);
         assert!(
             h.read_frame(changed) == h.read_frame(built),
             "the field did not show the colour set elsewhere"
@@ -542,6 +543,7 @@ mod tests {
         let a: Appearance = probe.take().unwrap();
         a.config.set(light);
         settle(&mut h, &mut at);
+        redraw(&mut h, &[changed, built], at);
         assert!(
             h.read_frame(changed) == h.read_frame(built),
             "the preview kept a colour of the old palette"
