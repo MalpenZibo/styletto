@@ -6,7 +6,7 @@
 //! ```text
 //! styletto-storybook shot --list
 //! styletto-storybook shot <Group/Story> <out.png> [--size WxH] [--scale S]
-//!     [--set "Control=value"]... [key=value]...
+//!     [--set "Control=value"]... [--select TEXT] [key=value]...
 //! ```
 
 use std::cell::RefCell;
@@ -27,7 +27,10 @@ use crate::stories::story::{Control, Ctx};
 const USAGE: &str = "\
 usage: styletto-storybook shot --list
        styletto-storybook shot <Group/Story> <out.png> [--size WxH] [--scale S]
-           [--set \"Control=value\"]... [key=value]...
+           [--set \"Control=value\"]... [--select TEXT] [key=value]...
+
+--select types TEXT into the story's first field, which a Tab focuses, and
+selects it all.
 
 key=value are the keys of the [appearance] table: theme, dark_flavor,
 light_flavor, accent, dark_accent, light_accent, seed, wallpaper,
@@ -72,6 +75,8 @@ struct Shot {
     size: (u32, u32),
     scale: f32,
     controls: Vec<(String, String)>,
+    /// Typed into the first field and selected, to show a selection.
+    select: Option<String>,
     appearance: Vec<(String, String)>,
 }
 
@@ -96,6 +101,7 @@ fn parse(args: &[String]) -> Result<Shot, String> {
     let mut size = SIZE;
     let mut scale = 1.0;
     let mut controls = Vec::new();
+    let mut select = None;
     let mut appearance = Vec::new();
     let mut args = args.iter();
     while let Some(arg) = args.next() {
@@ -128,6 +134,7 @@ fn parse(args: &[String]) -> Result<Shot, String> {
                     .ok_or_else(|| format!("--set {v}: expected Control=value"))?;
                 controls.push((name.trim().to_string(), to.trim().to_string()));
             }
+            "--select" => select = Some(value("--select")?),
             flag if flag.starts_with("--") => {
                 return Err(format!("unknown flag {flag}\n\n{USAGE}"));
             }
@@ -150,6 +157,7 @@ fn parse(args: &[String]) -> Result<Shot, String> {
         size,
         scale,
         controls,
+        select,
         appearance,
     })
 }
@@ -226,6 +234,10 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
     // build the whole story again, which would reset the controls.
     h.step_at(start);
     read(&mut h, start)?;
+    let start = match &shot.select {
+        Some(text) => select(&mut h, id, text, start),
+        None => start,
+    };
     settle(&mut h, start);
 
     let (width, height) = h.physical_size(id);
@@ -254,6 +266,29 @@ fn read(h: &mut Headless, at: Instant) -> Result<(), String> {
         h.step_at(at);
     }
     Ok(())
+}
+
+/// Tabs into the first field, types `text` and selects it all, a key a
+/// frame from `at`; gives the moment of the last.
+fn select(h: &mut Headless, id: SurfaceId, text: &str, mut at: Instant) -> Instant {
+    let ctrl = Modifiers {
+        ctrl: true,
+        ..Modifiers::default()
+    };
+    let keys = std::iter::once((Key::Tab, Modifiers::default()))
+        .chain(text.chars().map(|c| (Key::Char(c), Modifiers::default())))
+        .chain([(Key::Char('a'), ctrl)]);
+    for (key, modifiers) in keys {
+        at += FRAME;
+        let down = Event::KeyDown {
+            key,
+            modifiers,
+            repeat: false,
+        };
+        h.event_at(id, down, at);
+        h.step_at(at);
+    }
+    at
 }
 
 /// Steps through as much simulated time as the longest animation takes. It

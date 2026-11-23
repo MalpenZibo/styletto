@@ -141,6 +141,8 @@ or a circle is round (`radius::pill(height)`). A box around another takes
 
 Fixed values: `stroke::HAIRLINE` 1, `RING` 1.5, `BOLD` 2, `HEAVY` 3;
 `opacity::DISABLED` 0.4, `RING` 0.7 (a field's ring in the accent),
+`SELECTION` 0.25 (a field's selection in the accent, as far as its text
+keeps 3:1 with every preset's accents, on every material),
 `STACKED` 0.6 (a share of `surface`'s alpha, for the edge below a folded
 group of notifications), `HALO` 0.5 (a share of the glow's alpha, for the
 island's halo); `glow::SMALL` 4, `MEDIUM` 8, `LARGE` 16 (the island's

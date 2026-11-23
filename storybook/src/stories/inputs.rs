@@ -5,7 +5,7 @@ use styletto::components::input::{field as frame, password_field as secret};
 use styletto::components::slider::slider as quick_slider;
 use styletto::components::toggle::toggle as switch;
 use styletto::foundations::control::Size;
-use styletto::foundations::tokens::{icon as icon_box, size as space};
+use styletto::foundations::tokens::{icon as icon_box, opacity, size as space};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
 use styletto::primitives::text::label;
@@ -64,6 +64,7 @@ pub fn field(ctx: &Ctx) -> Container {
                         .placeholder("Search apps".to_string())
                         .placeholder_color(t.eased(|c| c.sub))
                         .cursor_color(t.eased(|c| c.accent.text))
+                        .selection_color(t.eased(|c| c.accent.fill.with_alpha(opacity::SELECTION)))
                         .on_submit(move |value| submitted(value.to_string())),
                 ),
             )
@@ -104,6 +105,7 @@ pub fn password_field(ctx: &Ctx) -> Container {
                         .placeholder("Password".to_string())
                         .placeholder_color(t.eased(|c| c.sub))
                         .cursor_color(t.eased(|c| c.accent.text))
+                        .selection_color(t.eased(|c| c.accent.fill.with_alpha(opacity::SELECTION)))
                         .readonly(held)
                         .on_submit(submitted.clone()),
                 ),

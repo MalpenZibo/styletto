@@ -664,4 +664,33 @@ mod tests {
         assert_eq!(midway, after, "eased with no motion");
         assert_eq!(builds, 1, "built again");
     }
+
+    #[test]
+    fn selected_text_reads_on_every_material() {
+        // The text on a field's selection, the accent's fill at
+        // `opacity::SELECTION` over `surface`, with every accent of every
+        // preset, at the 3:1 a control keeps, over the worst backdrop.
+        use crate::foundations::tokens::opacity;
+        use crate::theme::palette::{DIM_CONTRAST, over};
+        for theme in THEMES {
+            for flavor in theme.flavors {
+                for (index, accent) in flavor.accents.iter().enumerate() {
+                    let palette = flavor.scheme(index).palette();
+                    for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                        let c = Ui::new(palette).with_material(material).colors;
+                        let field = c.grounds(palette.worst_backdrop())[1];
+                        let band = over(c.accent.fill.with_alpha(opacity::SELECTION), field);
+                        let reads = contrast(c.text, band);
+                        assert!(
+                            reads >= DIM_CONTRAST,
+                            "{} {} {} {material:?}: {reads:.2}",
+                            theme.name,
+                            flavor.name,
+                            accent.name
+                        );
+                    }
+                }
+            }
+        }
+    }
 }
