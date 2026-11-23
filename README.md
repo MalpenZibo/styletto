@@ -506,7 +506,9 @@ A settings panel is made of three pieces, which the appearance controls
 are built from too, so an app's own settings sit beside styletto's spaced
 the same. `setting_group(title)` is a section's title with its settings
 under it, set in from the edge; `setting(name)` is a name, a `note` at the
-other end of the line if given, and what sets it underneath; `choices(options,
+other end of the line if given (wrapped onto more lines, never cut short,
+where it is longer than the room beside the name, as a translation may
+be), and what sets it underneath; `choices(options,
 chosen)` is a row of buttons that wraps, one per option, the one whose value
 is `chosen` `active`. It is generic over the value, any `Copy + PartialEq`
 type, and controlled as a toggle is: a press calls `on_choose` with the
