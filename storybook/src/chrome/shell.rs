@@ -10,7 +10,7 @@ use styletto::components::list::row;
 use styletto::components::slider::slider;
 use styletto::components::toggle::toggle;
 use styletto::foundations::control::Size;
-use styletto::foundations::tokens::{icon as icon_box, opacity, size as space, stroke};
+use styletto::foundations::tokens::{icon as icon_box, size as space, stroke};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
 use styletto::foundations::{motion, tokens};
@@ -466,7 +466,7 @@ fn control_row(control: &Control) -> Container {
                     text_input(*value)
                         .typeset(ty::LABEL_MEDIUM)
                         .color(t.eased(|c| c.text))
-                        .selection_color(t.eased(|c| c.accent.fill.with_alpha(opacity::SELECTION))),
+                        .selection_color(t.eased(|c| c.selection)),
                 ),
         ),
     }

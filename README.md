@@ -140,8 +140,9 @@ or a circle is round (`radius::pill(height)`). A box around another takes
 
 Fixed values: `stroke::HAIRLINE` 1, `RING` 1.5, `BOLD` 2, `HEAVY` 3;
 `opacity::DISABLED` 0.4, `RING` 0.7 (a field's ring in the accent),
-`SELECTION` 0.25 (a field's selection in the accent, as far as its text
-keeps 3:1 with every preset's accents, on every material),
+`SELECTION` 0.4 (the most of the accent a field's selection takes; each
+palette's `selection` takes as much of it as keeps its text at 3:1, on
+every material),
 `STACKED` 0.6 (a share of `surface`'s alpha, for the edge below a folded
 group of notifications), `HALO` 0.5 (a share of the glow's alpha, for the
 island's halo); `glow::SMALL` 4, `MEDIUM` 8, `LARGE` 16 (the island's
@@ -213,7 +214,10 @@ colours by the names of the config file (`background`, `on_accent`,
 
 Components read the `Palette` derived from it: `island`, `surface`,
 `surface2`, `line`, `text`, `sub`, `dim`, the four hues `accent`, `success`,
-`warning` and `danger`, and `ripple`. Each hue is a `HueColors`: its `fill`,
+`warning` and `danger`, `ripple`, and `selection`, a field's selection: the
+accent's fill at as much of `opacity::SELECTION` (0.4) as keeps `text` at
+3:1 on it, on a field, on every material, worked out when the palette is
+built (from 0.26 with the palest accents to 0.4 with most). Each hue is a `HueColors`: its `fill`,
 the colour `on` it and its `text`; `palette.hue(Hue::Danger)` reads one by
 its `Hue` (`Scheme::fill(hue)` its theme's colours), `Hue::ALL` lists the
 four and `hue.name()` names one. `palette.ink(hue)` is the hue as text, or
@@ -445,7 +449,10 @@ A text field, `input::field`, is a pill on the surface holding the app's
 `text_input` and a trailing button if given. Its ring is the accent at
 `opacity::RING`, `danger` while `refused` (the last answer was refused and
 nothing new is typed); a ring of the app's own, `.ring(color)`, takes the
-place of both, and a closure giving `None` hands it back to that rule. `password_field` is a field whose end submits, or spins while
+place of both, and a closure giving `None` hands it back to that rule. The
+`text_input` is the app's, and so are its colours: the palette's `text`,
+`sub` for the placeholder, `accent.text` for the cursor and `selection`, as
+`.selection_color(t.eased(|c| c.selection))`. `password_field` is a field whose end submits, or spins while
 `busy`; `held`, it fades.
 
 ```rust

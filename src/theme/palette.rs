@@ -136,6 +136,10 @@ pub struct Palette {
     pub danger: HueColors,
     /// The ripple of a press.
     pub ripple: Color,
+    /// A field's selection: the accent's fill, at as much of
+    /// [`opacity::SELECTION`](crate::foundations::tokens::opacity::SELECTION)
+    /// as keeps `text` at 3:1 on it, on a field, on every material.
+    pub selection: Color,
 }
 
 impl Default for Palette {
@@ -212,6 +216,33 @@ impl Palette {
     /// under dark text, white under light text.
     pub(crate) fn worst_backdrop(&self) -> Color {
         away(self.text, self.island)
+    }
+
+    /// The accent's fill as a field's selection, at the most of
+    /// `opacity::SELECTION` that keeps `text` at 3:1 on it over `surface`,
+    /// with the island solid or as see-through as a material makes it, its
+    /// text as each makes it, and the worst behind.
+    fn work_out_selection(&self) -> Color {
+        use crate::foundations::tokens::opacity;
+        use crate::ui::Material;
+
+        let fields = [Material::Solid, Material::Translucent, Material::Glass].map(|material| {
+            let palette = match material.opacity() {
+                1.0 => *self,
+                opacity => self.see_through(opacity),
+            };
+            (palette.text, palette.grounds(palette.worst_backdrop())[1])
+        });
+        let fill = self.accent.fill;
+        let alpha = (0..=STEPS)
+            .map(|step| opacity::SELECTION * (1.0 - step as f32 / STEPS as f32))
+            .find(|&alpha| {
+                fields.iter().all(|&(text, field)| {
+                    contrast(text, over(fill.with_alpha(alpha), field)) >= DIM_CONTRAST
+                })
+            })
+            .unwrap_or(0.0);
+        fill.with_alpha(alpha)
     }
 
     /// The palette with the island at `opacity`, its text darkened or
@@ -587,7 +618,7 @@ impl Scheme {
                 text: self.text_of(fill, grounds),
             }
         });
-        Palette {
+        let mut palette = Palette {
             island: self.background,
             surface: self.tint(SURFACE),
             surface2: self.tint(SURFACE2),
@@ -600,7 +631,10 @@ impl Scheme {
             warning,
             danger,
             ripple: self.tint(RIPPLE),
-        }
+            selection: Color::TRANSPARENT,
+        };
+        palette.selection = palette.work_out_selection();
+        palette
     }
 
     /// Surfaces, line and ripple at `alpha`: white over a dark background,

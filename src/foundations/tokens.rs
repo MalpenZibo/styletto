@@ -253,11 +253,11 @@ pub mod opacity {
     /// The island's halo around a state worth seeing: a share of the glow's
     /// alpha.
     pub const HALO: f32 = 0.5;
-    /// A field's selection: the accent's fill behind the selected text, as
-    /// far as the text keeps 3:1 on it with every preset's accents, on every
-    /// material. Past it a pale accent behind light text (Catppuccin Mocha's
-    /// rosewater, on glass) falls under.
-    pub const SELECTION: f32 = 0.25;
+    /// The most of the accent's fill a field's selection takes: each
+    /// palette takes as much of it as keeps its text at 3:1 on the
+    /// selection, on every material
+    /// ([`Palette::selection`](crate::theme::palette::Palette::selection)).
+    pub const SELECTION: f32 = 0.4;
 }
 
 /// How far a glow spreads around what it lights.

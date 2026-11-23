@@ -24,7 +24,7 @@ use crate::components::settings::{Setting, setting, setting_group};
 use crate::foundations::control::Size;
 use crate::foundations::icons::{Icon, icon};
 use crate::foundations::motion;
-use crate::foundations::tokens::{icon as icon_box, opacity, radius, size, stroke};
+use crate::foundations::tokens::{icon as icon_box, radius, size, stroke};
 use crate::foundations::typography::{BODY_SMALL, LABEL_MEDIUM, MONO_SMALL, TITLE_XSMALL, Typeset};
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::caption;
@@ -916,7 +916,7 @@ fn typing(input: TextInput) -> Container {
             .color(t.eased(|c| c.text))
             .placeholder_color(t.eased(|c| c.sub))
             .cursor_color(t.eased(|c| c.accent.text))
-            .selection_color(t.eased(|c| c.accent.fill.with_alpha(opacity::SELECTION))),
+            .selection_color(t.eased(|c| c.selection)),
     )
 }
 
