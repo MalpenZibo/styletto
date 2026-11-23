@@ -435,6 +435,9 @@ pub fn scrolling_list(ctx: &Ctx) -> Container {
 
 /// Where the panel's colours come from, for its states to be seen.
 const COLOURS: &[&str] = &["Preset", "Seed", "Wallpaper", "Custom"];
+/// The preset the panel shows: the default, or one with no light flavour,
+/// whose light card says so.
+const PRESETS: &[&str] = &["Default", "Dracula"];
 
 /// The families a font list offers, as an app would find them installed.
 fn families() -> Vec<Family> {
@@ -458,6 +461,7 @@ const PIECES: &[&str] = &["Panel", "Theme", "Mode", "Colour editor", "Fonts", "L
 pub fn appearance(ctx: &Ctx) -> Container {
     let piece = ctx.choice("Piece", PIECES, 0);
     let colours = ctx.choice("Colours", COLOURS, 0);
+    let preset = ctx.choice("Preset", PRESETS, 0);
     let picked = ctx.action("pick wallpaper");
     let config = create_signal(UiConfig::default());
     create_effect(move || {
@@ -470,6 +474,12 @@ pub fn appearance(ctx: &Ctx) -> Container {
                     c.wallpaper = Some(wallpaper_picture().display().to_string());
                 }
             });
+        }
+    });
+    create_effect(move || {
+        let theme = (preset.get() > 0).then(|| PRESETS[preset.get()].to_string());
+        if config.with_untracked(|c| c.theme != theme) {
+            config.update(|c| c.set_theme(theme));
         }
     });
     panel_frame().child(move || {
