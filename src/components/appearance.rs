@@ -27,7 +27,7 @@ use crate::foundations::motion;
 use crate::foundations::tokens::{icon as icon_box, radius, size, stroke};
 use crate::foundations::typography::{BODY_SMALL, LABEL_MEDIUM, MONO_SMALL, TITLE_XSMALL, Typeset};
 use crate::primitives::layout::centered_row;
-use crate::primitives::text::caption;
+use crate::primitives::text::{PaletteColors, caption};
 use crate::theme::config::{Colors, UiConfig};
 use crate::theme::material::{Contrast, Variant};
 use crate::theme::palette::{Palette, Scheme, parse_hex, to_hex};
@@ -476,14 +476,13 @@ fn side_card(
         .background(t.eased(|c| c.surface))
         .border(
             stroke::RING,
-            (move || {
+            t.eased(move |c| {
                 if showing(light) {
-                    t.colors().accent.fill
+                    c.accent.fill
                 } else {
                     Color::TRANSPARENT
                 }
-            })
-            .transition(motion::color()),
+            }),
         )
         .layout(Flex::column().spacing(size::S4.px()))
         .child(
@@ -911,13 +910,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
 /// What is typed in a field, in the text's colours, filling the field up
 /// to its trailing button.
 fn typing(input: TextInput) -> Container {
-    let t = look();
-    container().width(fill()).child(
-        input
-            .color(t.color(|c| c.text))
-            .placeholder_color(t.color(|c| c.sub))
-            .cursor_color(t.color(|c| c.accent.text)),
-    )
+    container().width(fill()).child(input.palette_colors())
 }
 
 /// A dot of a colour, as a seed or a colour set by hand.
@@ -927,7 +920,7 @@ fn dot(color: impl Fn() -> Color + 'static) -> Container {
         .height(size::S4.px())
         .corners(radius::pill(size::S4.px()))
         .border(stroke::HAIRLINE, look().eased(|c| c.line))
-        .background(color)
+        .background(motion::eased_color(color))
 }
 
 /// A dot of `color` to press, ringed in the text's colour while `on`.

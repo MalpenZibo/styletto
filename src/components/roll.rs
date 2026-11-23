@@ -51,7 +51,7 @@ pub fn rolling(
 fn glyph(content: String, look: Resolved, color: Signal<Color>) -> Text {
     text(content)
         .typeset(look)
-        .color(move || color.get())
+        .color(motion::eased_color(color))
         .nowrap()
 }
 

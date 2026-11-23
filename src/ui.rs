@@ -99,6 +99,9 @@ pub enum Material {
 }
 
 impl Material {
+    /// Every material, from the most solid.
+    pub const ALL: [Material; 3] = [Material::Solid, Material::Translucent, Material::Glass];
+
     /// The island's opacity. Glass stops at 0.75: past it, an island over a
     /// backdrop of its opposite turns so grey that its text can't keep its
     /// levels apart and still read.
@@ -207,14 +210,36 @@ impl Ui {
 /// What it is given is worked out once per change, not once per colour
 /// read, and a change that leaves the `Ui` as it was repaints nothing.
 pub fn provide_ui<M>(ui: impl IntoSignal<Ui, M>) {
-    let ui = match ui.into_prop() {
-        // A memo, so a closure runs once per change rather than per colour
-        // read, and a change that leaves the `Ui` as it was repaints nothing.
+    provide_context(Provided(held(ui)));
+}
+
+/// `ui` as a signal worked out once per change: a memo, so a closure runs
+/// once per change rather than per read, and a change that leaves the `Ui`
+/// as it was repaints nothing.
+fn held<M>(ui: impl IntoSignal<Ui, M>) -> Signal<Ui> {
+    match ui.into_prop() {
         Prop::Reactive(ui) => create_memo(move || ui.get()).into_signal(),
         Prop::Const(ui) => create_stored(ui),
         Prop::Unset => create_stored(Ui::default()),
-    };
-    provide_context(Provided(ui));
+    }
+}
+
+/// What `build` makes, given `ui` (a value, or a signal or a closure that
+/// changes) as [`provide_ui`] gives it, and built again only when what
+/// sizes it changes ([`Ui::sizes`]): a new palette or material repaints it
+/// in place, and whatever is open, typed or scrolled in it stays so.
+pub fn themed<M, W: Widget + 'static>(
+    ui: impl IntoSignal<Ui, M>,
+    build: impl Fn() -> W + 'static,
+) -> Container {
+    // Worked out once per change, for the sizes and for what is built.
+    let ui = held(ui);
+    let sizes = create_memo(move || ui.with(Ui::sizes));
+    container().child(move || {
+        sizes.get();
+        provide_context(Provided(ui));
+        build()
+    })
 }
 
 /// The `Ui` provided, as a signal: a fixed one is a signal that never
@@ -246,18 +271,37 @@ impl Look {
         self.with(|ui| ui.colors)
     }
 
-    /// One colour of the palette as a closure a property takes, so it
-    /// follows the palette: `.color(t.color(|c| c.text))`. For a property
-    /// with a motion of its own, or a state layer's override, which takes
-    /// none; elsewhere [`eased`](Self::eased).
-    pub fn color(self, role: fn(&Palette) -> Color) -> impl Fn() -> Color + Copy + 'static {
+    /// A colour of the palette as a closure a property takes, so it follows
+    /// the palette: `.color(t.color(|c| c.text))`. `role` picks it, and may
+    /// read what it captures, a hue or a signal:
+    /// `t.color(move |c| c.hue(hue).fill)`. For a property with a motion of
+    /// its own, or a state layer's override, which takes none; elsewhere
+    /// [`eased`](Self::eased).
+    pub fn color(
+        self,
+        role: impl Fn(&Palette) -> Color + Copy + 'static,
+    ) -> impl Fn() -> Color + Copy + 'static {
         move || self.with(|ui| role(&ui.colors))
     }
 
-    /// One colour of the palette, easing into a new palette at
-    /// [`motion::color`]: for a property with no motion of its own.
-    pub fn eased(self, role: fn(&Palette) -> Color) -> Animated<Color> {
-        self.color(role).transition(motion::color())
+    /// A colour of the palette, as [`color`](Self::color) picks it, easing
+    /// into a new palette or a new pick at [`motion::color`]: for a property
+    /// with no motion of its own. Under [`Motion::None`] it changes at once.
+    pub fn eased(self, role: impl Fn(&Palette) -> Color + Copy + 'static) -> Animated<Color> {
+        // Its own Ui's motion, not the nearest one where it is read: a Look
+        // taken in one subtree may be read in another.
+        let motion = match self.0 {
+            Some(ui) => ui.with_untracked(|ui| ui.motion),
+            None => DEFAULT.with(|ui| ui.motion),
+        };
+        motion::eased_color_in(motion, self.color(role))
+    }
+
+    /// The whole `Ui` as it is now, tracked: for a subtree that provides a
+    /// `Ui` of its own made from this one, and follows it,
+    /// `provide_ui(move || t.ui().with_density(Density::Compact))`.
+    pub fn ui(self) -> Ui {
+        self.with(|ui| *ui)
     }
 
     /// What the island is made of, tracked.
@@ -300,7 +344,14 @@ pub fn active_fill<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    lit(active, look().color(|c| c.accent.fill), off)
+    // `into_prop` keeps a constant as it is, with no signal made for it,
+    // and always carries a value: the fallback is never read.
+    let off = off.into_prop();
+    look().color(switch(
+        active,
+        |c| c.accent.fill,
+        move |_| off.get_or(Color::TRANSPARENT),
+    ))
 }
 
 /// The ink that reads on [`active_fill`]: `accent.on` while `active`, `off`
@@ -309,25 +360,22 @@ pub fn active_ink<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    lit(active, look().color(|c| c.accent.on), off)
+    let off = off.into_prop();
+    look().color(switch(
+        active,
+        |c| c.accent.on,
+        move |_| off.get_or(Color::TRANSPARENT),
+    ))
 }
 
-/// `on` while `active`, `off` while not. A constant `off` is kept as it is,
-/// with no signal made for it: a pill in a bar takes a few.
-fn lit<M>(
+/// The role `on` picks while `active`, the one `off` picks while not: what
+/// turns on and off, as `t.color(switch(active, |c| c.accent.fill, |c| c.surface))`.
+pub(crate) fn switch(
     active: Signal<bool>,
-    on: impl Fn() -> Color + Copy + 'static,
-    off: impl IntoSignal<Color, M>,
-) -> impl Fn() -> Color + Copy + 'static {
-    let off = off.into_prop();
-    // `into_prop` always carries a value: the fallback is never read.
-    move || {
-        if active.get() {
-            on()
-        } else {
-            off.get_or(Color::TRANSPARENT)
-        }
-    }
+    on: impl Fn(&Palette) -> Color + Copy + 'static,
+    off: impl Fn(&Palette) -> Color + Copy + 'static,
+) -> impl Fn(&Palette) -> Color + Copy + 'static {
+    move |c| if active.get() { on(c) } else { off(c) }
 }
 
 /// Asks `on_toggle` for the opposite of `active`.
@@ -350,7 +398,7 @@ pub fn tabular() -> FontFeatures {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::theme::palette::contrast;
+    use crate::theme::palette::{Hue, contrast};
     use crate::theme::presets::{THEMES, ThemeChoice};
 
     #[test]
@@ -364,25 +412,111 @@ mod tests {
     #[test]
     fn text_reads_on_every_material_over_the_worst_backdrop() {
         // The text, and every hue as text with each of the accents; `sub`
-        // to 4.5:1 on a solid island and to 3:1 on a see-through one.
+        // to 4.5:1 on a solid island and to 3:1 on a see-through one. And
+        // the text on a field's selection at the 3:1 a control keeps, the
+        // selection no more of the accent than `opacity::SELECTION` and
+        // never so little it doesn't show.
+        use crate::foundations::tokens::opacity;
+        use crate::theme::palette::{DIM_CONTRAST, over};
         for theme in THEMES {
             for flavor in theme.flavors {
                 for (index, accent) in flavor.accents.iter().enumerate() {
                     let palette = flavor.scheme(index).palette();
-                    for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                    for material in Material::ALL {
                         let colors = Ui::new(palette).with_material(material).colors;
+                        let named = || {
+                            format!(
+                                "{} {} {} {material:?}",
+                                theme.name, flavor.name, accent.name
+                            )
+                        };
                         assert_eq!(
                             colors.unreadable(palette.worst_backdrop()),
                             None,
-                            "{} {} {} {material:?}",
-                            theme.name,
-                            flavor.name,
-                            accent.name
+                            "{}",
+                            named()
+                        );
+                        let field = colors.grounds(palette.worst_backdrop())[1];
+                        let selected = contrast(colors.text, over(colors.selection, field));
+                        let alpha = colors.selection.a;
+                        assert!(
+                            selected >= DIM_CONTRAST
+                                && (opacity::SELECTION_MIN..=opacity::SELECTION).contains(&alpha),
+                            "{}: selection at {alpha:.2}, its text at {selected:.2}",
+                            named()
                         );
                     }
                 }
             }
         }
+    }
+
+    #[test]
+    fn a_selection_shows_where_no_opacity_keeps_its_text_at_three_to_one() {
+        // Text set to the island's own colour, under an accent of the same:
+        // no band keeps it at 3:1 on a solid island, and the selection still
+        // shows, at the floor; never less on a see-through one, whose text
+        // is pushed away from the island.
+        use crate::foundations::tokens::opacity;
+        let mut palette = ThemeChoice::default().palette_of(false);
+        palette.text = palette.island;
+        palette.accent.fill = palette.island;
+        let solid = Ui::new(palette).colors.selection;
+        assert_eq!(solid.a, opacity::SELECTION_MIN);
+        for material in Material::ALL {
+            let selection = Ui::new(palette).with_material(material).colors.selection;
+            assert!(
+                selection.a >= opacity::SELECTION_MIN,
+                "{material:?}: {}",
+                selection.a
+            );
+        }
+    }
+
+    #[test]
+    fn themed_works_its_ui_out_once_per_change() {
+        use std::cell::Cell;
+        use std::rc::Rc;
+
+        use guido::testing::Headless;
+
+        let Some(mut h) = Headless::new_or_skip() else {
+            return;
+        };
+        let choice = ThemeChoice::default();
+        let [dark, light] = [false, true].map(|light| Ui::new(choice.palette_of(light)));
+        let given = create_signal(dark);
+        let runs = Rc::new(Cell::new(0));
+        let counted = runs.clone();
+        let id = h.surface(SurfaceConfig::new(), move || {
+            let counted = counted.clone();
+            let ui = move || {
+                counted.set(counted.get() + 1);
+                given.get()
+            };
+            themed(ui, || container().child(look_at_text()))
+        });
+        h.configure(id, 64, 64, 1.0);
+        h.step();
+        for ui in [light, light.with_density(Density::Compact)] {
+            let before = runs.get();
+            given.set(ui);
+            h.step();
+            assert_eq!(
+                runs.get(),
+                before + 1,
+                "worked out again for {:?}",
+                ui.sizes()
+            );
+        }
+    }
+
+    /// A box in the text's colour, read through `look`.
+    fn look_at_text() -> Container {
+        container()
+            .width(8.0)
+            .height(8.0)
+            .background(look().color(|c| c.text))
     }
 
     #[test]
@@ -394,7 +528,7 @@ mod tests {
             for flavor in theme.flavors {
                 for (index, accent) in flavor.accents.iter().enumerate() {
                     let palette = flavor.scheme(index).palette();
-                    for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                    for material in Material::ALL {
                         let colors = Ui::new(palette).with_material(material).colors;
                         let island = colors.grounds(palette.worst_backdrop())[0];
                         let [text, sub] =
@@ -449,12 +583,11 @@ mod tests {
         );
     }
 
-    /// The island and a button on it, as a surface given the default dark
-    /// `Ui` draws them, then given the light one in place.
+    /// Two points of a surface given the default dark `Ui`, then the light
+    /// one in place: the island, and a point of what it holds.
     struct Repainted {
-        /// Where the island shows and inside the button, before the change.
         before: [[u8; 4]; 2],
-        /// 100 ms into it.
+        /// 100 ms into the change.
         midway: [[u8; 4]; 2],
         /// Once it has settled.
         after: [[u8; 4]; 2],
@@ -464,38 +597,34 @@ mod tests {
         builds: u8,
     }
 
-    fn repainted(motion: Motion) -> Option<Repainted> {
+    /// `content` on an island 16 px in from the edges of a 120 by 64
+    /// surface, read at (4, 4) and at `at`.
+    fn repainted(motion: Motion, content: fn() -> Container, at: (u32, u32)) -> Option<Repainted> {
         use std::cell::Cell;
         use std::rc::Rc;
         use std::time::{Duration, Instant};
 
         use guido::testing::Headless;
 
-        use crate::components::button::button;
-        use crate::foundations::control::Size;
         use crate::primitives::island;
 
         let mut h = Headless::new_or_skip()?;
         let choice = ThemeChoice::default();
         let [dark, light] =
             [false, true].map(|light| Ui::new(choice.palette_of(light)).with_motion(motion));
-        let side = Size::default().height();
         let mount = |h: &mut Headless, given: RwSignal<Ui>, builds: Rc<Cell<u8>>| {
             let id = h.surface(SurfaceConfig::new(), move || {
                 builds.set(builds.get() + 1);
                 provide_ui(given);
                 island::paint(container().width(fill()).height(fill()))
                     .padding(16.0)
-                    .child(button().label("Go"))
+                    .child(content())
             });
             h.configure(id, 120, 64, 1.0);
             h.step();
             id
         };
-        // Where the island shows, and inside the button before its label.
-        let read = |h: &Headless, id| {
-            [(4, 4), (19, 16 + side as u32 / 2)].map(|(x, y)| h.read_pixel(id, x, y))
-        };
+        let read = |h: &Headless, id| [(4, 4), at].map(|(x, y)| h.read_pixel(id, x, y));
 
         let look = create_signal(dark);
         let builds = Rc::new(Cell::new(0));
@@ -520,28 +649,105 @@ mod tests {
         })
     }
 
-    #[test]
-    fn a_new_palette_repaints_in_place_easing_into_it() {
+    /// `content`, read at `at`, follows a new palette in place, easing into
+    /// it as the island does.
+    fn eases_in_place(content: fn() -> Container, at: (u32, u32)) {
         let Some(Repainted {
             before,
             midway,
             after,
             light,
             builds,
-        }) = repainted(Motion::Full)
+        }) = repainted(Motion::Full, content, at)
         else {
             return;
         };
         assert_ne!(before, after, "the palette changed nothing");
         assert_eq!(after, light, "not as a light Ui draws it");
         assert_eq!(builds, 1, "built again");
-        // The island on its way: neither the old colour nor the new.
-        assert!(
-            midway[0] != before[0] && midway[0] != after[0],
-            "the island didn't ease: {:?} {:?} {:?}",
-            before[0],
-            midway[0],
-            after[0]
+        // Both on their way: neither the old colour nor the new.
+        for (i, point) in ["the island", "the content"].into_iter().enumerate() {
+            assert!(
+                midway[i] != before[i] && midway[i] != after[i],
+                "{point} didn't ease: {:?} {:?} {:?}",
+                before[i],
+                midway[i],
+                after[i]
+            );
+        }
+    }
+
+    /// A button's middle, before its label.
+    fn button() -> Container {
+        use crate::components::button::button;
+        container().child(button().label("Go"))
+    }
+
+    fn inside_the_button() -> (u32, u32) {
+        use crate::foundations::control::Size;
+        (19, 16 + Size::default().height() as u32 / 2)
+    }
+
+    #[test]
+    fn a_new_palette_repaints_in_place_easing_into_it() {
+        eases_in_place(button, inside_the_button());
+    }
+
+    #[test]
+    fn a_colour_picked_by_a_role_that_captures_eases() {
+        eases_in_place(
+            || {
+                let hue = Hue::Danger;
+                container()
+                    .width(40.0)
+                    .height(24.0)
+                    .background(look().eased(move |c| c.hue(hue).fill))
+            },
+            (36, 28),
+        );
+    }
+
+    #[test]
+    fn a_components_colour_prop_eases() {
+        use crate::components::notification::app_icon;
+        use crate::foundations::icons::Icon;
+        // The tile's gradient, above its icon.
+        eases_in_place(
+            || container().child(app_icon(Icon::Bell, look().color(|c| c.accent.fill))),
+            (36, 19),
+        );
+    }
+
+    #[test]
+    fn the_sparklines_line_eases() {
+        use crate::components::sparkline::sparkline;
+        eases_in_place(
+            || {
+                // At the top, where the line covers the first row of
+                // pixels whole: none of the island shows through.
+                let samples = create_signal(vec![100.0; 8]).read_only();
+                container()
+                    .width(88.0)
+                    .child(sparkline(samples, 8).top(100.0))
+            },
+            (60, 16),
+        );
+    }
+
+    #[test]
+    fn a_ui_made_from_the_look_follows_it() {
+        eases_in_place(
+            || {
+                let t = look();
+                container().child(move || {
+                    provide_ui(move || t.ui().with_density(Density::Compact));
+                    container()
+                        .width(40.0)
+                        .height(24.0)
+                        .background(look().eased(|c| c.accent.fill))
+                })
+            },
+            (36, 28),
         );
     }
 
@@ -553,7 +759,7 @@ mod tests {
             after,
             light,
             builds,
-        }) = repainted(Motion::None)
+        }) = repainted(Motion::None, button, inside_the_button())
         else {
             return;
         };

@@ -76,8 +76,10 @@ pub fn tag(
         hue.map(|hue| t.colors().hue(hue).fill)
     };
     pill_box(size)
-        .background((move || tone.get().tint_in(&t.colors())).transition(motion::color()))
-        .shadow((move || spread::halo(lit(), spread::SMALL)).transition(motion::color()))
+        .background(t.eased(move |c| tone.get().tint_in(c)))
+        .shadow(motion::eased_color(move || {
+            spread::halo(lit(), spread::SMALL)
+        }))
         .layout(centered_row(size.gap()))
         .children(children)
 }

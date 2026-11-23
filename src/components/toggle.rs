@@ -7,7 +7,7 @@ use crate::foundations::motion;
 use crate::foundations::tokens::radius;
 use crate::foundations::tokens::{opacity, size};
 use crate::theme::palette::{DIM_CONTRAST, Palette, contrast, over};
-use crate::ui::{active_fill, active_ink, flip, look};
+use crate::ui::{flip, look, switch};
 
 fn height() -> f32 {
     Size::Xxs.height()
@@ -51,7 +51,7 @@ pub fn toggle(
         .width(width())
         .height(height())
         .corners(radius::pill(height()))
-        .background(active_fill(active, t.color(|c| c.surface2)).transition(motion::color()))
+        .background(t.eased(switch(active, |c| c.accent.fill, |c| c.surface2)))
         .opacity(1.0.transition(motion::hover()))
         .when_disabled(|s| s.opacity(opacity::DISABLED))
         .enabled(enabled)
@@ -63,9 +63,7 @@ pub fn toggle(
                 .corners(radius::pill(knob()))
                 // As Material 3's: what reads on the accent while on, and on
                 // the track while off.
-                .background(
-                    active_ink(active, move || knob_off(&t.colors())).transition(motion::color()),
-                )
+                .background(t.eased(switch(active, |c| c.accent.on, knob_off)))
                 .translate(
                     (move || {
                         let x = if active.get() {
@@ -97,7 +95,7 @@ mod tests {
             for flavor in theme.flavors {
                 for (index, accent) in flavor.accents.iter().enumerate() {
                     let palette = flavor.scheme(index).palette();
-                    for material in [Material::Solid, Material::Translucent, Material::Glass] {
+                    for material in Material::ALL {
                         let ui = Ui::new(palette).with_material(material);
                         let colors = ui.colors;
                         let [_, _, track] = colors.grounds(palette.worst_backdrop());

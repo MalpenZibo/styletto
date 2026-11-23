@@ -9,7 +9,7 @@ use styletto::foundations::tokens::{icon as icon_box, size as space};
 use styletto::primitives::island::{self, island as island_shape};
 use styletto::primitives::satellite::{balance, satellite as satellite_shape};
 use styletto::primitives::text::{caption, heading};
-use styletto::{Icon, centered_row, icon, ui};
+use styletto::{Icon, centered_row, icon, look};
 
 use super::{CPU_LEVELS, TEMP_LEVELS, panel};
 use crate::stories::story::Ctx;
@@ -253,7 +253,7 @@ pub fn island(ctx: &Ctx) -> Container {
     let glow = ctx.choice("Glow", GLOWS, 0);
     let shakes = create_signal(0u32);
     let shook = ctx.action("shake");
-    let t = ui();
+    let t = look();
     let shown = create_memo(move || [Shape::Seed, Shape::Pill, Shape::Card][shape.get()]);
     let seed = space::S8.px();
     let pill = Size::Md.height();
@@ -274,7 +274,7 @@ pub fn island(ctx: &Ctx) -> Container {
                         .height(pill)
                         .padding([0.0, space::S4.px()])
                         .layout(centered_row(space::S2.px()))
-                        .child(icon(Icon::Music, icon_box::SMALL.px(), t.colors.text))
+                        .child(icon(Icon::Music, icon_box::SMALL.px(), t.color(|c| c.text)))
                         .child(caption("Now playing")),
                     Shape::Card => container()
                         .width(space::S60.px())
@@ -294,17 +294,15 @@ pub fn island(ctx: &Ctx) -> Container {
                 },
             )
             .translate(Translate::NONE.timeline(shake_frames().played_by(shakes)))
-            .shadow(
-                (move || {
-                    island::shadow(match glow.get() {
-                        1 => t.colors.accent.fill,
-                        2 => t.colors.success.fill,
-                        3 => t.colors.danger.fill,
-                        _ => Color::TRANSPARENT,
-                    })
+            .shadow(motion::eased_color(move || {
+                let c = t.colors();
+                island::shadow(match glow.get() {
+                    1 => c.accent.fill,
+                    2 => c.success.fill,
+                    3 => c.danger.fill,
+                    _ => Color::TRANSPARENT,
                 })
-                .transition(motion::color()),
-            ),
+            })),
         )
         .child(button().label("Shake").on_click(move || {
             shakes.update(|n| *n += 1);

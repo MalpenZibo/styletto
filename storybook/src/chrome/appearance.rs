@@ -21,12 +21,11 @@ use styletto::components::tile::small_tile;
 use styletto::components::toggle::toggle;
 use styletto::foundations::tokens::{icon as icon_box, radius, size as space};
 use styletto::foundations::typography as ty;
-use styletto::primitives::island as look;
 use styletto::primitives::text::typed;
 use styletto::theme::config::UiConfig;
 use styletto::theme::palette::Hue;
 use styletto::theme::wallpaper::{Picture, picture};
-use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
+use styletto::{Icon, Ui, centered_row, icon, look, themed};
 
 use crate::chrome::widgets::{island, wallpaper};
 use crate::system::picker;
@@ -140,8 +139,9 @@ fn system_dark() -> Signal<Option<bool>> {
     dark.read_only()
 }
 
-/// The settings on the left, what they make on the right.
-pub fn page(a: Appearance) -> Container {
+/// The settings on the left, what they make on the right, drawn with
+/// `drawn`, the `Ui` the settings make.
+pub fn page(a: Appearance, drawn: Memo<Ui>) -> Container {
     container()
         .width(fill())
         .height(fill())
@@ -159,7 +159,7 @@ pub fn page(a: Appearance) -> Container {
                         .chooser_note(a.chooser_note),
                 ),
         )
-        .child(preview(a))
+        .child(preview(a, drawn))
 }
 
 /// What the controls in the preview were left at, kept across a redraw so a
@@ -177,7 +177,7 @@ struct Controls {
 /// The colours at work, drawn with what is chosen: controls that answer a
 /// press, text at its three levels on the island and on a surface, and
 /// every fill with the colour that reads on it.
-fn preview(a: Appearance) -> Container {
+fn preview(a: Appearance, drawn: Memo<Ui>) -> Container {
     let controls = Controls {
         wifi: create_signal(true),
         volume: create_signal(60.0),
@@ -186,21 +186,22 @@ fn preview(a: Appearance) -> Container {
         night: create_signal(true),
         silent: create_signal(false),
     };
-    let drawn = create_memo(move || a.ui());
     container()
         .width(fill())
         .height(fill())
         .padding(space::S3.px())
-        .child(wallpaper(a.backdrop, move || {
-            provide_ui(drawn.get());
-            look::border(island(space::S4.px()))
-                .width(space::S80.px())
-                .layout(Flex::column().spacing(space::S4.px()))
-                .child(panel(controls))
-                .child(texts())
-                .child(fills())
-                .child(levels())
-        }))
+        .child(wallpaper(
+            a.backdrop,
+            themed(drawn, move || {
+                styletto::primitives::island::border(island(space::S4.px()))
+                    .width(space::S80.px())
+                    .layout(Flex::column().spacing(space::S4.px()))
+                    .child(panel(controls))
+                    .child(texts())
+                    .child(fills())
+                    .child(levels())
+            }),
+        ))
 }
 
 /// A piece of a panel whose controls answer: the row's switch, the slider
@@ -277,13 +278,17 @@ fn panel(c: Controls) -> Container {
 /// The two levels of text and the dim of an icon, on the island and on a
 /// surface.
 fn texts() -> Container {
-    let t = ui();
+    let t = look();
     let levels = || {
         container()
             .layout(Flex::column().spacing(space::S1.px()))
-            .child(typed("Text", ty::LABEL_MEDIUM.em()).color(t.colors.text))
-            .child(typed("Sub", ty::LABEL_SMALL).color(t.colors.sub))
-            .child(icon(Icon::ChevronRight, icon_box::SMALL.px(), t.colors.dim))
+            .child(typed("Text", ty::LABEL_MEDIUM.em()).color(t.eased(|c| c.text)))
+            .child(typed("Sub", ty::LABEL_SMALL).color(t.eased(|c| c.sub)))
+            .child(icon(
+                Icon::ChevronRight,
+                icon_box::SMALL.px(),
+                t.color(|c| c.dim),
+            ))
     };
     container()
         .width(fill())
@@ -299,7 +304,7 @@ fn texts() -> Container {
                 .width(fill())
                 .padding(space::S2.px())
                 .corners(radius::SMALL.corners())
-                .background(t.colors.surface)
+                .background(t.eased(|c| c.surface))
                 .child(levels()),
         )
 }
@@ -307,18 +312,17 @@ fn texts() -> Container {
 /// Each fill with the colour that reads on it, two to a row so a larger
 /// density keeps every name on its line.
 fn fills() -> Container {
-    let t = ui();
+    let t = look();
     let swatch = |hue: Hue| {
-        let colors = t.colors.hue(hue);
         container()
             .width(fill())
             .padding([space::S1.px(), space::S2.px()])
             .corners(radius::SMALL.corners())
-            .background(colors.fill)
+            .background(t.eased(move |c| c.hue(hue).fill))
             .layout(Flex::row().main_alignment(MainAlignment::Center))
             .child(
                 typed(format!("{hue:?}"), ty::LABEL_SMALL.em())
-                    .color(colors.on)
+                    .color(t.eased(move |c| c.hue(hue).on))
                     .nowrap(),
             )
     };
@@ -340,6 +344,7 @@ fn fills() -> Container {
 /// The states as the ink of a level: figures past their thresholds and the
 /// battery charging, low and nearly out.
 fn levels() -> Container {
+    let t = look();
     container()
         .width(fill())
         .layout(centered_row(0.0).main_alignment(MainAlignment::SpaceBetween))
@@ -349,11 +354,15 @@ fn levels() -> Container {
         .child(
             container().layout(centered_row(space::S2.px())).children(
                 [
-                    (0.64, ui().colors.success.fill),
-                    (0.24, ui().colors.warning.fill),
-                    (0.09, ui().colors.danger.fill),
+                    (0.64, Hue::Success),
+                    (0.24, Hue::Warning),
+                    (0.09, Hue::Danger),
                 ]
-                .map(|(value, color)| ring(value).color(color).size(icon_box::SMALL)),
+                .map(|(value, hue)| {
+                    ring(value)
+                        .color(t.color(move |c| c.hue(hue).fill))
+                        .size(icon_box::SMALL)
+                }),
             ),
         )
 }
@@ -372,6 +381,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use super::Appearance;
+    use crate::stories::mounted::{Bench, still_backdrop};
 
     #[test]
     fn the_page_keeps_the_sides_apart() {
@@ -383,7 +393,7 @@ mod tests {
         let id = h.surface(SurfaceConfig::new(), move || {
             let a = Appearance::new();
             seen.set(Some(a));
-            super::page(a)
+            super::page(a, create_memo(move || a.ui()))
         });
         h.configure(id, 1200, 3000, 1.0);
         h.step();
@@ -421,9 +431,6 @@ mod tests {
 
     #[test]
     fn a_colour_field_follows_a_change_made_elsewhere() {
-        let Some(mut h) = Headless::new_or_skip() else {
-            return;
-        };
         let custom = |accent: Option<&str>| {
             let mut c = UiConfig::default();
             Source::Custom.apply(&mut c, &[]);
@@ -434,36 +441,16 @@ mod tests {
         };
         // One editor whose config changes from outside, one built with the
         // config it changes to: once it has, they draw the same.
-        let probe = Rc::new(Cell::new(None));
-        let seen = probe.clone();
-        let changed = h.surface(SurfaceConfig::new(), move || {
-            let config = create_signal(custom(None));
-            seen.set(Some(config));
-            container().width(fill()).child(color_editor(config, false))
-        });
-        let built = h.surface(SurfaceConfig::new(), move || {
-            let config = create_signal(custom(Some("#00ff00")));
-            container().width(fill()).child(color_editor(config, false))
-        });
-        for id in [changed, built] {
-            h.configure(id, 400, 900, 1.0);
-        }
-        let settle = |h: &mut Headless| {
-            for _ in 0..30 {
-                h.step();
-            }
+        let editor = |config| container().width(fill()).child(color_editor(config, false));
+        let Some(mut bench) = Bench::new() else {
+            return;
         };
-        settle(&mut h);
-        assert_ne!(h.read_frame(changed), h.read_frame(built));
-        let config: RwSignal<UiConfig> = probe.take().unwrap();
-        config.update(|c| {
-            c.dark.insert("accent".to_string(), "#00ff00".to_string());
-        });
-        settle(&mut h);
-        assert!(
-            h.read_frame(changed) == h.read_frame(built),
-            "the field did not show the colour set elsewhere"
-        );
+        let mut pair = bench.pair((400, 900), custom(None), custom(Some("#00ff00")), editor);
+        assert!(pair.unlike().is_some());
+        pair.change();
+        if let Some(unlike) = pair.unlike() {
+            panic!("the field did not show the colour set elsewhere: {unlike}");
+        }
     }
 
     #[test]
@@ -500,6 +487,34 @@ mod tests {
     }
 
     #[test]
+    fn a_new_palette_repaints_the_preview_as_built_with_it() {
+        let light = UiConfig {
+            mode: Mode::Light,
+            material: Material::Glass,
+            ..UiConfig::default()
+        };
+        // One preview whose config changes, one built with the config it
+        // changes to.
+        let preview = |config| {
+            let a = Appearance {
+                config,
+                backdrop: still_backdrop(),
+                ..Appearance::new()
+            };
+            super::preview(a, create_memo(move || a.ui()))
+        };
+        let Some(mut bench) = Bench::new() else {
+            return;
+        };
+        let mut pair = bench.pair((400, 800), UiConfig::default(), light, preview);
+        assert!(pair.unlike().is_some());
+        pair.change();
+        if let Some(unlike) = pair.unlike() {
+            panic!("the preview kept a colour of the old palette: {unlike}");
+        }
+    }
+
+    #[test]
     fn a_setting_does_not_rebuild_the_page() {
         let Some(mut h) = Headless::new_or_skip() else {
             return;
@@ -512,7 +527,7 @@ mod tests {
             seen.set(Some(a));
             container().child(move || {
                 count.set(count.get() + 1);
-                super::page(a)
+                super::page(a, create_memo(move || a.ui()))
             })
         });
         h.configure(id, 1200, 900, 1.0);
@@ -541,7 +556,7 @@ mod tests {
         let id = h.surface(SurfaceConfig::new(), move || {
             let a = Appearance::new();
             seen.set(Some(a));
-            super::page(a)
+            super::page(a, create_memo(move || a.ui()))
         });
         let (width, height) = (1200, 700);
         h.configure(id, width, height, 1.0);

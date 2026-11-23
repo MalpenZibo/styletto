@@ -115,6 +115,10 @@ pub struct HueColors {
 /// the island's [`shadow`](crate::foundations::tokens::shadow) alpha.
 pub const SHADE: Color = Color::BLACK;
 
+/// A colour of the palette, picked from it: what [`Look::color`](crate::Look::color)
+/// takes, as `|c| c.text`.
+pub type Role = fn(&Palette) -> Color;
+
 /// The colours the components read.
 #[derive(Clone, Copy, Debug, PartialEq)]
 pub struct Palette {
@@ -136,6 +140,16 @@ pub struct Palette {
     pub danger: HueColors,
     /// The ripple of a press.
     pub ripple: Color,
+    /// A field's selection: the accent's fill, at as much of
+    /// [`opacity::SELECTION`](crate::foundations::tokens::opacity::SELECTION)
+    /// as keeps `text` at 3:1 on it, on a field, on the island it is for: a
+    /// see-through one ([`Ui::colors`](crate::Ui::colors)) has its own. Never
+    /// less than [`opacity::SELECTION_MIN`](crate::foundations::tokens::opacity::SELECTION_MIN).
+    ///
+    /// Derived, as the text over a see-through island is: worked out from
+    /// the accent, the text and the field when the palette is built and
+    /// again when a `Ui` is, so a value set here is replaced.
+    pub selection: Color,
 }
 
 impl Default for Palette {
@@ -169,32 +183,36 @@ impl Palette {
         }
     }
 
-    /// Every colour with its name, in the order a picker lists them: a
-    /// hue's as `accent`, `on_accent` and `accent_text`.
+    /// Every colour's name and the role that picks it, in the order a
+    /// picker lists them: a hue's as `accent`, `on_accent` and
+    /// `accent_text`. A role is what [`Look::color`](crate::Look::color)
+    /// takes, to follow the palette.
+    pub const ROLES: [(&'static str, Role); 20] = [
+        ("island", |c| c.island),
+        ("surface", |c| c.surface),
+        ("surface2", |c| c.surface2),
+        ("line", |c| c.line),
+        ("text", |c| c.text),
+        ("sub", |c| c.sub),
+        ("dim", |c| c.dim),
+        ("accent", |c| c.accent.fill),
+        ("on_accent", |c| c.accent.on),
+        ("accent_text", |c| c.accent.text),
+        ("success", |c| c.success.fill),
+        ("on_success", |c| c.success.on),
+        ("success_text", |c| c.success.text),
+        ("warning", |c| c.warning.fill),
+        ("on_warning", |c| c.warning.on),
+        ("warning_text", |c| c.warning.text),
+        ("danger", |c| c.danger.fill),
+        ("on_danger", |c| c.danger.on),
+        ("danger_text", |c| c.danger.text),
+        ("ripple", |c| c.ripple),
+    ];
+
+    /// Every colour with its name, as [`ROLES`](Self::ROLES) lists them.
     pub fn named(&self) -> [(&'static str, Color); 20] {
-        let [a, s, w, d] = [self.accent, self.success, self.warning, self.danger];
-        [
-            ("island", self.island),
-            ("surface", self.surface),
-            ("surface2", self.surface2),
-            ("line", self.line),
-            ("text", self.text),
-            ("sub", self.sub),
-            ("dim", self.dim),
-            ("accent", a.fill),
-            ("on_accent", a.on),
-            ("accent_text", a.text),
-            ("success", s.fill),
-            ("on_success", s.on),
-            ("success_text", s.text),
-            ("warning", w.fill),
-            ("on_warning", w.on),
-            ("warning_text", w.text),
-            ("danger", d.fill),
-            ("on_danger", d.on),
-            ("danger_text", d.text),
-            ("ripple", self.ripple),
-        ]
+        Self::ROLES.map(|(name, role)| (name, role(self)))
     }
 
     /// What a text can sit on: the island, as it shows over `backdrop`, and
@@ -214,6 +232,25 @@ impl Palette {
         away(self.text, self.island)
     }
 
+    /// The palette with its `selection` worked out: the accent's fill at the
+    /// most of `opacity::SELECTION` that keeps `text` at 3:1 on it, on a
+    /// field (`surface`) with the worst behind the island, and no less than
+    /// `opacity::SELECTION_MIN` where nothing does.
+    fn with_selection(self) -> Palette {
+        use crate::foundations::tokens::opacity::{SELECTION, SELECTION_MIN};
+
+        let field = self.grounds(self.worst_backdrop())[1];
+        let fill = self.accent.fill;
+        let alpha = (0..=STEPS)
+            .map(|step| SELECTION - (SELECTION - SELECTION_MIN) * step as f32 / STEPS as f32)
+            .find(|&alpha| contrast(self.text, over(fill.with_alpha(alpha), field)) >= DIM_CONTRAST)
+            .unwrap_or(SELECTION_MIN);
+        Palette {
+            selection: fill.with_alpha(alpha),
+            ..self
+        }
+    }
+
     /// The palette with the island at `opacity`, its text darkened or
     /// lightened as far as keeps the contrast it has on the opaque island,
     /// up to [`SEE_THROUGH_FLOORS`], whatever shows through; each hue's text
@@ -221,7 +258,8 @@ impl Palette {
     /// the text: black behind a light island turns it grey under dark text,
     /// white behind a dark one turns it grey under light text. Where not
     /// even black or white would read, the island is drawn as much denser
-    /// as lets them.
+    /// as lets them. Its selection is worked out again, for that text on
+    /// that island.
     pub(crate) fn see_through(&self, opacity: f32) -> Palette {
         // The text moves toward the same extreme that is worst behind.
         let worst = self.worst_backdrop();
@@ -251,7 +289,7 @@ impl Palette {
             let floor = SEE_THROUGH_HUE_CONTRAST.min(lowest(*ink, solid));
             *ink = shade(*ink, worst, grounds, floor);
         }
-        palette
+        palette.with_selection()
     }
 }
 
@@ -600,7 +638,9 @@ impl Scheme {
             warning,
             danger,
             ripple: self.tint(RIPPLE),
+            selection: Color::TRANSPARENT,
         }
+        .with_selection()
     }
 
     /// Surfaces, line and ripple at `alpha`: white over a dark background,

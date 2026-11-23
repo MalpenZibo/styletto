@@ -6,7 +6,7 @@
 //! ```text
 //! styletto-storybook shot --list
 //! styletto-storybook shot <Group/Story> <out.png> [--size WxH] [--scale S]
-//!     [--set "Control=value"]... [key=value]...
+//!     [--set "Control=value"]... [--select TEXT] [key=value]...
 //! ```
 
 use std::cell::RefCell;
@@ -27,7 +27,11 @@ use crate::stories::story::{Control, Ctx};
 const USAGE: &str = "\
 usage: styletto-storybook shot --list
        styletto-storybook shot <Group/Story> <out.png> [--size WxH] [--scale S]
-           [--set \"Control=value\"]... [key=value]...
+           [--set \"Control=value\"]... [--select TEXT] [key=value]...
+
+--select types TEXT into the story's first field, which a Tab focuses, and
+selects it all; it fails where the field doesn't end up holding TEXT
+selected, as a password field, whose text can't be copied out to check.
 
 key=value are the keys of the [appearance] table: theme, dark_flavor,
 light_flavor, accent, dark_accent, light_accent, seed, wallpaper,
@@ -72,6 +76,8 @@ struct Shot {
     size: (u32, u32),
     scale: f32,
     controls: Vec<(String, String)>,
+    /// Typed into the first field and selected, to show a selection.
+    select: Option<String>,
     appearance: Vec<(String, String)>,
 }
 
@@ -96,6 +102,7 @@ fn parse(args: &[String]) -> Result<Shot, String> {
     let mut size = SIZE;
     let mut scale = 1.0;
     let mut controls = Vec::new();
+    let mut select = None;
     let mut appearance = Vec::new();
     let mut args = args.iter();
     while let Some(arg) = args.next() {
@@ -128,6 +135,7 @@ fn parse(args: &[String]) -> Result<Shot, String> {
                     .ok_or_else(|| format!("--set {v}: expected Control=value"))?;
                 controls.push((name.trim().to_string(), to.trim().to_string()));
             }
+            "--select" => select = Some(value("--select")?),
             flag if flag.starts_with("--") => {
                 return Err(format!("unknown flag {flag}\n\n{USAGE}"));
             }
@@ -150,6 +158,7 @@ fn parse(args: &[String]) -> Result<Shot, String> {
         size,
         scale,
         controls,
+        select,
         appearance,
     })
 }
@@ -226,7 +235,12 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
     // build the whole story again, which would reset the controls.
     h.step_at(start);
     read(&mut h, start)?;
-    settle(&mut h, start);
+    let start = match &shot.select {
+        Some(text) => select(&mut h, id, text, start)
+            .map_err(|why| format!("--select in {}/{}: {why}", story.group, story.name))?,
+        None => start,
+    };
+    settle(&mut h, start, SETTLE);
 
     let (width, height) = h.physical_size(id);
     let frame = h.read_frame(id);
@@ -256,19 +270,68 @@ fn read(h: &mut Headless, at: Instant) -> Result<(), String> {
     Ok(())
 }
 
-/// Steps through as much simulated time as the longest animation takes. It
-/// doesn't stop when `next_wait` says nothing is pending: that asks at the
-/// real time, behind the simulated one, and says so while animations are
-/// still under way.
-fn settle(h: &mut Headless, start: Instant) {
+/// Tabs into the first field, types `text` and selects it all, a key a
+/// frame from `at`; gives the moment of the last. Checked, rather than sent
+/// blind: the Tab has to focus something, and copying what is selected has
+/// to give `text`, which says the field took it and has it all selected.
+fn select(h: &mut Headless, id: SurfaceId, text: &str, mut at: Instant) -> Result<Instant, String> {
+    use guido::reactive::clipboard::clipboard_paste;
+    use guido::reactive::focus::focused_widget;
+
+    let ctrl = Modifiers {
+        ctrl: true,
+        ..Modifiers::default()
+    };
+    let mut press = |h: &mut Headless, key, modifiers| {
+        at += FRAME;
+        let down = Event::KeyDown {
+            key,
+            modifiers,
+            repeat: false,
+        };
+        h.event_at(id, down, at);
+        h.step_at(at);
+    };
+    press(h, Key::Tab, Modifiers::default());
+    if focused_widget().is_none() {
+        return Err("a Tab focused nothing: the story has no field".to_string());
+    }
+    for c in text.chars() {
+        press(h, Key::Char(c), Modifiers::default());
+    }
+    press(h, Key::Char('a'), ctrl);
+    press(h, Key::Char('c'), ctrl);
+    // What the copy put on the clipboard, read back as a paste is: it is
+    // answered on a later step.
+    let copied = Rc::new(RefCell::new(None));
+    let into = copied.clone();
+    clipboard_paste(move |text| *into.borrow_mut() = Some(text));
+    at += FRAME;
+    h.step_at(at);
+    h.step_at(at);
+    match copied.take() {
+        Some(copied) if copied == text => Ok(at),
+        copied => Err(format!(
+            "the field a Tab focused has {copied:?} selected, not {text:?}"
+        )),
+    }
+}
+
+/// Steps a frame at a time through `time` of simulated time after `start`,
+/// waiting each frame for the pictures being decoded, which arrive in real
+/// time; gives the moment of the last frame. It doesn't stop when
+/// `next_wait` says nothing is pending: that asks at the real time, behind
+/// the simulated one, and says so while animations are still under way.
+pub(crate) fn settle(h: &mut Headless, start: Instant, time: Duration) -> Instant {
     let mut at = start + FRAME;
-    while at - start < SETTLE {
+    while at - start < time {
         h.wait_for_image_decodes();
         h.step_at(at);
         at += FRAME;
     }
     h.wait_for_image_decodes();
     h.step_at(at);
+    at
 }
 
 fn set(controls: &[Control], name: &str, value: &str) -> Result<(), String> {

@@ -44,6 +44,32 @@ pub fn figure<M>(content: impl IntoSignal<String, M>) -> Text {
         .nowrap()
 }
 
+/// A text field's text in the palette's colours: `text`, `sub` for the
+/// placeholder, `accent.text` for the cursor and `selection`, each easing
+/// into a new palette. For a `text_input` or a `password_input`:
+/// `text_input(typed).palette_colors()`.
+pub trait PaletteColors {
+    fn palette_colors(self) -> Self;
+}
+
+/// One impl per kind of field: Guido's `TextInput` is generic over what it
+/// holds, and that is sealed.
+macro_rules! palette_colors {
+    ($($input:ty),*) => {$(
+        impl PaletteColors for $input {
+            fn palette_colors(self) -> Self {
+                let t = look();
+                self.color(t.eased(|c| c.text))
+                    .placeholder_color(t.eased(|c| c.sub))
+                    .cursor_color(t.eased(|c| c.accent.text))
+                    .selection_color(t.eased(|c| c.selection))
+            }
+        }
+    )*};
+}
+
+palette_colors!(TextInput, PasswordInput);
+
 /// A figure beside its icon (a level's, a slider's): set in `kind`,
 /// emphasised, its digits tabular, its box trimmed to the capitals, in
 /// `ink`.
@@ -55,6 +81,6 @@ pub(crate) fn figure_text<M>(
     text(content)
         .typeset(kind.em().tabular())
         .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-        .color(ink.transition(motion::color()))
+        .color(motion::eased_color(ink))
         .nowrap()
 }

@@ -253,6 +253,17 @@ pub mod opacity {
     /// The island's halo around a state worth seeing: a share of the glow's
     /// alpha.
     pub const HALO: f32 = 0.5;
+    /// The most of the accent's fill a field's selection takes: each
+    /// palette takes as much of it as keeps its text at 3:1 on the
+    /// selection, on every material
+    /// ([`Palette::selection`](crate::theme::palette::Palette::selection)).
+    pub const SELECTION: f32 = 0.4;
+    /// The least of it a selection takes, where not even that keeps the
+    /// text at 3:1 (an accent the app sets near its text's colour): a
+    /// selection that is faint beats one that doesn't show. Below it, the
+    /// band over a field is hard to tell from the field; every preset keeps
+    /// 3:1 at 0.26 or more.
+    pub const SELECTION_MIN: f32 = 0.2;
 }
 
 /// How far a glow spreads around what it lights.

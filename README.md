@@ -43,19 +43,17 @@ styletto = { git = "https://github.com/MalpenZibo/styletto", features = ["serde"
 ```
 
 ```rust
-use styletto::{Icon, Ui, provide_ui};
+use styletto::{Icon, themed};
 use styletto::components::list::row;
 use styletto::components::toggle::toggle;
 
 // The Ui as the config asks, and a wallpaper once it is read: worked out
 // once per change.
 let drawn = create_memo(move || config.with(|c| c.appearance.ui(system_dark.get())));
-// What sizes the tree, apart: only a change of it builds the tree again.
-let sizes = create_memo(move || drawn.with(Ui::sizes));
 
-container().child(move || {
-    sizes.get();
-    provide_ui(drawn); // or a fixed Ui, as Ui::default()
+// Built again only when what sizes it changes; repainted in place on a new
+// palette. Or a fixed Ui, as Ui::default().
+themed(drawn, || {
     row("Wi-Fi")
         .icon(Icon::Wifi)
         .subtitle("Home 5G")
@@ -72,8 +70,10 @@ container().child(move || {
 ## The Ui
 
 `provide_ui` declares it for a subtree: a `Ui`, or a signal or a closure of
-one, worked out once per change. Each choice moves the scales rather than
-setting numbers:
+one, worked out once per change. `themed(ui, build)` is what an app usually
+wants: it provides `ui` to what `build` makes and builds it again only when
+`Ui::sizes()` changes, so a new palette or material repaints it in place.
+Each choice moves the scales rather than setting numbers:
 
 | Choice | Values | What it does |
 |---|---|---|
@@ -87,20 +87,31 @@ A component reads it two ways, both while it is built:
 
 - `ui()` is the `Ui` as it is now, for what sizes and times what is built:
   density, shape, fonts and motion (`Ui::sizes()`). A change of these
-  builds the tree again; the app's closure that provides the `Ui` reads
-  `Ui::sizes()` and nothing else of it.
+  builds the tree again: `themed` reads `Ui::sizes()` and nothing else of
+  the `Ui`.
 - `look()` is a `Copy` handle on the `Ui` as it changes, for its colours
   and material. Read inside the closures a widget's properties take
   (`t.colors()`, `t.color(|c| c.text)`, `t.material()`), they follow a new
   palette in place: a wallpaper that changes, or the system turning dark,
   repaints the tree without building it again, and whatever is open,
-  typed or scrolled stays so. `t.eased(|c| c.surface)` is a colour that
-  eases at `motion::color()`, into a new palette as into a new state, for
-  a property with no motion of its own; one with a motion (a hover at
-  `motion::hover()`, a toggling fill) moves with that. The components'
-  colours ease so, at once under `Motion::None`, but for those Guido gives
-  no motion, which change at once: a ring's track, a text field's text,
-  placeholder and cursor, and a sparkline's line.
+  typed or scrolled stays so. The role `t.color` and `t.eased` take is a
+  closure that picks a colour from the palette, and may read what it
+  captures: `t.color(move |c| c.hue(hue).fill)`, or a signal, as
+  `t.eased(move |c| if on.get() { c.accent.fill } else { c.surface })`.
+  `t.ui()` is the whole `Ui` as it changes, for a subtree that provides
+  its own from it and follows it:
+  `provide_ui(move || t.ui().with_density(Density::Compact))`.
+- `t.eased(|c| c.surface)` is a colour that eases at `motion::color()`,
+  into a new palette as into a new state, for a property with no motion of
+  its own; one with a motion (a hover at `motion::hover()`, a toggling
+  fill) moves with that. Under `Motion::None` it changes at once, and keeps
+  no motion. `motion::eased_color(value)` does the same for a colour, or a
+  shadow of one, worked out of more than the palette (`colors_ease()` says
+  whether colours ease at all). Every colour of the components eases so, those an app gives
+  them too (a dot's, a ring's, an app icon's, rolling digits'), a text
+  field's text, placeholder, cursor and selection, an app icon's gradient
+  and a sparkline's line. Nothing changes at once but under
+  `Motion::None`.
 
 A colour copied while building (`ui().colors.text`) stays as it was: an app
 that no longer builds its tree again on a new palette reads its own colours
@@ -131,6 +142,11 @@ or a circle is round (`radius::pill(height)`). A box around another takes
 
 Fixed values: `stroke::HAIRLINE` 1, `RING` 1.5, `BOLD` 2, `HEAVY` 3;
 `opacity::DISABLED` 0.4, `RING` 0.7 (a field's ring in the accent),
+`SELECTION` 0.4 (the most of the accent a field's selection takes; each
+palette's `selection` takes as much of it as keeps its text at 3:1, for
+each material) and `SELECTION_MIN` 0.2 (the least it takes, where nothing
+keeps 3:1, as an accent set near the text's colour: a faint selection
+beats none),
 `STACKED` 0.6 (a share of `surface`'s alpha, for the edge below a folded
 group of notifications), `HALO` 0.5 (a share of the glow's alpha, for the
 island's halo); `glow::SMALL` 4, `MEDIUM` 8, `LARGE` 16 (the island's
@@ -202,13 +218,21 @@ colours by the names of the config file (`background`, `on_accent`,
 
 Components read the `Palette` derived from it: `island`, `surface`,
 `surface2`, `line`, `text`, `sub`, `dim`, the four hues `accent`, `success`,
-`warning` and `danger`, and `ripple`. Each hue is a `HueColors`: its `fill`,
+`warning` and `danger`, `ripple`, and `selection`, a field's selection: the
+accent's fill at as much of `opacity::SELECTION` (0.4) as keeps `text` at
+3:1 on it, on a field, worked out when the palette is built and again for
+each material, as its text is (0.39 to 0.4 on a solid island, from 0.26
+with the palest accents to 0.4 on a see-through one). It is derived, as the
+text over glass is: a value set by hand is replaced when a `Ui` is built. Each hue is a `HueColors`: its `fill`,
 the colour `on` it and its `text`; `palette.hue(Hue::Danger)` reads one by
 its `Hue` (`Scheme::fill(hue)` its theme's colours), `Hue::ALL` lists the
 four and `hue.name()` names one. `palette.ink(hue)` is the hue as text, or
 `text` without one (`None`), what a component toned or left neutral writes
-in. One colour is the same in every theme: `palette::SHADE`, the black of a
-shadow or of a box sunk into a fill.
+in. `Palette::ROLES` lists every colour but `selection` by its name with
+the `Role` that picks it (`fn(&Palette) -> Color`, what `t.color` takes),
+and `palette.named()` gives them with their colours. One colour is the same
+in every theme: `palette::SHADE`, the black of a shadow or of a box sunk
+into a fill.
 
 Two inks are worked out where they are drawn, as Material 3 does. A
 switch's knob is `accent.on` while on, and `sub` while off: as `sub` reads
@@ -434,7 +458,11 @@ A text field, `input::field`, is a pill on the surface holding the app's
 `text_input` and a trailing button if given. Its ring is the accent at
 `opacity::RING`, `danger` while `refused` (the last answer was refused and
 nothing new is typed); a ring of the app's own, `.ring(color)`, takes the
-place of both, and a closure giving `None` hands it back to that rule. `password_field` is a field whose end submits, or spins while
+place of both, and a closure giving `None` hands it back to that rule. The
+`text_input` is the app's; `text::PaletteColors` gives it (or a
+`password_input`) the palette's colours, `text`, `sub` for the placeholder,
+`accent.text` for the cursor and `selection`, easing into a new palette:
+`text_input(typed).palette_colors()`. `password_field` is a field whose end submits, or spins while
 `busy`; `held`, it fades.
 
 ```rust

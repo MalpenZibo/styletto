@@ -26,7 +26,7 @@ pub fn progress_bar(
                 .width((move || fraction(value.get().clamp(0.0, 1.0))).transition(motion::hover()))
                 .height(fill())
                 .corners(radius::pill(space::S1.px()))
-                .background((move || color.get()).transition(motion::color())),
+                .background(motion::eased_color(color)),
         )
 }
 
@@ -44,8 +44,7 @@ pub fn ring(
         .size(size.px())
         .stroke(size.stroke())
         .caps(Cap::Round)
-        // A track takes no motion: it changes palette at once.
-        .track(look().color(|c| c.surface2))
-        .color(move || color.get())
+        .track(look().eased(|c| c.surface2))
+        .color(motion::eased_color(color))
         .progress((move || value.get().clamp(0.0, 1.0)).transition(motion::spring()))
 }

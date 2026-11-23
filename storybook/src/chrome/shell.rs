@@ -14,12 +14,12 @@ use styletto::foundations::tokens::{icon as icon_box, size as space, stroke};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
 use styletto::foundations::{motion, tokens};
-use styletto::primitives::text::{caption, heading, label, typed};
-use styletto::{Icon, Ui, centered_row, icon, provide_ui, ui};
+use styletto::primitives::text::{PaletteColors, caption, heading, label, typed};
+use styletto::{Icon, Ui, centered_row, icon, look, provide_ui, themed};
 
 use crate::chrome::appearance::{self, Appearance};
 use crate::chrome::widgets::{choices, field, island, section, wallpaper};
-use crate::stories::story::{Control, Ctx};
+use crate::stories::story::{Control, Ctx, Story};
 use crate::stories::{STORIES, group_icon};
 
 const CHROME: Color = Color::from_hex(0x1a1b26);
@@ -81,7 +81,7 @@ pub fn view() -> Container {
 }
 
 fn pill(selected: RwSignal<usize>, window: Window) -> Container {
-    let t = ui();
+    let t = look();
     button::pressable(
         container()
             .width(fill())
@@ -100,11 +100,15 @@ fn pill(selected: RwSignal<usize>, window: Window) -> Container {
         container().width(fill()).child(
             text(move || format!("Storybook · {}", STORIES[selected.get()].name))
                 .typeset(ty::LABEL_MEDIUM.em())
-                .color(t.colors.text)
+                .color(t.eased(|c| c.text))
                 .nowrap(),
         ),
     )
-    .child(icon(Icon::ChevronUp, icon_box::MEDIUM.px(), t.colors.sub))
+    .child(icon(
+        Icon::ChevronUp,
+        icon_box::MEDIUM.px(),
+        t.color(|c| c.sub),
+    ))
 }
 
 fn full(
@@ -141,29 +145,40 @@ fn full(
                 .child(toolbar(selected, theming, window))
                 .child(container().width(fill()).height(fill()).child(move || {
                     if theming.get() {
-                        return appearance::page(appearance);
+                        return appearance::page(appearance, drawn);
                     }
-                    let story = &STORIES[selected.get()];
-                    let drawn = drawn.get();
-                    let ctx = Rc::new(Ctx::new(log));
-                    // The story and its canvas get the chosen look in a scope
-                    // of their own; the panel beside them keeps the chrome's.
-                    let canvas = container().width(fill()).height(fill()).child({
-                        let ctx = ctx.clone();
-                        move || {
-                            ctx.reset();
-                            provide_ui(drawn);
-                            canvas(appearance.backdrop(), (story.render)(&ctx))
-                        }
-                    });
-                    container()
-                        .width(fill())
-                        .height(fill())
-                        .layout(Flex::row())
-                        .child(canvas)
-                        .child(panel(ctx, log))
+                    stage(&STORIES[selected.get()], drawn, appearance.backdrop(), log)
                 })),
         )
+}
+
+/// `story` on its canvas, drawn with `drawn`, beside the panel of its
+/// controls and actions. Only a change of what sizes it builds it again; a
+/// new palette or material repaints it in place, and its controls keep
+/// their values.
+fn stage(
+    story: &'static Story,
+    drawn: Memo<Ui>,
+    backdrop: Memo<Option<PathBuf>>,
+    log: RwSignal<Vec<String>>,
+) -> Container {
+    let ctx = Rc::new(Ctx::new(log));
+    // The story and its canvas get the chosen look, built again only for
+    // what sizes them; the panel beside them keeps the chrome's, and lists
+    // the controls the story declares each time it is built.
+    let canvas = themed(drawn, {
+        let ctx = ctx.clone();
+        move || {
+            ctx.reset();
+            canvas(backdrop, (story.render)(&ctx))
+        }
+    });
+    container()
+        .width(fill())
+        .height(fill())
+        .layout(Flex::row())
+        .child(canvas.width(fill()).height(fill()))
+        .child(panel(ctx, log))
 }
 
 fn sidebar(
@@ -180,7 +195,7 @@ fn sidebar(
     ];
     // Each group is a heading, its stories nested under a guide line, so a
     // group reads as one and not as one more story.
-    let t = ui();
+    let t = look();
     let mut start = 0;
     for group in STORIES.chunk_by(|a, b| a.group == b.group) {
         let (first, end) = (start, start + group.len());
@@ -198,11 +213,11 @@ fn sidebar(
                 .child(icon(
                     group_icon(group),
                     icon_box::SMALL.px(),
-                    t.colors.accent.text,
+                    t.color(|c| c.accent.text),
                 ))
                 .child(
                     typed(group, ty::TITLE_XSMALL.em())
-                        .color(t.colors.text)
+                        .color(t.eased(|c| c.text))
                         .nowrap(),
                 )
                 .into_any(),
@@ -226,7 +241,7 @@ fn sidebar(
                     container()
                         .width(stroke::HAIRLINE)
                         .height(fill())
-                        .background(t.colors.line),
+                        .background(t.eased(|c| c.line)),
                 )
                 .child(
                     container()
@@ -265,7 +280,7 @@ fn sidebar(
 }
 
 fn toolbar(selected: RwSignal<usize>, theming: RwSignal<bool>, window: Window) -> Container {
-    let t = ui();
+    let t = look();
     let place = create_memo(move || {
         if theming.get() {
             ("Settings", "Theme")
@@ -290,7 +305,7 @@ fn toolbar(selected: RwSignal<usize>, theming: RwSignal<bool>, window: Window) -
                 .child(
                     text(move || place().1.to_string())
                         .typeset(ty::LABEL_MEDIUM.em())
-                        .color(t.colors.text),
+                        .color(t.eased(|c| c.text)),
                 ),
         )
         .child(
@@ -320,7 +335,7 @@ pub fn canvas(backdrop: Memo<Option<PathBuf>>, rendered: Container) -> Container
 }
 
 fn panel(ctx: Rc<Ctx>, log: RwSignal<Vec<String>>) -> Container {
-    let t = ui();
+    let t = look();
 
     container()
         .width(space::S80.px())
@@ -369,7 +384,7 @@ fn panel(ctx: Rc<Ctx>, log: RwSignal<Vec<String>>) -> Container {
                 .height(fill())
                 .padding(space::S2.px())
                 .corners(tokens::radius::SMALL.corners())
-                .background(t.colors.surface)
+                .background(t.eased(|c| c.surface))
                 .scroll(Scroll::vertical())
                 .child(move || {
                     let entries = log.get();
@@ -379,15 +394,18 @@ fn panel(ctx: Rc<Ctx>, log: RwSignal<Vec<String>>) -> Container {
                     container()
                         .layout(Flex::column().spacing(space::S1.px()))
                         .children(entries.into_iter().map(|entry| {
-                            container()
-                                .child(text(entry).typeset(ty::MONO_SMALL).color(t.colors.sub))
+                            container().child(
+                                text(entry)
+                                    .typeset(ty::MONO_SMALL)
+                                    .color(t.eased(|c| c.sub)),
+                            )
                         }))
                 }),
         )
 }
 
 fn control_row(control: &Control) -> Container {
-    let t = ui();
+    let t = look();
     match control {
         Control::Bool { label: name, value } => {
             let value = *value;
@@ -410,7 +428,7 @@ fn control_row(control: &Control) -> Container {
                 Some(
                     text(move || format!("{:.0}", value.get()))
                         .typeset(ty::LABEL_MEDIUM.tabular())
-                        .color(t.colors.sub),
+                        .color(t.eased(|c| c.sub)),
                 ),
                 slider(move || (value.get() - min) / span * 100.0)
                     .on_change(move |percent| value.set(min + percent / 100.0 * span)),
@@ -439,12 +457,117 @@ fn control_row(control: &Control) -> Container {
                 .width(fill())
                 .padding([space::S2.px(), space::S2.px()])
                 .corners(tokens::radius::SMALL.corners())
-                .background(t.colors.surface)
+                .background(t.eased(|c| c.surface))
                 .child(
                     text_input(*value)
                         .typeset(ty::LABEL_MEDIUM)
-                        .color(t.colors.text),
+                        .palette_colors(),
                 ),
         ),
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use std::cell::Cell;
+
+    use guido::prelude::*;
+    use guido::testing::Headless;
+    use styletto::Ui;
+    use styletto::theme::presets::ThemeChoice;
+    use styletto::ui::{Density, Material};
+
+    use crate::stories::STORIES;
+    use crate::stories::mounted::{Bench, still_backdrop};
+    use crate::stories::story::{Ctx, Story};
+
+    thread_local! {
+        /// How many times the stories below were built.
+        static BUILT: Cell<u32> = const { Cell::new(0) };
+        /// The control `COUNTED` declared last.
+        static CONTROL: Cell<Option<RwSignal<f32>>> = const { Cell::new(None) };
+        /// The story of `STORIES` that `ANY` draws.
+        static SHOWN: Cell<usize> = const { Cell::new(0) };
+    }
+
+    /// A story that counts its builds and declares a control.
+    fn counted(ctx: &Ctx) -> Container {
+        BUILT.set(BUILT.get() + 1);
+        CONTROL.set(Some(ctx.number("Value", 0.0..=100.0, 40.0)));
+        container().width(100.0).height(60.0)
+    }
+
+    static COUNTED: Story = Story {
+        group: "Test",
+        name: "Counted",
+        render: counted,
+    };
+
+    /// The story of `STORIES` at `SHOWN`, counting its builds.
+    fn any(ctx: &Ctx) -> Container {
+        BUILT.set(BUILT.get() + 1);
+        (STORIES[SHOWN.get()].render)(ctx)
+    }
+
+    static ANY: Story = Story {
+        group: "Test",
+        name: "Any",
+        render: any,
+    };
+
+    /// The stage of `story`, drawn with `given`.
+    fn stage(story: &'static Story, given: RwSignal<Ui>) -> Container {
+        let drawn = create_memo(move || given.get());
+        super::stage(story, drawn, still_backdrop(), create_signal(Vec::new()))
+    }
+
+    /// The default theme's dark `Ui`, and its light one on glass.
+    fn looks() -> (Ui, Ui) {
+        let choice = ThemeChoice::default();
+        let glass = Ui::new(choice.palette_of(true)).with_material(Material::Glass);
+        (Ui::new(choice.palette_of(false)), glass)
+    }
+
+    #[test]
+    fn a_new_palette_keeps_the_controls_and_new_sizes_build_the_story_again() {
+        let Some(mut h) = Headless::new_or_skip() else {
+            return;
+        };
+        let (dark, glass) = looks();
+        let given = create_signal(dark);
+        let id = h.surface(SurfaceConfig::new(), move || stage(&COUNTED, given));
+        h.configure(id, 800, 400, 1.0);
+        h.step();
+        let value = CONTROL.get().expect("the story declared its control");
+        value.set(70.0);
+        given.set(glass);
+        h.step();
+        let kept = CONTROL.get().map(|c| c.get_untracked());
+        assert_eq!(kept, Some(70.0), "the control went back to its default");
+        let built = BUILT.get();
+        given.set(glass.with_density(Density::Compact));
+        h.step();
+        assert_eq!(BUILT.get(), built + 1, "a density kept the story");
+    }
+
+    #[test]
+    fn a_new_palette_repaints_every_story_in_place() {
+        let (dark, glass) = looks();
+        // One GPU context for every story, each pair closed before the next.
+        let Some(mut bench) = Bench::new() else {
+            return;
+        };
+        for (index, story) in STORIES.iter().enumerate() {
+            SHOWN.set(index);
+            // From dark to light glass, beside one built light on glass.
+            let mut pair = bench.pair((800, 400), dark, glass, |ui| stage(&ANY, ui));
+            let builds = BUILT.get();
+            pair.change();
+            let name = format!("{}/{}", story.group, story.name);
+            assert_eq!(BUILT.get(), builds, "{name} was built again");
+            if let Some(unlike) = pair.unlike() {
+                panic!("{name} kept a colour of the old palette: {unlike}");
+            }
+        }
     }
 }

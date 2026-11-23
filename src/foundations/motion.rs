@@ -5,6 +5,7 @@
 use std::cell::Cell;
 use std::time::Duration;
 
+use guido::animation::MovesAs;
 use guido::prelude::*;
 
 use crate::foundations::tokens::size;
@@ -58,7 +59,12 @@ pub fn springing(config: SpringConfig) -> Transition {
 
 /// An eased change, kept under reduced motion: it moves nothing.
 pub fn easing(ms: f32) -> Transition {
-    match with_ui(|u| u.motion) {
+    easing_in(with_ui(|u| u.motion), ms)
+}
+
+/// [`easing`] under `motion`.
+fn easing_in(motion: Motion, ms: f32) -> Transition {
+    match motion {
         Motion::Full | Motion::Reduced => Transition::new(ms, TimingFunction::EaseOut),
         Motion::None => instant(),
     }
@@ -78,6 +84,32 @@ pub fn hover() -> Transition {
 
 pub fn color() -> Transition {
     easing(COLOR_MS)
+}
+
+/// Whether a colour eases into a new one: unless motion is off.
+pub fn colors_ease() -> bool {
+    with_ui(|u| u.motion) != Motion::None
+}
+
+/// `value` (a colour, or a shadow of one; a value, a signal or a closure)
+/// easing into each new value at [`color()`]. Under [`Motion::None`] it
+/// changes at once, with no motion kept for it: a panel paints many. For a
+/// colour worked out of more than the palette, as a shadow lit by a state;
+/// one picked from the palette is [`Look::eased`](crate::Look::eased).
+pub fn eased_color<T: Clone + MovesAs + 'static, M>(value: impl IntoSignal<T, M>) -> Animated<T> {
+    eased_color_in(with_ui(|u| u.motion), value)
+}
+
+/// [`eased_color`] under `motion`: a [`Look`](crate::Look)'s own, which
+/// need not be the nearest `Ui` where it is read.
+pub(crate) fn eased_color_in<T: Clone + MovesAs + 'static, M>(
+    motion: Motion,
+    value: impl IntoSignal<T, M>,
+) -> Animated<T> {
+    match motion {
+        Motion::None => value.into_animated(),
+        Motion::Full | Motion::Reduced => value.transition(easing_in(motion, COLOR_MS)),
+    }
 }
 
 /// How a fill that turns on and off moves, as a toggling button's or a

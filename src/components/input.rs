@@ -51,10 +51,9 @@ pub fn field(
         .height(height)
         .corners(radius::pill(height))
         .background(t.eased(|c| c.surface))
-        .shadow(
-            (move || Shadow::new((0.0, 0.0), 0.0, stroke::RING, ring()).inset())
-                .transition(motion::color()),
-        )
+        .shadow(motion::eased_color(move || {
+            Shadow::new((0.0, 0.0), 0.0, stroke::RING, ring()).inset()
+        }))
         .padding([0.0, end, 0.0, padding])
         .layout(centered_row(space::S2.px()))
         .children(children)

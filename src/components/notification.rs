@@ -193,20 +193,18 @@ pub fn app_icon(
 ) -> impl Widget {
     let tile = size.get_untracked();
     let size = tile.px();
-    // Read as it paints, so a colour that follows the palette repaints the
-    // tile in place.
     container()
         .width(size)
         .height(size)
         .corners(tile.radius().corners())
-        .gradient(move || {
+        .gradient(motion::eased_color(move || {
             let color = color.get();
-            LinearGradient::new(
+            Some(LinearGradient::new(
                 color.lighter(lift::SHEEN),
                 color.darker(lift::SHEEN),
                 GradientDirection::Diagonal,
-            )
-        })
+            ))
+        }))
         .layout(Flex::column().center())
         .child(icons::icon(icon, tile.icon(), move || {
             palette::black_or_white(color.get())
