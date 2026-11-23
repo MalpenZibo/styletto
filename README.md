@@ -105,12 +105,12 @@ A component reads it two ways, both while it is built:
   into a new palette as into a new state, for a property with no motion of
   its own; one with a motion (a hover at `motion::hover()`, a toggling
   fill) moves with that. Under `Motion::None` it changes at once, and keeps
-  no motion. The components' colours ease so, those an app gives them
-  too (a dot's, a ring's, an app icon's, rolling digits'); a sparkline's
-  line, which it draws itself, and an app icon's gradient, which Guido
-  gives no motion, are eased by the component. Two change at once, as
-  Guido gives them no motion: a ring's track, and a text field's
-  placeholder and cursor.
+  no motion. Every colour of the components eases so, those an app gives
+  them too (a dot's, a ring's, an app icon's, rolling digits'), and a text
+  field's text, placeholder and cursor; a sparkline's line, which it draws
+  itself, and an app icon's gradient, which Guido gives no motion, are
+  eased by the component. Nothing changes at once but under
+  `Motion::None`.
 
 A colour copied while building (`ui().colors.text`) stays as it was: an app
 that no longer builds its tree again on a new palette reads its own colours

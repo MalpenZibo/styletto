@@ -914,10 +914,8 @@ fn typing(input: TextInput) -> Container {
     container().width(fill()).child(
         input
             .color(t.eased(|c| c.text))
-            // Guido gives a placeholder and a cursor no motion: they change
-            // palette at once.
-            .placeholder_color(t.color(|c| c.sub))
-            .cursor_color(t.color(|c| c.accent.text)),
+            .placeholder_color(t.eased(|c| c.sub))
+            .cursor_color(t.eased(|c| c.accent.text)),
     )
 }
 

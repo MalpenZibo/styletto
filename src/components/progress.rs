@@ -44,8 +44,7 @@ pub fn ring(
         .size(size.px())
         .stroke(size.stroke())
         .caps(Cap::Round)
-        // Guido gives a track no motion: it changes palette at once.
-        .track(look().color(|c| c.surface2))
+        .track(look().eased(|c| c.surface2))
         .color(motion::eased_color(color))
         .progress((move || value.get().clamp(0.0, 1.0)).transition(motion::spring()))
 }
