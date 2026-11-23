@@ -4,8 +4,9 @@
 //! `UiConfig` whose source is a wallpaper reads it here, and so do the
 //! appearance controls, which show what the reading came to. An app whose
 //! first frame must already be in the wallpaper's colours reads it once on
-//! the calling thread instead, with `UiConfig::ui_blocking`: what it finds
-//! goes into the same store, so nothing reads it again.
+//! the calling thread instead, with `UiConfig::ui_blocking` (or
+//! `read_wallpaper_blocking`, for a `Ui` worked out in a memo): what it
+//! finds goes into the same store, so nothing reads it again.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -410,6 +411,22 @@ mod tests {
         // A surface made now takes them at once, and nothing reads again.
         assert_eq!(*mount(&mut h, config.clone()).borrow(), [read]);
         assert_eq!(config.ui_blocking(None), read);
+        assert_eq!(reads(&path), 1, "read more than once");
+        std::fs::remove_file(&path).ok();
+    }
+
+    #[test]
+    fn a_blocking_read_alone_gives_a_memo_the_wallpaper_on_its_first_run() {
+        let Some(mut h) = Headless::new_or_skip() else {
+            return;
+        };
+        let path = write_picture("blocking-alone");
+        let config = config(&path);
+        let read = read_now(&config);
+        config.read_wallpaper_blocking();
+        assert!(!reading());
+        // The surface's first Ui is in the colours already: no theme first.
+        assert_eq!(*mount(&mut h, config.clone()).borrow(), [read]);
         assert_eq!(reads(&path), 1, "read more than once");
         std::fs::remove_file(&path).ok();
     }

@@ -147,17 +147,43 @@ impl UiConfig {
     /// Call it once, before the app draws, on the `App`'s thread if there is
     /// one. Not in a reactive closure: it blocks the thread for the read, and
     /// writes the store the closure reads; there, [`ui`] follows the config.
+    /// An app whose `Ui` is worked out in a memo calls
+    /// [`read_wallpaper_blocking`] instead: the memo's first run is then in
+    /// the wallpaper's colours, and no `Ui` is built only to be dropped.
     ///
     /// [`ui`]: Self::ui
+    /// [`read_wallpaper_blocking`]: Self::read_wallpaper_blocking
     pub fn ui_blocking(&self, system_dark: Option<bool>) -> Ui {
-        #[cfg(feature = "wallpaper")]
-        if let Some(path) = self.wallpaper_path() {
-            crate::theme::wallpaper::read_blocking(&path);
-        }
+        self.read_wallpaper_blocking();
         // Called outside a reactive closure, as it is meant to be: Guido's
         // debug builds would warn there that the store's read is a snapshot,
         // which is what this asks for. It silences the warning, nothing else.
         guido::reactive::diagnostics::snapshot_zone(|| self.ui(system_dark))
+    }
+
+    /// Reads the wallpaper on the calling thread, as [`ui_blocking`] does,
+    /// and builds nothing: every [`ui`] called after it, in a memo or not, is
+    /// in its colours at once. For an app whose `Ui` is a memo over the
+    /// config, so its first run already has them:
+    ///
+    /// ```ignore
+    /// config.with_untracked(|c| c.appearance.read_wallpaper_blocking());
+    /// let ui = create_memo(move || config.with(|c| c.appearance.ui(None)));
+    /// ```
+    ///
+    /// A picture the store has already, read or failed, is left as it is; a
+    /// read of it still under way on a thread is dropped; a picture that
+    /// can't be read is logged. Called as [`ui_blocking`] is: once, before
+    /// the app draws, not in a reactive closure. Without a wallpaper chosen,
+    /// or without the `wallpaper` feature, it does nothing.
+    ///
+    /// [`ui`]: Self::ui
+    /// [`ui_blocking`]: Self::ui_blocking
+    pub fn read_wallpaper_blocking(&self) {
+        #[cfg(feature = "wallpaper")]
+        if let Some(path) = self.wallpaper_path() {
+            crate::theme::wallpaper::read_blocking(&path);
+        }
     }
 
     /// Both sides, the dark one first, with their colours set over them.
