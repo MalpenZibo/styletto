@@ -483,7 +483,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use crate::stories::STORIES;
-    use crate::stories::mounted::{settle, unlike};
+    use crate::stories::mounted::{settle, still_backdrop, unlike};
     use crate::stories::story::{Ctx, Story};
 
     thread_local! {
@@ -524,12 +524,7 @@ mod tests {
     fn mount(h: &mut Headless, story: &'static Story, given: RwSignal<Ui>) -> SurfaceId {
         let id = h.surface(SurfaceConfig::new(), move || {
             let drawn = create_memo(move || given.get());
-            super::stage(
-                story,
-                drawn,
-                create_memo(|| None),
-                create_signal(Vec::new()),
-            )
+            super::stage(story, drawn, still_backdrop(), create_signal(Vec::new()))
         });
         h.configure(id, 800, 400, 1.0);
         id

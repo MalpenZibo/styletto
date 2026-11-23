@@ -23,6 +23,14 @@ pub fn settle(h: &mut Headless, at: &mut Instant) {
     }
 }
 
+/// A picture to draw behind what two frames compare, in place of the
+/// blurred shapes: the software renderer CI draws with gives a blur drawn
+/// while every test starts at once a few tiles of its own.
+pub fn still_backdrop() -> Memo<Option<std::path::PathBuf>> {
+    let logo = concat!(env!("CARGO_MANIFEST_DIR"), "/../assets/logo.svg");
+    create_memo(move || Some(logo.into()))
+}
+
 /// How far a channel may differ between two frames that draw the same: a
 /// blur drawn on two surfaces at once comes out a few levels apart on the
 /// software renderer CI draws with. A colour of another palette is tens of

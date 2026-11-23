@@ -383,7 +383,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use super::Appearance;
-    use crate::stories::mounted::{settle, unlike};
+    use crate::stories::mounted::{settle, still_backdrop, unlike};
 
     #[test]
     fn the_page_keeps_the_sides_apart() {
@@ -523,13 +523,19 @@ mod tests {
         let probe = Rc::new(Cell::new(None));
         let seen = probe.clone();
         let changed = h.surface(SurfaceConfig::new(), move || {
-            let a = Appearance::new();
+            let a = Appearance {
+                backdrop: still_backdrop(),
+                ..Appearance::new()
+            };
             seen.set(Some(a));
             super::preview(a)
         });
         let given = light.clone();
         let built = h.surface(SurfaceConfig::new(), move || {
-            let a = Appearance::new();
+            let a = Appearance {
+                backdrop: still_backdrop(),
+                ..Appearance::new()
+            };
             a.config.set(given.clone());
             super::preview(a)
         });
