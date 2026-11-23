@@ -1,7 +1,8 @@
 //! `styletto-storybook shot`: one story drawn without a compositor, on the
 //! storybook's canvas, and written to a PNG. The look is given with the keys
 //! of the `[appearance]` table, so a picture can be taken in any mode,
-//! density, shape, material and theme, and the same one again after a change.
+//! density, shape, material and theme, and the same one again after a change;
+//! `language=pseudo` shows styletto's words in the pseudo-language.
 //!
 //! ```text
 //! styletto-storybook shot --list
@@ -20,6 +21,7 @@ use styletto::provide_ui;
 use styletto::theme::config::UiConfig;
 use styletto::theme::wallpaper;
 
+use crate::chrome::language::{self, LANGUAGES, Language};
 use crate::chrome::shell::canvas;
 use crate::stories::STORIES;
 use crate::stories::story::{Control, Ctx};
@@ -37,7 +39,9 @@ key=value are the keys of the [appearance] table: theme, dark_flavor,
 light_flavor, accent, dark_accent, light_accent, seed, wallpaper,
 wallpaper_color, variant, contrast, mode, density,
 shape, material, motion, fonts.sans, fonts.mono, dark.<colour>,
-light.<colour>. mode is dark unless given.";
+light.<colour>. mode is dark unless given. language=pseudo, not a key
+of the table, shows styletto's words in the storybook's pseudo-language
+(language=english by default).";
 
 /// The keys of the `[appearance]` table, and the tables whose keys are free.
 const KEYS: &[&str] = &[
@@ -79,6 +83,7 @@ struct Shot {
     /// Typed into the first field and selected, to show a selection.
     select: Option<String>,
     appearance: Vec<(String, String)>,
+    language: Language,
 }
 
 pub fn run(args: &[String]) -> Result<(), String> {
@@ -104,6 +109,7 @@ fn parse(args: &[String]) -> Result<Shot, String> {
     let mut controls = Vec::new();
     let mut select = None;
     let mut appearance = Vec::new();
+    let mut language = Language::default();
     let mut args = args.iter();
     while let Some(arg) = args.next() {
         let mut value = |flag: &str| {
@@ -141,6 +147,13 @@ fn parse(args: &[String]) -> Result<Shot, String> {
             }
             pair if pair.contains('=') && positional.len() >= 2 => {
                 let (key, value) = pair.split_once('=').unwrap();
+                if key.trim() == "language" {
+                    language = Language::named(value.trim()).ok_or_else(|| {
+                        let names: Vec<_> = LANGUAGES.iter().map(|(name, _)| name).collect();
+                        format!("language={value}: expected one of {names:?}")
+                    })?;
+                    continue;
+                }
                 appearance.push((key.trim().to_string(), value.trim().to_string()));
             }
             other => positional.push(other.to_string()),
@@ -160,6 +173,7 @@ fn parse(args: &[String]) -> Result<Shot, String> {
         controls,
         select,
         appearance,
+        language,
     })
 }
 
@@ -205,7 +219,9 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
     let story = &STORIES[shot.story];
     let drawn: Rc<RefCell<Option<Rc<Ctx>>>> = Rc::default();
     let seen = drawn.clone();
+    let shown_in = shot.language;
     let id = h.surface(SurfaceConfig::new(), move || {
+        language::provide(move || shown_in);
         let ctx = Rc::new(Ctx::new(create_signal(Vec::new())));
         *seen.borrow_mut() = Some(ctx.clone());
         let backdrop = create_memo(move || backdrop.clone());

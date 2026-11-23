@@ -37,8 +37,9 @@ pub fn setting_group(
 #[component]
 pub fn setting(
     #[prop(required)] name: String,
-    /// A word on the setting's state, in `sub`, cut short with an ellipsis
-    /// where the line ends. Empty says nothing.
+    /// A word on the setting's state, in `sub`, at the end of the line;
+    /// longer than the room beside the name, it wraps onto more lines,
+    /// aligned to that end. Empty says nothing.
     note: String,
     /// What sets it, as `choices`, one under another.
     #[prop(children)]
@@ -56,9 +57,12 @@ pub fn setting(
                     container()
                         .width(fill())
                         .layout(Flex::row().main_alignment(MainAlignment::End))
-                        // A caption is never taller than the name's label, so
-                        // an empty one leaves the line as it is.
-                        .child(caption(note).overflow(TextOverflow::Ellipsis)),
+                        // Wrapped rather than cut short: a translation may
+                        // be twice as long, and a note cut short says
+                        // nothing. One line of caption is never taller than
+                        // the name's label, so an empty or a short note
+                        // leaves the line as the name makes it.
+                        .child(caption(note).wrap(true).align(TextAlign::End)),
                 ),
         )
         .children(children)

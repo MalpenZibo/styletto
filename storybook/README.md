@@ -31,8 +31,9 @@ tools/shot.sh "Buttons/Button" button.png --scale 2 \
 ```
 
 `key=value` are the keys of the `[appearance]` table, dark unless `mode`
-says otherwise; `--set` sets one of the story's controls by its label, and
-`--size WxH` the canvas (960x720 by default). The same arguments draw the
+says otherwise, and `language=pseudo` shows styletto's words in the
+pseudo-language below; `--set` sets one of the story's controls by its
+label, and `--size WxH` the canvas (960x720 by default). The same arguments draw the
 same pixels, so a shot taken before a change can be compared with one taken
 after. It needs a GPU adapter.
 
@@ -42,7 +43,10 @@ after. It needs a GPU adapter.
   preset theme, a seed colour, a wallpaper, or each colour set by hand),
   the mode, then the density, the shape, the material, the motion and the
   fonts, picked among those installed. A preview on the right answers to
-  clicks. Nothing is saved: a restart starts from the defaults.
+  clicks. Above them, the language styletto's words show in, everywhere:
+  English, or a pseudo-language, every word accented, about 40% longer and
+  in brackets (`[Ŀîĝĥţ··]`), to see a translation fit. Nothing is saved: a
+  restart starts from the defaults.
 - **Foundations**: the palette, the type scale, the space and radius
   scales, the control sizes, every icon, and a matrix of one panel in every
   density and shape.

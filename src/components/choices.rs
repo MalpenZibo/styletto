@@ -79,15 +79,24 @@ fn buttons<T: Copy + PartialEq + 'static>(
     enabled: Signal<bool>,
     on_choose: Option<Callback<(T,)>>,
 ) -> Container {
+    // Built again only for a new number of options: each button reads its
+    // label and value by its place, so labels in a new language, or new
+    // values, change them in place.
+    let count = create_memo(move || options.with(Vec::len));
     container().layout(layout).children(move || {
-        options.get().into_iter().map(move |(name, value)| {
+        (0..count.get()).map(move |index| {
+            let value = move || options.with(|options| options.get(index).map(|o| o.1));
             button()
-                .label(name)
+                .label(move || {
+                    options
+                        .with(|options| options.get(index).map(|o| o.0.clone()))
+                        .unwrap_or_default()
+                })
                 .fill(fill)
-                .active(move || chosen.get() == value)
+                .active(move || value().is_some_and(|value| chosen.get() == value))
                 .enabled(enabled)
                 .on_click(move || {
-                    if let Some(on_choose) = on_choose {
+                    if let (Some(on_choose), Some(value)) = (on_choose, value()) {
                         on_choose.run(value);
                     }
                 })

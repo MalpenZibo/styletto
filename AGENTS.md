@@ -29,6 +29,8 @@ read it before changing anything, and keep it true.
 - Every component has a story; a new one is registered in `storybook/src/stories/mod.rs`.
 - A change to what the README describes (tokens, components, features, the config table)
   updates the README in the same change.
+- A word a component shows is a key of `words::KEYS`, which holds its English; a component
+  writes no English of its own. A key is never taken away, nor its arguments changed.
 - Other projects depend on the public API: say so plainly when a change breaks it.
 
 ## Style
@@ -63,8 +65,10 @@ tools/shot.sh "Buttons/Button" /tmp/b.png --scale 2 --size 480x240 \
     --set Variant=Danger --set Enabled=false
 ```
 
-`key=value` are the keys of the `[appearance]` table (see the README); `--set` sets a story's
-control by its label; `--select TEXT` types TEXT into the story's first field and selects it,
+`key=value` are the keys of the `[appearance]` table (see the README), and `language=pseudo`,
+which shows styletto's words in the storybook's pseudo-language (accented, about 40% longer, in
+brackets) to see that a translation's longer words fit; `--set` sets a story's control by its
+label; `--select TEXT` types TEXT into the story's first field and selects it,
 and fails where the field doesn't end up with TEXT selected (a password field's text can't be
 copied out to check). The same arguments give the same pixels, so a before/after pair can be
 compared exactly: `magick compare -metric AE before.png after.png null:` prints how many pixels
