@@ -596,9 +596,18 @@ mod tests {
             settle(&mut h, &mut at);
             let name = format!("{}/{}", story.group, story.name);
             assert_eq!(BUILT.get(), builds, "{name} was built again");
+            let (a, b) = (h.read_frame(changed), h.read_frame(built));
+            let differ: Vec<usize> = (0..a.len() / 4)
+                .filter(|&i| a[i * 4..i * 4 + 4] != b[i * 4..i * 4 + 4])
+                .collect();
             assert!(
-                h.read_frame(changed) == h.read_frame(built),
-                "{name} kept a colour of the old palette"
+                differ.is_empty(),
+                "{name} kept a colour of the old palette: {} pixels, first at {:?} {:?} {:?}, last at {:?}",
+                differ.len(),
+                differ.first().map(|i| (i % 800, i / 800)),
+                differ.first().map(|i| &a[i * 4..i * 4 + 4]),
+                differ.first().map(|i| &b[i * 4..i * 4 + 4]),
+                differ.last().map(|i| (i % 800, i / 800)),
             );
         }
     }
