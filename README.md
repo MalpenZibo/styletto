@@ -87,8 +87,8 @@ A component reads it two ways, both while it is built:
 
 - `ui()` is the `Ui` as it is now, for what sizes and times what is built:
   density, shape, fonts and motion (`Ui::sizes()`). A change of these
-  builds the tree again; the app's closure that provides the `Ui` reads
-  `Ui::sizes()` and nothing else of it.
+  builds the tree again: `themed` reads `Ui::sizes()` and nothing else of
+  the `Ui`.
 - `look()` is a `Copy` handle on the `Ui` as it changes, for its colours
   and material. Read inside the closures a widget's properties take
   (`t.colors()`, `t.color(|c| c.text)`, `t.material()`), they follow a new
@@ -143,8 +143,8 @@ or a circle is round (`radius::pill(height)`). A box around another takes
 Fixed values: `stroke::HAIRLINE` 1, `RING` 1.5, `BOLD` 2, `HEAVY` 3;
 `opacity::DISABLED` 0.4, `RING` 0.7 (a field's ring in the accent),
 `SELECTION` 0.4 (the most of the accent a field's selection takes; each
-palette's `selection` takes as much of it as keeps its text at 3:1, on
-every material),
+palette's `selection` takes as much of it as keeps its text at 3:1, for
+each material),
 `STACKED` 0.6 (a share of `surface`'s alpha, for the edge below a folded
 group of notifications), `HALO` 0.5 (a share of the glow's alpha, for the
 island's halo); `glow::SMALL` 4, `MEDIUM` 8, `LARGE` 16 (the island's
@@ -218,8 +218,9 @@ Components read the `Palette` derived from it: `island`, `surface`,
 `surface2`, `line`, `text`, `sub`, `dim`, the four hues `accent`, `success`,
 `warning` and `danger`, `ripple`, and `selection`, a field's selection: the
 accent's fill at as much of `opacity::SELECTION` (0.4) as keeps `text` at
-3:1 on it, on a field, on every material, worked out when the palette is
-built (from 0.26 with the palest accents to 0.4 with most). Each hue is a `HueColors`: its `fill`,
+3:1 on it, on a field, worked out when the palette is built and again for
+each material, as its text is (0.39 to 0.4 on a solid island, from 0.26
+with the palest accents to 0.4 on a see-through one). Each hue is a `HueColors`: its `fill`,
 the colour `on` it and its `text`; `palette.hue(Hue::Danger)` reads one by
 its `Hue` (`Scheme::fill(hue)` its theme's colours), `Hue::ALL` lists the
 four and `hue.name()` names one. `palette.ink(hue)` is the hue as text, or
