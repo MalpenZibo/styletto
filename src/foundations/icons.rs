@@ -5,6 +5,7 @@ use std::collections::HashMap;
 
 use guido::prelude::*;
 
+use crate::foundations::motion;
 use crate::foundations::tokens::{self, IconSize, TileSize, tile};
 use crate::foundations::typography::Typeset;
 
@@ -145,6 +146,8 @@ impl Icon {
     }
 }
 
+/// `kind` drawn `size` square in `color`: a value, a signal or a closure,
+/// easing into a new one at [`motion::color`], as text does.
 pub fn icon<M1, M2>(
     kind: impl IntoSignal<Icon, M1>,
     size: f32,
@@ -154,7 +157,7 @@ pub fn icon<M1, M2>(
     container()
         .width(size)
         .height(size)
-        .child(image(move || kind.get().source()).tint(color))
+        .child(image(move || kind.get().source()).tint(color.transition(motion::color())))
 }
 
 /// An icon that turns while something runs.
@@ -180,7 +183,7 @@ pub fn initial(
     #[prop(required)] name: String,
     #[prop(default = tile::MEDIUM)] size: TileSize,
 ) -> impl Widget {
-    let t = crate::ui();
+    let t = crate::look();
     let tile = size.get_untracked();
     let size = tile.px();
     let letter = move || {
@@ -195,12 +198,12 @@ pub fn initial(
         .width(size)
         .height(size)
         .corners(tile.radius().corners())
-        .background(t.colors.surface2)
+        .background(t.eased(|c| c.surface2))
         .layout(Flex::column().center())
         .child(
             text(letter)
                 .typeset(tile.letter())
-                .color(t.colors.sub)
+                .color(t.eased(|c| c.sub))
                 .nowrap(),
         )
 }

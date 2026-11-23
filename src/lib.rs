@@ -10,7 +10,8 @@
 //!   slots and callbacks.
 //!
 //! A surface's choices among all of these are its [`Ui`], declared with
-//! [`provide_ui`] and read with [`ui()`].
+//! [`provide_ui`], read with [`ui()`] for what sizes a widget and with
+//! [`look()`] for its colours, which follow a new palette in place.
 
 pub mod components;
 pub mod foundations;
@@ -20,4 +21,4 @@ pub mod ui;
 
 pub use foundations::icons::{Icon, icon};
 pub use primitives::layout::centered_row;
-pub use ui::{Ui, provide_ui, ui};
+pub use ui::{Look, Ui, look, provide_ui, ui};

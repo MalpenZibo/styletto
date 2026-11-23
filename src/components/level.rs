@@ -9,7 +9,7 @@ use crate::foundations::icons::{self, Icon};
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::figure_text;
 use crate::theme::palette::Hue;
-use crate::ui::ui;
+use crate::ui::look;
 
 /// How a value stands: as it should, well, worrying, or alarming.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -59,10 +59,10 @@ impl Level {
 }
 
 /// The ink of `level`, for an icon or a figure: the text's while normal,
-/// else its hue as text.
+/// else its hue as text. Read in a property's closure, it follows a new
+/// palette.
 pub fn level_ink(level: Level) -> Color {
-    let c = ui().colors;
-    c.ink(level.hue())
+    look().colors().ink(level.hue())
 }
 
 /// The icons of a value's levels, each with the value it starts from, in

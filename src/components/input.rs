@@ -9,7 +9,7 @@ use crate::foundations::motion;
 use crate::foundations::tokens::radius;
 use crate::foundations::tokens::{icon as icon_box, opacity, size as space, stroke};
 use crate::primitives::layout::centered_row;
-use crate::ui::ui;
+use crate::ui::look;
 
 /// A pill on the surface holding a field and its trailing widgets, ringed in
 /// the accent, or in `danger` once refused.
@@ -28,14 +28,15 @@ pub fn field(
     trailing: (),
     #[prop(children)] children: (),
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     let size = size.get_untracked();
     let ring = move || {
         ring.get().unwrap_or_else(|| {
+            let c = t.colors();
             if refused.get() {
-                t.colors.danger.fill
+                c.danger.fill
             } else {
-                t.colors.accent.fill.with_alpha(opacity::RING)
+                c.accent.fill.with_alpha(opacity::RING)
             }
         })
     };
@@ -49,7 +50,7 @@ pub fn field(
         .width(fill())
         .height(height)
         .corners(radius::pill(height))
-        .background(t.colors.surface)
+        .background(t.eased(|c| c.surface))
         .shadow(
             (move || Shadow::new((0.0, 0.0), 0.0, stroke::RING, ring()).inset())
                 .transition(motion::color()),
@@ -76,7 +77,7 @@ pub fn password_field(
     #[prop(callback)] on_submit: (),
     #[prop(children)] children: (),
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     let submit = container().child(move || {
         if busy.get() {
             container()
@@ -86,7 +87,7 @@ pub fn password_field(
                 .child(
                     spinning(Icon::Refresh)
                         .size(icon_box::SMALL)
-                        .color(t.colors.accent.text),
+                        .color(t.color(|c| c.accent.text)),
                 )
                 .into_any()
         } else {

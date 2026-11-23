@@ -12,7 +12,7 @@ use crate::foundations::tokens::{
 use crate::foundations::typography::{BODY_SMALL, LABEL_MEDIUM, LABEL_XSMALL, Typeset};
 use crate::primitives::layout::centered_row;
 use crate::theme::palette;
-use crate::ui::ui;
+use crate::ui::look;
 
 /// One notification. The sender is the caller's to show, as a lead or a
 /// group's header. The close button shows on hover.
@@ -29,7 +29,7 @@ pub fn notification(
     #[prop(callback)] on_dismiss: (),
     #[prop(callback)] on_click: (),
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     let hovered = create_signal(false);
     let top = container()
         .width(fill())
@@ -38,7 +38,7 @@ pub fn notification(
             container().width(fill()).child(
                 text(title)
                     .typeset(LABEL_MEDIUM.em())
-                    .color(t.colors.text)
+                    .color(t.eased(|c| c.text))
                     .nowrap()
                     .overflow(TextOverflow::Ellipsis),
             ),
@@ -46,7 +46,7 @@ pub fn notification(
         .child(
             text(time)
                 .typeset(LABEL_XSMALL)
-                .color(t.colors.sub)
+                .color(t.eased(|c| c.sub))
                 .nowrap(),
         );
     let close = container()
@@ -72,7 +72,7 @@ pub fn notification(
                     body.with(|body| !body.is_empty()).then(|| {
                         text(body)
                             .typeset(BODY_SMALL)
-                            .color(t.colors.sub)
+                            .color(t.eased(|c| c.sub))
                             .max_lines(Some(3))
                             .overflow(TextOverflow::Ellipsis)
                     })
@@ -85,14 +85,14 @@ pub fn notification(
         .visible(urgent)
         .width(stroke::BOLD)
         .height(fill())
-        .background(t.colors.danger.fill);
+        .background(t.eased(|c| c.danger.fill));
 
     container()
         .width(fill())
         .corners(radius::shape(corners()))
         .overflow(Overflow::Hidden)
         .background(Color::TRANSPARENT.transition(motion::hover()))
-        .when_hovered(move |s| s.background(t.colors.surface))
+        .when_hovered(move |s| s.background(t.color(|c| c.surface)))
         .on_hover(move |h| hovered.set(h))
         .on_click(on_click)
         .layout(ZStack::new())
@@ -120,7 +120,7 @@ pub fn notification_group(
     on_toggle: (),
     #[prop(children)] children: (),
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     let head = container()
         .padding([
             space::S2.px(),
@@ -135,7 +135,7 @@ pub fn notification_group(
             container().width(fill()).child(
                 text(move || format!("{} · {}", app.get(), count.get()))
                     .typeset(LABEL_XSMALL.em())
-                    .color(t.colors.text)
+                    .color(t.eased(|c| c.text))
                     .nowrap()
                     .overflow(TextOverflow::Ellipsis),
             ),
@@ -147,10 +147,9 @@ pub fn notification_group(
                 } else {
                     Icon::ChevronLeft
                 };
-                icon(kind, icon_box::XSMALL.px(), t.colors.dim)
+                icon(kind, icon_box::XSMALL.px(), t.color(|c| c.dim))
             })
         });
-    let edge = t.colors.surface.scale_alpha(opacity::STACKED);
     container()
         .width(fill())
         .layout(Flex::column())
@@ -159,7 +158,7 @@ pub fn notification_group(
                 .width(fill())
                 .padding(group_padding())
                 .corners(radius::shape(radius::around(corners(), group_padding())))
-                .background(t.colors.surface)
+                .background(t.eased(|c| c.surface))
                 .layout(Flex::column())
                 .child(head)
                 .children(children),
@@ -179,7 +178,7 @@ pub fn notification_group(
                                 radius::SMALL.px(),
                                 radius::SMALL.px(),
                             ]))
-                            .background(edge),
+                            .background(t.eased(|c| c.surface.scale_alpha(opacity::STACKED))),
                     )
             })
         })
@@ -194,20 +193,22 @@ pub fn app_icon(
 ) -> impl Widget {
     let tile = size.get_untracked();
     let size = tile.px();
-    let color = color.get_untracked();
+    // Read as it paints, so a colour that follows the palette repaints the
+    // tile in place.
     container()
         .width(size)
         .height(size)
         .corners(tile.radius().corners())
-        .gradient(LinearGradient::new(
-            color.lighter(lift::SHEEN),
-            color.darker(lift::SHEEN),
-            GradientDirection::Diagonal,
-        ))
+        .gradient(move || {
+            let color = color.get();
+            LinearGradient::new(
+                color.lighter(lift::SHEEN),
+                color.darker(lift::SHEEN),
+                GradientDirection::Diagonal,
+            )
+        })
         .layout(Flex::column().center())
-        .child(icons::icon(
-            icon,
-            tile.icon(),
-            palette::black_or_white(color),
-        ))
+        .child(icons::icon(icon, tile.icon(), move || {
+            palette::black_or_white(color.get())
+        }))
 }

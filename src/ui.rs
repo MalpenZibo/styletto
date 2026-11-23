@@ -2,7 +2,9 @@
 //! material and motion. Set with [`provide_ui`], read with [`ui`].
 
 use guido::prelude::*;
+use guido::reactive::Prop;
 
+use crate::foundations::motion;
 use crate::theme::palette::Palette;
 
 /// How much room things take: type, controls and space move one step, and
@@ -196,14 +198,88 @@ impl Ui {
     }
 }
 
-pub fn provide_ui(ui: Ui) {
-    provide_context(ui);
+/// Gives the components built from here on `ui`: a value, or a signal or a
+/// closure that changes. A new palette, or a new material, repaints what is
+/// built in place, easing into it, as every colour is read where it is
+/// painted; density, shape, fonts and motion size and time what is built,
+/// so a change of [`Ui::sizes`] still asks for the tree to be built again.
+///
+/// What it is given is worked out once per change, not once per colour
+/// read, and a change that leaves the `Ui` as it was repaints nothing.
+pub fn provide_ui<M>(ui: impl IntoSignal<Ui, M>) {
+    let ui = match ui.into_prop() {
+        // A memo, so a closure runs once per change rather than per colour
+        // read, and a change that leaves the `Ui` as it was repaints nothing.
+        Prop::Reactive(ui) => create_memo(move || ui.get()).into_signal(),
+        Prop::Const(ui) => create_stored(ui),
+        Prop::Unset => create_stored(Ui::default()),
+    };
+    provide_context(Provided(ui));
 }
 
-/// The nearest [`Ui`], or the default. Read while building, not in event
-/// handlers.
+/// The `Ui` provided, as a signal: a fixed one is a signal that never
+/// changes.
+#[derive(Clone, Copy)]
+struct Provided(Signal<Ui>);
+
+/// The nearest [`Ui`], or the default, as it is now: for what sizes a
+/// widget while it is built. Read while building, not in event handlers.
 pub fn ui() -> Ui {
-    use_context::<Ui>().unwrap_or_else(|| DEFAULT.with(|ui| *ui))
+    with_ui(|ui| *ui)
+}
+
+/// The nearest [`Ui`] as it changes. Read it while building, then read its
+/// colours inside the closures a widget's properties take: the widget
+/// follows a new palette without being built again.
+pub fn look() -> Look {
+    Look(use_context::<Provided>().map(|provided| provided.0))
+}
+
+/// A handle on the nearest [`Ui`] (see [`look`]), whose reads are tracked.
+#[derive(Clone, Copy)]
+pub struct Look(Option<Signal<Ui>>);
+
+impl Look {
+    /// The colours components paint with, as they are now; tracked, so a
+    /// property's closure that reads them runs again when they change.
+    pub fn colors(self) -> Palette {
+        self.with(|ui| ui.colors)
+    }
+
+    /// One colour of the palette as a closure a property takes, so it
+    /// follows the palette: `.color(t.color(|c| c.text))`. For a property
+    /// with a motion of its own, or a state layer's override, which takes
+    /// none; elsewhere [`eased`](Self::eased).
+    pub fn color(self, role: fn(&Palette) -> Color) -> impl Fn() -> Color + Copy + 'static {
+        move || self.with(|ui| role(&ui.colors))
+    }
+
+    /// One colour of the palette, easing into a new palette at
+    /// [`motion::color`]: for a property with no motion of its own.
+    pub fn eased(self, role: fn(&Palette) -> Color) -> Animated<Color> {
+        self.color(role).transition(motion::color())
+    }
+
+    /// What the island is made of, tracked.
+    pub fn material(self) -> Material {
+        self.with(|ui| ui.material)
+    }
+
+    fn with<R>(self, f: impl FnOnce(&Ui) -> R) -> R {
+        match self.0 {
+            Some(ui) => ui.with(f),
+            None => DEFAULT.with(f),
+        }
+    }
+}
+
+impl Ui {
+    /// What sizes and times a widget, fixed when it is built: a change here
+    /// asks for the tree to be built again, where a new palette or material
+    /// is followed in place.
+    pub fn sizes(&self) -> (Density, Shape, Fonts, Motion) {
+        (self.density, self.shape, self.fonts, self.motion)
+    }
 }
 
 thread_local! {
@@ -212,9 +288,10 @@ thread_local! {
     static DEFAULT: Ui = Ui::default();
 }
 
-/// Reads one field of the nearest [`Ui`] without cloning it.
+/// Reads one field of the nearest [`Ui`], untracked, without cloning it.
 pub(crate) fn with_ui<R>(f: impl Fn(&Ui) -> R) -> R {
-    with_context(&f).unwrap_or_else(|| DEFAULT.with(|ui| f(ui)))
+    with_context(|provided: &Provided| provided.0.with_untracked(&f))
+        .unwrap_or_else(|| DEFAULT.with(|ui| f(ui)))
 }
 
 /// The accent while `active`, `off` (a colour, a signal or a closure) while
@@ -223,7 +300,7 @@ pub fn active_fill<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    lit(active, with_ui(|ui| ui.colors.accent.fill), off)
+    lit(active, look().color(|c| c.accent.fill), off)
 }
 
 /// The ink that reads on [`active_fill`]: `accent.on` while `active`, `off`
@@ -232,19 +309,25 @@ pub fn active_ink<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    lit(active, with_ui(|ui| ui.colors.accent.on), off)
+    lit(active, look().color(|c| c.accent.on), off)
 }
 
 /// `on` while `active`, `off` while not. A constant `off` is kept as it is,
 /// with no signal made for it: a pill in a bar takes a few.
 fn lit<M>(
     active: Signal<bool>,
-    on: Color,
+    on: impl Fn() -> Color + Copy + 'static,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
     let off = off.into_prop();
     // `into_prop` always carries a value: the fallback is never read.
-    move || if active.get() { on } else { off.get_or(on) }
+    move || {
+        if active.get() {
+            on()
+        } else {
+            off.get_or(Color::TRANSPARENT)
+        }
+    }
 }
 
 /// Asks `on_toggle` for the opposite of `active`.
@@ -364,5 +447,119 @@ mod tests {
             dim_reading.unreadable(Color::BLACK).map(|(role, _)| role),
             Some("warning_text")
         );
+    }
+
+    /// The island and a button on it, as a surface given the default dark
+    /// `Ui` draws them, then given the light one in place.
+    struct Repainted {
+        /// Where the island shows and inside the button, before the change.
+        before: [[u8; 4]; 2],
+        /// 100 ms into it.
+        midway: [[u8; 4]; 2],
+        /// Once it has settled.
+        after: [[u8; 4]; 2],
+        /// As a surface built light draws them.
+        light: [[u8; 4]; 2],
+        /// How many times the surface was built.
+        builds: u8,
+    }
+
+    fn repainted(motion: Motion) -> Option<Repainted> {
+        use std::cell::Cell;
+        use std::rc::Rc;
+        use std::time::{Duration, Instant};
+
+        use guido::testing::Headless;
+
+        use crate::components::button::button;
+        use crate::foundations::control::Size;
+        use crate::primitives::island;
+
+        let mut h = Headless::new_or_skip()?;
+        let choice = ThemeChoice::default();
+        let [dark, light] =
+            [false, true].map(|light| Ui::new(choice.palette_of(light)).with_motion(motion));
+        let side = Size::default().height();
+        let mount = |h: &mut Headless, given: RwSignal<Ui>, builds: Rc<Cell<u8>>| {
+            let id = h.surface(SurfaceConfig::new(), move || {
+                builds.set(builds.get() + 1);
+                provide_ui(given);
+                island::paint(container().width(fill()).height(fill()))
+                    .padding(16.0)
+                    .child(button().label("Go"))
+            });
+            h.configure(id, 120, 64, 1.0);
+            h.step();
+            id
+        };
+        // Where the island shows, and inside the button before its label.
+        let read = |h: &Headless, id| {
+            [(4, 4), (19, 16 + side as u32 / 2)].map(|(x, y)| h.read_pixel(id, x, y))
+        };
+
+        let look = create_signal(dark);
+        let builds = Rc::new(Cell::new(0));
+        let id = mount(&mut h, look, builds.clone());
+        let before = read(&h, id);
+        let start = Instant::now() + Duration::from_millis(50);
+        look.set(light);
+        h.step_at(start);
+        h.step_at(start + Duration::from_millis(100));
+        let midway = read(&h, id);
+        let settled = start + Duration::from_secs(2);
+        h.step_at(settled);
+        h.step_at(settled);
+        let after = read(&h, id);
+        let fixed = mount(&mut h, create_signal(light), Rc::default());
+        Some(Repainted {
+            before,
+            midway,
+            after,
+            light: read(&h, fixed),
+            builds: builds.get(),
+        })
+    }
+
+    #[test]
+    fn a_new_palette_repaints_in_place_easing_into_it() {
+        let Some(Repainted {
+            before,
+            midway,
+            after,
+            light,
+            builds,
+        }) = repainted(Motion::Full)
+        else {
+            return;
+        };
+        assert_ne!(before, after, "the palette changed nothing");
+        assert_eq!(after, light, "not as a light Ui draws it");
+        assert_eq!(builds, 1, "built again");
+        // The island on its way: neither the old colour nor the new.
+        assert!(
+            midway[0] != before[0] && midway[0] != after[0],
+            "the island didn't ease: {:?} {:?} {:?}",
+            before[0],
+            midway[0],
+            after[0]
+        );
+    }
+
+    #[test]
+    fn without_motion_a_new_palette_shows_at_once() {
+        let Some(Repainted {
+            before,
+            midway,
+            after,
+            light,
+            builds,
+        }) = repainted(Motion::None)
+        else {
+            return;
+        };
+        assert_ne!(before, after);
+        assert_eq!(after, light);
+        assert_eq!(midway, after, "eased with no motion");
+        assert_eq!(builds, 1, "built again");
     }
 }

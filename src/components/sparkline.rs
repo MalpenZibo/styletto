@@ -4,7 +4,7 @@ use guido::prelude::*;
 use guido::widget_prelude::*;
 
 use crate::foundations::tokens::{Space, size, stroke};
-use crate::ui::ui;
+use crate::ui::{Look, look};
 
 pub struct Sparkline {
     samples: Signal<Vec<f32>>,
@@ -13,7 +13,9 @@ pub struct Sparkline {
     slots: usize,
     top: Option<f32>,
     height: f32,
-    color: Color,
+    /// Its colour is the accent's, read as it paints: a new palette
+    /// repaints it at once.
+    look: Look,
     stroke: f32,
 }
 
@@ -64,7 +66,7 @@ impl Widget for Sparkline {
                     }
                 })
         });
-        let stroke = Stroke::new(self.stroke, self.color)
+        let stroke = Stroke::new(self.stroke, self.look.colors().accent.fill)
             .joins(Join::Round)
             .caps(Cap::Round);
         ctx.draw_path(&line, None, stroke);
@@ -80,7 +82,7 @@ pub fn sparkline(samples: Signal<Vec<f32>>, slots: usize) -> Sparkline {
         slots,
         top: None,
         height: size::S8.px(),
-        color: ui().colors.accent.fill,
+        look: look(),
         stroke: stroke::RING,
     }
 }

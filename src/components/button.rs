@@ -12,7 +12,7 @@ use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::typed;
 use crate::theme::palette::Hue;
-use crate::ui::{active_fill, active_ink, ui};
+use crate::ui::{active_fill, active_ink, look};
 
 /// What a button does, by its colour: anything, the main thing, or what
 /// can't be undone.
@@ -93,21 +93,23 @@ pub fn button(
     #[prop(callback)]
     on_toggle: fn(bool),
 ) -> impl Widget {
-    let t = ui();
-    let c = t.colors;
+    let t = look();
     let size = size.get_untracked();
     // While off: the fill at rest, hovered, and the ink on both. A neutral
     // fill steps to the next surface, a hue brightens.
-    let off = move || match (fill.get(), variant.get().hue().map(|hue| c.hue(hue))) {
-        (Fill::Solid, None) => (c.surface, c.surface2, c.text),
-        (Fill::Solid, Some(hue)) => (hue.fill, hovered(hue.fill), hue.on),
-        (Fill::Ghost, _) => (Color::TRANSPARENT, c.surface, c.ink(variant.get().hue())),
+    let off = move || {
+        let c = t.colors();
+        match (fill.get(), variant.get().hue().map(|hue| c.hue(hue))) {
+            (Fill::Solid, None) => (c.surface, c.surface2, c.text),
+            (Fill::Solid, Some(hue)) => (hue.fill, hovered(hue.fill), hue.on),
+            (Fill::Ghost, _) => (Color::TRANSPARENT, c.surface, c.ink(variant.get().hue())),
+        }
     };
     let rest = active_fill(active, move || off().0);
     // On, the accent brightens as a hue does.
     let lifted = move || {
         if active.get() {
-            hovered(c.accent.fill)
+            hovered(t.colors().accent.fill)
         } else {
             off().1
         }
@@ -168,11 +170,11 @@ fn sized(label: Signal<String>, size: Size) -> Container {
 /// `pressed_scale` is a step of `motion`: [`motion::PRESS_SCALE`],
 /// [`motion::PRESS_SCALE_WIDE`] or [`motion::PRESS_SCALE_INNER`].
 pub fn pressable(base: Container, pressed_scale: f32) -> Container {
-    let t = ui();
+    let t = look();
     base.scale(Scale::NONE.transition(motion::tactile()))
         .when_pressed(move |s| {
             s.scale(Scale::uniform(pressed_scale))
-                .ripple_with_color(t.colors.ripple)
+                .ripple_with_color(t.color(|c| c.ripple))
         })
         .opacity(1.0.transition(motion::hover()))
         .when_disabled(|s| s.opacity(opacity::DISABLED).scale(Scale::NONE))
@@ -196,7 +198,7 @@ fn content(
             container().child(
                 typed(label, size.label().em())
                     .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-                    .color(ink)
+                    .color(ink.transition(motion::color()))
                     .nowrap(),
             ),
         );
@@ -217,13 +219,13 @@ pub fn pill(
     #[prop(callback)] on_click: (),
     #[prop(children)] children: (),
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     let size = Size::Sm;
-    let lifted = active_fill(active, t.colors.surface2);
+    let lifted = active_fill(active, t.color(|c| c.surface2));
     pill_box(size)
         .background(active_fill(active, Color::TRANSPARENT).transition(motion::hover()))
         .when_hovered(move |s| s.background(lifted))
-        .when_pressed(move |s| s.ripple_with_color(t.colors.ripple))
+        .when_pressed(move |s| s.ripple_with_color(t.color(|c| c.ripple)))
         .shadow(move || {
             Shadow::new(
                 (0.0, 0.0),
@@ -249,18 +251,19 @@ pub fn pill_text(
     /// Replaces the quiet colour.
     ink: Option<Color>,
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     let (regular, emphasised) = (
         LABEL_SMALL.resolve().weight,
         LABEL_SMALL.em().resolve().weight,
     );
-    let lifted = active_ink(active, t.colors.text);
+    let lifted = active_ink(active, t.color(|c| c.text));
     typed(text, LABEL_SMALL.tabular())
         .font_weight(move || if bold.get() { emphasised } else { regular })
         .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-        .color(active_ink(active, move || {
-            ink.get().unwrap_or(t.colors.sub)
-        }))
+        .color(
+            active_ink(active, move || ink.get().unwrap_or_else(|| t.colors().sub))
+                .transition(motion::hover()),
+        )
         .when_hovered(move |s| s.color(lifted))
         .nowrap()
         .overflow(TextOverflow::Ellipsis)

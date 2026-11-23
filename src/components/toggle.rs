@@ -6,8 +6,8 @@ use crate::foundations::control::Size;
 use crate::foundations::motion;
 use crate::foundations::tokens::radius;
 use crate::foundations::tokens::{opacity, size};
-use crate::theme::palette::{DIM_CONTRAST, contrast, over};
-use crate::ui::{Ui, active_fill, active_ink, flip, ui};
+use crate::theme::palette::{DIM_CONTRAST, Palette, contrast, over};
+use crate::ui::{active_fill, active_ink, flip, look};
 
 fn height() -> f32 {
     Size::Xxs.height()
@@ -26,8 +26,7 @@ fn knob() -> f32 {
 /// track in a hovered or chosen row, which tints it again, with what shows
 /// through worst; `text` where it doesn't, as on a see-through island,
 /// where `sub` is held only to 3:1 on the bare track. `dim` never would.
-fn knob_off(t: &Ui) -> Color {
-    let colors = t.colors;
+fn knob_off(colors: &Palette) -> Color {
     let [_, _, track] = colors.grounds(colors.worst_backdrop());
     let in_row = over(colors.surface2, track);
     if contrast(colors.sub, track).min(contrast(colors.sub, in_row)) >= DIM_CONTRAST {
@@ -47,12 +46,12 @@ pub fn toggle(
     #[prop(callback)]
     on_toggle: fn(bool),
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     container()
         .width(width())
         .height(height())
         .corners(radius::pill(height()))
-        .background(active_fill(active, t.colors.surface2).transition(motion::color()))
+        .background(active_fill(active, t.color(|c| c.surface2)).transition(motion::color()))
         .opacity(1.0.transition(motion::hover()))
         .when_disabled(|s| s.opacity(opacity::DISABLED))
         .enabled(enabled)
@@ -64,7 +63,9 @@ pub fn toggle(
                 .corners(radius::pill(knob()))
                 // As Material 3's: what reads on the accent while on, and on
                 // the track while off.
-                .background(active_ink(active, knob_off(&t)).transition(motion::color()))
+                .background(
+                    active_ink(active, move || knob_off(&t.colors())).transition(motion::color()),
+                )
                 .translate(
                     (move || {
                         let x = if active.get() {
@@ -102,7 +103,7 @@ mod tests {
                         let [_, _, track] = colors.grounds(palette.worst_backdrop());
                         let in_row = over(colors.surface2, track);
                         let on = contrast(colors.accent.on, colors.accent.fill);
-                        let knob = knob_off(&ui);
+                        let knob = knob_off(&colors);
                         let off = contrast(knob, track).min(contrast(knob, in_row));
                         assert!(
                             on >= DIM_CONTRAST && off >= DIM_CONTRAST,
