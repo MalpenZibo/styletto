@@ -27,7 +27,7 @@ use crate::foundations::motion;
 use crate::foundations::tokens::{icon as icon_box, radius, size, stroke};
 use crate::foundations::typography::{BODY_SMALL, LABEL_MEDIUM, MONO_SMALL, TITLE_XSMALL, Typeset};
 use crate::primitives::layout::centered_row;
-use crate::primitives::text::caption;
+use crate::primitives::text::{PaletteColors, caption};
 use crate::theme::config::{Colors, UiConfig};
 use crate::theme::material::{Contrast, Variant};
 use crate::theme::palette::{Palette, Scheme, parse_hex, to_hex};
@@ -910,14 +910,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
 /// What is typed in a field, in the text's colours, filling the field up
 /// to its trailing button.
 fn typing(input: TextInput) -> Container {
-    let t = look();
-    container().width(fill()).child(
-        input
-            .color(t.eased(|c| c.text))
-            .placeholder_color(t.eased(|c| c.sub))
-            .cursor_color(t.eased(|c| c.accent.text))
-            .selection_color(t.eased(|c| c.selection)),
-    )
+    container().width(fill()).child(input.palette_colors())
 }
 
 /// A dot of a colour, as a seed or a colour set by hand.

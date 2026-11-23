@@ -8,7 +8,7 @@ use styletto::foundations::control::Size;
 use styletto::foundations::tokens::{icon as icon_box, size as space};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
-use styletto::primitives::text::label;
+use styletto::primitives::text::{PaletteColors, label};
 use styletto::{Icon, icon, look};
 
 use crate::stories::story::Ctx;
@@ -60,11 +60,8 @@ pub fn field(ctx: &Ctx) -> Container {
                 container().width(fill()).child(
                     text_input(typed)
                         .typeset(ty::TITLE_XSMALL)
-                        .color(t.eased(|c| c.text))
+                        .palette_colors()
                         .placeholder("Search apps".to_string())
-                        .placeholder_color(t.eased(|c| c.sub))
-                        .cursor_color(t.eased(|c| c.accent.text))
-                        .selection_color(t.eased(|c| c.selection))
                         .on_submit(move |value| submitted(value.to_string())),
                 ),
             )
@@ -101,11 +98,8 @@ pub fn password_field(ctx: &Ctx) -> Container {
                 container().width(fill()).child(
                     password_input(password)
                         .typeset(ty::LABEL_MEDIUM)
-                        .color(t.eased(|c| c.text))
+                        .palette_colors()
                         .placeholder("Password".to_string())
-                        .placeholder_color(t.eased(|c| c.sub))
-                        .cursor_color(t.eased(|c| c.accent.text))
-                        .selection_color(t.eased(|c| c.selection))
                         .readonly(held)
                         .on_submit(submitted.clone()),
                 ),

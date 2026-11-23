@@ -450,9 +450,10 @@ A text field, `input::field`, is a pill on the surface holding the app's
 `opacity::RING`, `danger` while `refused` (the last answer was refused and
 nothing new is typed); a ring of the app's own, `.ring(color)`, takes the
 place of both, and a closure giving `None` hands it back to that rule. The
-`text_input` is the app's, and so are its colours: the palette's `text`,
-`sub` for the placeholder, `accent.text` for the cursor and `selection`, as
-`.selection_color(t.eased(|c| c.selection))`. `password_field` is a field whose end submits, or spins while
+`text_input` is the app's; `text::PaletteColors` gives it (or a
+`password_input`) the palette's colours, `text`, `sub` for the placeholder,
+`accent.text` for the cursor and `selection`, easing into a new palette:
+`text_input(typed).palette_colors()`. `password_field` is a field whose end submits, or spins while
 `busy`; `held`, it fades.
 
 ```rust

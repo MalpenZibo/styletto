@@ -14,7 +14,7 @@ use styletto::foundations::tokens::{icon as icon_box, size as space, stroke};
 use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
 use styletto::foundations::{motion, tokens};
-use styletto::primitives::text::{caption, heading, label, typed};
+use styletto::primitives::text::{PaletteColors, caption, heading, label, typed};
 use styletto::{Icon, Ui, centered_row, icon, look, provide_ui};
 
 use crate::chrome::appearance::{self, Appearance};
@@ -465,8 +465,7 @@ fn control_row(control: &Control) -> Container {
                 .child(
                     text_input(*value)
                         .typeset(ty::LABEL_MEDIUM)
-                        .color(t.eased(|c| c.text))
-                        .selection_color(t.eased(|c| c.selection)),
+                        .palette_colors(),
                 ),
         ),
     }
