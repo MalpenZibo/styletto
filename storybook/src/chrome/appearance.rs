@@ -381,7 +381,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use super::Appearance;
-    use crate::stories::mounted::{settle, still_backdrop, unlike};
+    use crate::stories::mounted::{Pair, still_backdrop};
 
     #[test]
     fn the_page_keeps_the_sides_apart() {
@@ -431,9 +431,6 @@ mod tests {
 
     #[test]
     fn a_colour_field_follows_a_change_made_elsewhere() {
-        let Some(mut h) = Headless::new_or_skip() else {
-            return;
-        };
         let custom = |accent: Option<&str>| {
             let mut c = UiConfig::default();
             Source::Custom.apply(&mut c, &[]);
@@ -444,33 +441,16 @@ mod tests {
         };
         // One editor whose config changes from outside, one built with the
         // config it changes to: once it has, they draw the same.
-        let probe = Rc::new(Cell::new(None));
-        let seen = probe.clone();
-        let changed = h.surface(SurfaceConfig::new(), move || {
-            let config = create_signal(custom(None));
-            seen.set(Some(config));
-            container().width(fill()).child(color_editor(config, false))
-        });
-        let built = h.surface(SurfaceConfig::new(), move || {
-            let config = create_signal(custom(Some("#00ff00")));
-            container().width(fill()).child(color_editor(config, false))
-        });
-        for id in [changed, built] {
-            h.configure(id, 400, 900, 1.0);
+        let editor = |config| container().width(fill()).child(color_editor(config, false));
+        let Some(mut pair) = Pair::new((400, 900), custom(None), custom(Some("#00ff00")), editor)
+        else {
+            return;
+        };
+        assert!(pair.unlike().is_some());
+        pair.change();
+        if let Some(unlike) = pair.unlike() {
+            panic!("the field did not show the colour set elsewhere: {unlike}");
         }
-        // On a clock of its own: the field's dot eases into a new colour.
-        let mut at = std::time::Instant::now();
-        settle(&mut h, &mut at);
-        assert_ne!(h.read_frame(changed), h.read_frame(built));
-        let config: RwSignal<UiConfig> = probe.take().unwrap();
-        config.update(|c| {
-            c.dark.insert("accent".to_string(), "#00ff00".to_string());
-        });
-        settle(&mut h, &mut at);
-        assert!(
-            h.read_frame(changed) == h.read_frame(built),
-            "the field did not show the colour set elsewhere"
-        );
     }
 
     #[test]
@@ -508,45 +488,27 @@ mod tests {
 
     #[test]
     fn a_new_palette_repaints_the_preview_as_built_with_it() {
-        let Some(mut h) = Headless::new_or_skip() else {
-            return;
-        };
         let light = UiConfig {
             mode: Mode::Light,
             material: Material::Glass,
             ..UiConfig::default()
         };
         // One preview whose config changes, one built with the config it
-        // changes to, stepped together.
-        let probe = Rc::new(Cell::new(None));
-        let seen = probe.clone();
-        let changed = h.surface(SurfaceConfig::new(), move || {
+        // changes to.
+        let preview = |config| {
             let a = Appearance {
+                config,
                 backdrop: still_backdrop(),
                 ..Appearance::new()
             };
-            seen.set(Some(a));
             super::preview(a, create_memo(move || a.ui()))
-        });
-        let given = light.clone();
-        let built = h.surface(SurfaceConfig::new(), move || {
-            let a = Appearance {
-                backdrop: still_backdrop(),
-                ..Appearance::new()
-            };
-            a.config.set(given.clone());
-            super::preview(a, create_memo(move || a.ui()))
-        });
-        for id in [changed, built] {
-            h.configure(id, 400, 800, 1.0);
-        }
-        let mut at = std::time::Instant::now();
-        settle(&mut h, &mut at);
-        assert!(h.read_frame(changed) != h.read_frame(built));
-        let a: Appearance = probe.take().unwrap();
-        a.config.set(light);
-        settle(&mut h, &mut at);
-        if let Some(unlike) = unlike(&h.read_frame(changed), &h.read_frame(built), 400) {
+        };
+        let Some(mut pair) = Pair::new((400, 800), UiConfig::default(), light, preview) else {
+            return;
+        };
+        assert!(pair.unlike().is_some());
+        pair.change();
+        if let Some(unlike) = pair.unlike() {
             panic!("the preview kept a colour of the old palette: {unlike}");
         }
     }

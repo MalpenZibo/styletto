@@ -238,7 +238,7 @@ fn take(shot: &Shot, config: &UiConfig) -> Result<(), String> {
         Some(text) => select(&mut h, id, text, start),
         None => start,
     };
-    settle(&mut h, start);
+    settle(&mut h, start, SETTLE);
 
     let (width, height) = h.physical_size(id);
     let frame = h.read_frame(id);
@@ -291,19 +291,21 @@ fn select(h: &mut Headless, id: SurfaceId, text: &str, mut at: Instant) -> Insta
     at
 }
 
-/// Steps through as much simulated time as the longest animation takes. It
-/// doesn't stop when `next_wait` says nothing is pending: that asks at the
-/// real time, behind the simulated one, and says so while animations are
-/// still under way.
-fn settle(h: &mut Headless, start: Instant) {
+/// Steps a frame at a time through `time` of simulated time after `start`,
+/// waiting each frame for the pictures being decoded, which arrive in real
+/// time; gives the moment of the last frame. It doesn't stop when
+/// `next_wait` says nothing is pending: that asks at the real time, behind
+/// the simulated one, and says so while animations are still under way.
+pub(crate) fn settle(h: &mut Headless, start: Instant, time: Duration) -> Instant {
     let mut at = start + FRAME;
-    while at - start < SETTLE {
+    while at - start < time {
         h.wait_for_image_decodes();
         h.step_at(at);
         at += FRAME;
     }
     h.wait_for_image_decodes();
     h.step_at(at);
+    at
 }
 
 fn set(controls: &[Control], name: &str, value: &str) -> Result<(), String> {

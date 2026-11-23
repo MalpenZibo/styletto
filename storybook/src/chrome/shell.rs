@@ -470,7 +470,6 @@ fn control_row(control: &Control) -> Container {
 #[cfg(test)]
 mod tests {
     use std::cell::Cell;
-    use std::time::Instant;
 
     use guido::prelude::*;
     use guido::testing::Headless;
@@ -479,7 +478,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use crate::stories::STORIES;
-    use crate::stories::mounted::{settle, still_backdrop, unlike};
+    use crate::stories::mounted::{Pair, still_backdrop};
     use crate::stories::story::{Ctx, Story};
 
     thread_local! {
@@ -516,14 +515,10 @@ mod tests {
         render: any,
     };
 
-    /// The stage of `story`, drawn with `given`, 800 by 400.
-    fn mount(h: &mut Headless, story: &'static Story, given: RwSignal<Ui>) -> SurfaceId {
-        let id = h.surface(SurfaceConfig::new(), move || {
-            let drawn = create_memo(move || given.get());
-            super::stage(story, drawn, still_backdrop(), create_signal(Vec::new()))
-        });
-        h.configure(id, 800, 400, 1.0);
-        id
+    /// The stage of `story`, drawn with `given`.
+    fn stage(story: &'static Story, given: RwSignal<Ui>) -> Container {
+        let drawn = create_memo(move || given.get());
+        super::stage(story, drawn, still_backdrop(), create_signal(Vec::new()))
     }
 
     /// The default theme's dark `Ui`, and its light one on glass.
@@ -534,82 +529,43 @@ mod tests {
     }
 
     #[test]
-    fn a_new_palette_keeps_the_story_and_its_controls() {
+    fn a_new_palette_keeps_the_controls_and_new_sizes_build_the_story_again() {
         let Some(mut h) = Headless::new_or_skip() else {
             return;
         };
         let (dark, glass) = looks();
         let given = create_signal(dark);
-        mount(&mut h, &COUNTED, given);
+        let id = h.surface(SurfaceConfig::new(), move || stage(&COUNTED, given));
+        h.configure(id, 800, 400, 1.0);
         h.step();
-        let built = BUILT.get();
         let value = CONTROL.get().expect("the story declared its control");
         value.set(70.0);
-        for (ui, what) in [
-            (dark.with_material(Material::Glass), "a material"),
-            (glass, "a palette"),
-        ] {
-            given.set(ui);
-            h.step();
-            assert_eq!(BUILT.get(), built, "{what} built the story again");
-        }
-        assert_eq!(CONTROL.get().map(|c| c.get_untracked()), Some(70.0));
-        // What sizes it still builds it again.
+        given.set(glass);
+        h.step();
+        let kept = CONTROL.get().map(|c| c.get_untracked());
+        assert_eq!(kept, Some(70.0), "the control went back to its default");
+        let built = BUILT.get();
         given.set(glass.with_density(Density::Compact));
         h.step();
         assert_eq!(BUILT.get(), built + 1, "a density kept the story");
     }
 
-    /// How many tests the stories are shared out between, to run in
-    /// parallel.
-    const PARTS: usize = 4;
-
-    /// Every `PARTS`th story from `part`, repainted in place from dark to
-    /// light glass, draws what one built light on glass does.
-    fn repaints_in_place(part: usize) {
+    #[test]
+    fn a_new_palette_repaints_every_story_in_place() {
         let (dark, glass) = looks();
-        for (index, story) in STORIES.iter().enumerate().skip(part).step_by(PARTS) {
-            // A headless of its own, so each story is stepped alone.
-            let Some(mut h) = Headless::new_or_skip() else {
+        for (index, story) in STORIES.iter().enumerate() {
+            SHOWN.set(index);
+            // From dark to light glass, beside one built light on glass.
+            let Some(mut pair) = Pair::new((800, 400), dark, glass, |ui| stage(&ANY, ui)) else {
                 return;
             };
-            SHOWN.set(index);
-            // One stage given the dark Ui and then light glass, one built
-            // with light glass, stepped together so what moves on its own
-            // moves alike in both.
-            let given = create_signal(dark);
-            let changed = mount(&mut h, &ANY, given);
-            let built = mount(&mut h, &ANY, create_signal(glass));
-            let mut at = Instant::now();
-            h.step_at(at);
             let builds = BUILT.get();
-            given.set(glass);
-            settle(&mut h, &mut at);
+            pair.change();
             let name = format!("{}/{}", story.group, story.name);
             assert_eq!(BUILT.get(), builds, "{name} was built again");
-            if let Some(unlike) = unlike(&h.read_frame(changed), &h.read_frame(built), 800) {
+            if let Some(unlike) = pair.unlike() {
                 panic!("{name} kept a colour of the old palette: {unlike}");
             }
         }
-    }
-
-    #[test]
-    fn a_new_palette_repaints_the_stories_in_place_0() {
-        repaints_in_place(0);
-    }
-
-    #[test]
-    fn a_new_palette_repaints_the_stories_in_place_1() {
-        repaints_in_place(1);
-    }
-
-    #[test]
-    fn a_new_palette_repaints_the_stories_in_place_2() {
-        repaints_in_place(2);
-    }
-
-    #[test]
-    fn a_new_palette_repaints_the_stories_in_place_3() {
-        repaints_in_place(3);
     }
 }

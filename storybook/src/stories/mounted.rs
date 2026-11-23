@@ -10,16 +10,66 @@ use guido::testing::Headless;
 /// What a tree asks its owner, in order.
 pub type Asked<T> = Rc<RefCell<Vec<T>>>;
 
-/// Steps every surface of `h` a frame every 32 ms for a second after `at`,
-/// long enough for a colour to ease into a new palette, and moves `at` to
-/// the last frame. Surfaces stepped together this way move alike. Each frame
-/// waits for the pictures being decoded, as the shot tool does: they arrive
-/// in real time, which a simulated second doesn't wait for.
-pub fn settle(h: &mut Headless, at: &mut Instant) {
-    for _ in 0..32 {
-        *at += Duration::from_millis(32);
-        h.wait_for_image_decodes();
-        h.step_at(*at);
+/// Long enough for a colour to ease into a new palette, and a spring to
+/// come to rest.
+const SECOND: Duration = Duration::from_secs(1);
+
+/// Two surfaces drawing what `build` makes of a value: one given `from`
+/// and then `to`, one given `to` from the start. Stepped together, at the
+/// same moments, so what moves on its own moves alike in both.
+pub struct Pair<T: 'static> {
+    h: Headless,
+    given: RwSignal<T>,
+    to: T,
+    changed: SurfaceId,
+    built: SurfaceId,
+    width: u32,
+    at: Instant,
+}
+
+impl<T: Clone + PartialEq + Send + 'static> Pair<T> {
+    /// Both surfaces `size` and drawn once; none without a GPU, or a panic
+    /// where `GUIDO_GPU_REQUIRED` is set (`Headless::new_or_skip`).
+    pub fn new(
+        (width, height): (u32, u32),
+        from: T,
+        to: T,
+        build: impl Fn(RwSignal<T>) -> Container + Clone + 'static,
+    ) -> Option<Self> {
+        let mut h = Headless::new_or_skip()?;
+        let mut mount = |value: RwSignal<T>| {
+            let build = build.clone();
+            let id = h.surface(SurfaceConfig::new(), move || build(value));
+            h.configure(id, width, height, 1.0);
+            id
+        };
+        let given = create_signal(from);
+        let changed = mount(given);
+        let built = mount(create_signal(to.clone()));
+        let at = Instant::now();
+        h.step_at(at);
+        Some(Self {
+            h,
+            given,
+            to,
+            changed,
+            built,
+            width,
+            at,
+        })
+    }
+
+    /// Gives the first surface `to`, and lets both settle.
+    pub fn change(&mut self) {
+        self.given.set(self.to.clone());
+        self.at = crate::shot::settle(&mut self.h, self.at, SECOND);
+    }
+
+    /// Where the two frames differ (see [`unlike`]); none where they draw
+    /// the same.
+    pub fn unlike(&self) -> Option<String> {
+        let [a, b] = [self.changed, self.built].map(|id| self.h.read_frame(id));
+        unlike(&a, &b, self.width as usize)
     }
 }
 
@@ -40,7 +90,7 @@ const NOISE: u8 = 16;
 /// Where two frames of the same surface size, `width` pixels wide, differ
 /// by more than [`NOISE`] in a channel: how many pixels, and the first and
 /// the last with what each frame has there. None where they draw the same.
-pub fn unlike(a: &[u8], b: &[u8], width: usize) -> Option<String> {
+fn unlike(a: &[u8], b: &[u8], width: usize) -> Option<String> {
     let far = |i: usize| (0..4).any(|c| a[i * 4 + c].abs_diff(b[i * 4 + c]) > NOISE);
     let differ: Vec<usize> = (0..a.len().min(b.len()) / 4).filter(|&i| far(i)).collect();
     let (&first, &last) = (differ.first()?, differ.last()?);
