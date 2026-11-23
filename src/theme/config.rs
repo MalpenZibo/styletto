@@ -147,9 +147,7 @@ impl UiConfig {
     /// Call it once, before the app draws, on the `App`'s thread if there is
     /// one. Not in a reactive closure: it blocks the thread for the read, and
     /// writes the store the closure reads; there, [`ui`] follows the config.
-    /// An app whose `Ui` is worked out in a memo calls
-    /// [`read_wallpaper_blocking`] instead: the memo's first run is then in
-    /// the wallpaper's colours, and no `Ui` is built only to be dropped.
+    /// For a `Ui` worked out in a memo, see [`read_wallpaper_blocking`].
     ///
     /// [`ui`]: Self::ui
     /// [`read_wallpaper_blocking`]: Self::read_wallpaper_blocking
@@ -171,11 +169,8 @@ impl UiConfig {
     /// let ui = create_memo(move || config.with(|c| c.appearance.ui(None)));
     /// ```
     ///
-    /// A picture the store has already, read or failed, is left as it is; a
-    /// read of it still under way on a thread is dropped; a picture that
-    /// can't be read is logged. Called as [`ui_blocking`] is: once, before
-    /// the app draws, not in a reactive closure. Without a wallpaper chosen,
-    /// or without the `wallpaper` feature, it does nothing.
+    /// Without a wallpaper chosen, or without the `wallpaper` feature, it
+    /// does nothing.
     ///
     /// [`ui`]: Self::ui
     /// [`ui_blocking`]: Self::ui_blocking

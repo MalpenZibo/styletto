@@ -4,9 +4,8 @@
 //! `UiConfig` whose source is a wallpaper reads it here, and so do the
 //! appearance controls, which show what the reading came to. An app whose
 //! first frame must already be in the wallpaper's colours reads it once on
-//! the calling thread instead, with `UiConfig::ui_blocking` (or
-//! `read_wallpaper_blocking`, for a `Ui` worked out in a memo): what it
-//! finds goes into the same store, so nothing reads it again.
+//! the calling thread instead, with `UiConfig::ui_blocking`: what it finds
+//! goes into the same store, so nothing reads it again.
 
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -416,7 +415,7 @@ mod tests {
     }
 
     #[test]
-    fn a_blocking_read_alone_gives_a_memo_the_wallpaper_on_its_first_run() {
+    fn a_blocking_read_alone_gives_a_surface_the_wallpaper_from_its_first_ui() {
         let Some(mut h) = Headless::new_or_skip() else {
             return;
         };
