@@ -58,18 +58,14 @@ pub fn stat_card(
         .width(fill())
         .padding(size::S3.px())
         .corners(radius::MEDIUM.corners())
-        .background(
-            (move || {
-                let level = level.get();
-                let alpha = match level {
-                    Level::Alert => tint::MEDIUM,
-                    _ => tint::SUBTLE,
-                };
-                let c = t.colors();
-                level_fill(&c, level).map_or(c.surface, |fill| fill.with_alpha(alpha))
-            })
-            .transition(motion::color()),
-        )
+        .background(t.eased(move |c| {
+            let level = level.get();
+            let alpha = match level {
+                Level::Alert => tint::MEDIUM,
+                _ => tint::SUBTLE,
+            };
+            level_fill(c, level).map_or(c.surface, |fill| fill.with_alpha(alpha))
+        }))
         .shadow(
             (move || glow::halo(level_fill(&t.colors(), level.get()), glow::MEDIUM))
                 .transition(motion::color()),
@@ -82,14 +78,14 @@ pub fn stat_card(
                 .child(
                     text(label)
                         .typeset(LABEL_SMALL)
-                        .color(quiet.transition(motion::color()))
+                        .color(motion::eased_color(quiet))
                         .nowrap(),
                 ),
         )
         .child(
             text(value)
                 .typeset(DISPLAY_XSMALL.em().tabular())
-                .color((move || level_ink(level.get())).transition(motion::color()))
+                .color(t.eased(move |c| c.ink(level.get().hue())))
                 .nowrap(),
         )
         .children(children)

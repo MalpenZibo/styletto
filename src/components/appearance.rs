@@ -476,14 +476,13 @@ fn side_card(
         .background(t.eased(|c| c.surface))
         .border(
             stroke::RING,
-            (move || {
+            t.eased(move |c| {
                 if showing(light) {
-                    t.colors().accent.fill
+                    c.accent.fill
                 } else {
                     Color::TRANSPARENT
                 }
-            })
-            .transition(motion::color()),
+            }),
         )
         .layout(Flex::column().spacing(size::S4.px()))
         .child(
@@ -914,7 +913,9 @@ fn typing(input: TextInput) -> Container {
     let t = look();
     container().width(fill()).child(
         input
-            .color(t.color(|c| c.text))
+            .color(t.eased(|c| c.text))
+            // Guido gives a placeholder and a cursor no motion: they change
+            // palette at once.
             .placeholder_color(t.color(|c| c.sub))
             .cursor_color(t.color(|c| c.accent.text)),
     )
@@ -927,7 +928,7 @@ fn dot(color: impl Fn() -> Color + 'static) -> Container {
         .height(size::S4.px())
         .corners(radius::pill(size::S4.px()))
         .border(stroke::HAIRLINE, look().eased(|c| c.line))
-        .background(color)
+        .background(motion::eased_color(color))
 }
 
 /// A dot of `color` to press, ringed in the text's colour while `on`.

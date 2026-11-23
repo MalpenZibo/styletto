@@ -246,18 +246,31 @@ impl Look {
         self.with(|ui| ui.colors)
     }
 
-    /// One colour of the palette as a closure a property takes, so it
-    /// follows the palette: `.color(t.color(|c| c.text))`. For a property
-    /// with a motion of its own, or a state layer's override, which takes
-    /// none; elsewhere [`eased`](Self::eased).
-    pub fn color(self, role: fn(&Palette) -> Color) -> impl Fn() -> Color + Copy + 'static {
+    /// A colour of the palette as a closure a property takes, so it follows
+    /// the palette: `.color(t.color(|c| c.text))`. `role` picks it, and may
+    /// read what it captures, a hue or a signal:
+    /// `t.color(move |c| c.hue(hue).fill)`. For a property with a motion of
+    /// its own, or a state layer's override, which takes none; elsewhere
+    /// [`eased`](Self::eased).
+    pub fn color(
+        self,
+        role: impl Fn(&Palette) -> Color + Copy + 'static,
+    ) -> impl Fn() -> Color + Copy + 'static {
         move || self.with(|ui| role(&ui.colors))
     }
 
-    /// One colour of the palette, easing into a new palette at
-    /// [`motion::color`]: for a property with no motion of its own.
-    pub fn eased(self, role: fn(&Palette) -> Color) -> Animated<Color> {
-        self.color(role).transition(motion::color())
+    /// A colour of the palette, as [`color`](Self::color) picks it, easing
+    /// into a new palette or a new pick at [`motion::color`]: for a property
+    /// with no motion of its own. Under [`Motion::None`] it changes at once.
+    pub fn eased(self, role: impl Fn(&Palette) -> Color + Copy + 'static) -> Animated<Color> {
+        motion::eased_color(self.color(role))
+    }
+
+    /// The whole `Ui` as it is now, tracked: for a subtree that provides a
+    /// `Ui` of its own made from this one, and follows it,
+    /// `provide_ui(move || t.ui().with_density(Density::Compact))`.
+    pub fn ui(self) -> Ui {
+        self.with(|ui| *ui)
     }
 
     /// What the island is made of, tracked.
@@ -300,7 +313,7 @@ pub fn active_fill<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
-    lit(active, look().color(|c| c.accent.fill), off)
+    active_fill_or(active, read(off))
 }
 
 /// The ink that reads on [`active_fill`]: `accent.on` while `active`, `off`
@@ -309,25 +322,41 @@ pub fn active_ink<M>(
     active: Signal<bool>,
     off: impl IntoSignal<Color, M>,
 ) -> impl Fn() -> Color + Copy + 'static {
+    active_ink_or(active, read(off))
+}
+
+/// [`active_fill`] with a closure for `off`, called as it is: no signal is
+/// made for it, as [`IntoSignal`] makes for a closure.
+pub(crate) fn active_fill_or(
+    active: Signal<bool>,
+    off: impl Fn() -> Color + Copy + 'static,
+) -> impl Fn() -> Color + Copy + 'static {
+    lit(active, look().color(|c| c.accent.fill), off)
+}
+
+/// [`active_ink`] with a closure for `off`, as [`active_fill_or`].
+pub(crate) fn active_ink_or(
+    active: Signal<bool>,
+    off: impl Fn() -> Color + Copy + 'static,
+) -> impl Fn() -> Color + Copy + 'static {
     lit(active, look().color(|c| c.accent.on), off)
 }
 
-/// `on` while `active`, `off` while not. A constant `off` is kept as it is,
-/// with no signal made for it: a pill in a bar takes a few.
-fn lit<M>(
-    active: Signal<bool>,
-    on: impl Fn() -> Color + Copy + 'static,
-    off: impl IntoSignal<Color, M>,
-) -> impl Fn() -> Color + Copy + 'static {
+/// `off` read as a closure. A constant is kept as it is, with no signal made
+/// for it: a pill in a bar takes a few.
+fn read<M>(off: impl IntoSignal<Color, M>) -> impl Fn() -> Color + Copy + 'static {
     let off = off.into_prop();
     // `into_prop` always carries a value: the fallback is never read.
-    move || {
-        if active.get() {
-            on()
-        } else {
-            off.get_or(Color::TRANSPARENT)
-        }
-    }
+    move || off.get_or(Color::TRANSPARENT)
+}
+
+/// `on` while `active`, `off` while not.
+fn lit(
+    active: Signal<bool>,
+    on: impl Fn() -> Color + Copy + 'static,
+    off: impl Fn() -> Color + Copy + 'static,
+) -> impl Fn() -> Color + Copy + 'static {
+    move || if active.get() { on() } else { off() }
 }
 
 /// Asks `on_toggle` for the opposite of `active`.
@@ -350,7 +379,7 @@ pub fn tabular() -> FontFeatures {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::theme::palette::contrast;
+    use crate::theme::palette::{Hue, contrast};
     use crate::theme::presets::{THEMES, ThemeChoice};
 
     #[test]
@@ -449,12 +478,11 @@ mod tests {
         );
     }
 
-    /// The island and a button on it, as a surface given the default dark
-    /// `Ui` draws them, then given the light one in place.
+    /// Two points of a surface given the default dark `Ui`, then the light
+    /// one in place: the island, and a point of what it holds.
     struct Repainted {
-        /// Where the island shows and inside the button, before the change.
         before: [[u8; 4]; 2],
-        /// 100 ms into it.
+        /// 100 ms into the change.
         midway: [[u8; 4]; 2],
         /// Once it has settled.
         after: [[u8; 4]; 2],
@@ -464,38 +492,34 @@ mod tests {
         builds: u8,
     }
 
-    fn repainted(motion: Motion) -> Option<Repainted> {
+    /// `content` on an island 16 px in from the edges of a 120 by 64
+    /// surface, read at (4, 4) and at `at`.
+    fn repainted(motion: Motion, content: fn() -> Container, at: (u32, u32)) -> Option<Repainted> {
         use std::cell::Cell;
         use std::rc::Rc;
         use std::time::{Duration, Instant};
 
         use guido::testing::Headless;
 
-        use crate::components::button::button;
-        use crate::foundations::control::Size;
         use crate::primitives::island;
 
         let mut h = Headless::new_or_skip()?;
         let choice = ThemeChoice::default();
         let [dark, light] =
             [false, true].map(|light| Ui::new(choice.palette_of(light)).with_motion(motion));
-        let side = Size::default().height();
         let mount = |h: &mut Headless, given: RwSignal<Ui>, builds: Rc<Cell<u8>>| {
             let id = h.surface(SurfaceConfig::new(), move || {
                 builds.set(builds.get() + 1);
                 provide_ui(given);
                 island::paint(container().width(fill()).height(fill()))
                     .padding(16.0)
-                    .child(button().label("Go"))
+                    .child(content())
             });
             h.configure(id, 120, 64, 1.0);
             h.step();
             id
         };
-        // Where the island shows, and inside the button before its label.
-        let read = |h: &Headless, id| {
-            [(4, 4), (19, 16 + side as u32 / 2)].map(|(x, y)| h.read_pixel(id, x, y))
-        };
+        let read = |h: &Headless, id| [(4, 4), at].map(|(x, y)| h.read_pixel(id, x, y));
 
         let look = create_signal(dark);
         let builds = Rc::new(Cell::new(0));
@@ -520,28 +544,106 @@ mod tests {
         })
     }
 
-    #[test]
-    fn a_new_palette_repaints_in_place_easing_into_it() {
+    /// `content`, read at `at`, follows a new palette in place, easing into
+    /// it as the island does.
+    fn eases_in_place(content: fn() -> Container, at: (u32, u32)) {
         let Some(Repainted {
             before,
             midway,
             after,
             light,
             builds,
-        }) = repainted(Motion::Full)
+        }) = repainted(Motion::Full, content, at)
         else {
             return;
         };
         assert_ne!(before, after, "the palette changed nothing");
         assert_eq!(after, light, "not as a light Ui draws it");
         assert_eq!(builds, 1, "built again");
-        // The island on its way: neither the old colour nor the new.
-        assert!(
-            midway[0] != before[0] && midway[0] != after[0],
-            "the island didn't ease: {:?} {:?} {:?}",
-            before[0],
-            midway[0],
-            after[0]
+        // Both on their way: neither the old colour nor the new.
+        for (point, [before, midway, after]) in ["the island", "the content"]
+            .into_iter()
+            .zip([0, 1].map(|i| [before[i], midway[i], after[i]]))
+        {
+            assert!(
+                midway != before && midway != after,
+                "{point} didn't ease: {before:?} {midway:?} {after:?}"
+            );
+        }
+    }
+
+    /// A button's middle, before its label.
+    fn button() -> Container {
+        use crate::components::button::button;
+        container().child(button().label("Go"))
+    }
+
+    fn inside_the_button() -> (u32, u32) {
+        use crate::foundations::control::Size;
+        (19, 16 + Size::default().height() as u32 / 2)
+    }
+
+    #[test]
+    fn a_new_palette_repaints_in_place_easing_into_it() {
+        eases_in_place(button, inside_the_button());
+    }
+
+    #[test]
+    fn a_colour_picked_by_a_role_that_captures_eases() {
+        eases_in_place(
+            || {
+                let hue = Hue::Danger;
+                container()
+                    .width(40.0)
+                    .height(24.0)
+                    .background(look().eased(move |c| c.hue(hue).fill))
+            },
+            (36, 28),
+        );
+    }
+
+    #[test]
+    fn a_components_colour_prop_eases() {
+        use crate::components::notification::app_icon;
+        use crate::foundations::icons::Icon;
+        // The tile's gradient, above its icon: Guido gives a gradient no
+        // motion, so its colour is eased here.
+        eases_in_place(
+            || container().child(app_icon(Icon::Bell, look().color(|c| c.accent.fill))),
+            (36, 19),
+        );
+    }
+
+    #[test]
+    fn the_sparklines_line_eases() {
+        use crate::components::sparkline::sparkline;
+        eases_in_place(
+            || {
+                // At the top, where the line covers the first row of
+                // pixels whole: none of the island shows through.
+                let samples = create_signal(vec![100.0; 8]).read_only();
+                container()
+                    .width(88.0)
+                    .child(sparkline(samples, 8).top(100.0))
+            },
+            (60, 16),
+        );
+    }
+
+    #[test]
+    fn a_ui_made_from_the_look_follows_it() {
+        eases_in_place(
+            || {
+                let t = look();
+                container().child(move || {
+                    provide_ui(move || t.ui().with_density(Density::Compact));
+                    container()
+                        .width(40.0)
+                        .height(24.0)
+                        .background(look().eased(|c| c.accent.fill))
+                })
+            },
+            (36, 28),
         );
     }
 
@@ -553,7 +655,7 @@ mod tests {
             after,
             light,
             builds,
-        }) = repainted(Motion::None)
+        }) = repainted(Motion::None, button, inside_the_button())
         else {
             return;
         };

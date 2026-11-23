@@ -3,6 +3,7 @@
 use guido::prelude::*;
 use guido::widget_prelude::*;
 
+use crate::foundations::ease::ColorEase;
 use crate::foundations::tokens::{Space, size, stroke};
 use crate::ui::{Look, look};
 
@@ -13,9 +14,11 @@ pub struct Sparkline {
     slots: usize,
     top: Option<f32>,
     height: f32,
-    /// Its colour is the accent's, read as it paints: a new palette
-    /// repaints it at once.
+    /// Its colour is the accent's, read as it is laid out.
     look: Look,
+    /// The colour it is drawn in, easing into a new accent: it draws its
+    /// line itself, where Guido moves only a property it declares.
+    ink: ColorEase,
     stroke: f32,
 }
 
@@ -33,7 +36,18 @@ impl Sparkline {
 }
 
 impl Widget for Sparkline {
-    fn layout(&mut self, _ctx: &mut LayoutCtx, constraints: Constraints) -> Size {
+    fn advance_animations(&mut self, tree: &mut Tree, id: WidgetId) -> bool {
+        let moving = self.ink.advance(tree.frame_instant(), id);
+        tree.mark_needs_paint(id);
+        moving
+    }
+
+    fn layout(&mut self, ctx: &mut LayoutCtx, constraints: Constraints) -> Size {
+        // Read while laying out, so a new accent lays it out again and
+        // sets off the change.
+        let accent = self.look.colors().accent.fill;
+        let (now, id) = (ctx.tree_ref().frame_instant(), ctx.id());
+        self.ink.retarget(accent, now, id);
         let width = if constraints.max_width.is_finite() {
             constraints.max_width
         } else {
@@ -66,7 +80,7 @@ impl Widget for Sparkline {
                     }
                 })
         });
-        let stroke = Stroke::new(self.stroke, self.look.colors().accent.fill)
+        let stroke = Stroke::new(self.stroke, self.ink.at(ctx.tree().frame_instant()))
             .joins(Join::Round)
             .caps(Cap::Round);
         ctx.draw_path(&line, None, stroke);
@@ -83,6 +97,7 @@ pub fn sparkline(samples: Signal<Vec<f32>>, slots: usize) -> Sparkline {
         top: None,
         height: size::S8.px(),
         look: look(),
+        ink: ColorEase::new(),
         stroke: stroke::RING,
     }
 }

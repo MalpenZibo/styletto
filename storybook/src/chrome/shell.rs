@@ -465,8 +465,7 @@ fn control_row(control: &Control) -> Container {
                 .child(
                     text_input(*value)
                         .typeset(ty::LABEL_MEDIUM)
-                        // A field's text takes no motion: it changes at once.
-                        .color(t.color(|c| c.text)),
+                        .color(t.eased(|c| c.text)),
                 ),
         ),
     }

@@ -24,14 +24,11 @@ pub fn progress(ctx: &Ctx) -> Container {
     let size = ctx.choice("Ring size", ICON_STEPS, 4);
     let t = look();
     let fraction = move || value.get() / 100.0;
-    let color = move || {
-        let c = t.colors();
-        match value.get() {
-            v if v <= 15.0 => c.danger.fill,
-            v if v <= 30.0 => c.warning.fill,
-            _ => c.accent.fill,
-        }
-    };
+    let color = t.color(move |c| match value.get() {
+        v if v <= 15.0 => c.danger.fill,
+        v if v <= 30.0 => c.warning.fill,
+        _ => c.accent.fill,
+    });
     container()
         .layout(
             Flex::column()
@@ -234,14 +231,13 @@ pub fn badges(ctx: &Ctx) -> Container {
         .child(labelled(
             "unread",
             MARK,
-            dot(move || {
-                let c = t.colors();
+            dot(t.color(move |c| {
                 if urgent.get() {
                     c.danger.fill
                 } else {
                     c.accent.fill
                 }
-            }),
+            })),
         ))
         .child(labelled(
             "privacy",

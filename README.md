@@ -94,13 +94,23 @@ A component reads it two ways, both while it is built:
   (`t.colors()`, `t.color(|c| c.text)`, `t.material()`), they follow a new
   palette in place: a wallpaper that changes, or the system turning dark,
   repaints the tree without building it again, and whatever is open,
-  typed or scrolled stays so. `t.eased(|c| c.surface)` is a colour that
-  eases at `motion::color()`, into a new palette as into a new state, for
-  a property with no motion of its own; one with a motion (a hover at
-  `motion::hover()`, a toggling fill) moves with that. The components'
-  colours ease so, at once under `Motion::None`, but for those Guido gives
-  no motion, which change at once: a ring's track, a text field's text,
-  placeholder and cursor, and a sparkline's line.
+  typed or scrolled stays so. The role `t.color` and `t.eased` take is a
+  closure that picks a colour from the palette, and may read what it
+  captures: `t.color(move |c| c.hue(hue).fill)`, or a signal, as
+  `t.eased(move |c| if on.get() { c.accent.fill } else { c.surface })`.
+  `t.ui()` is the whole `Ui` as it changes, for a subtree that provides
+  its own from it and follows it:
+  `provide_ui(move || t.ui().with_density(Density::Compact))`.
+- `t.eased(|c| c.surface)` is a colour that eases at `motion::color()`,
+  into a new palette as into a new state, for a property with no motion of
+  its own; one with a motion (a hover at `motion::hover()`, a toggling
+  fill) moves with that. Under `Motion::None` it changes at once, and keeps
+  no motion. The components' colours ease so, those an app gives them
+  too (a dot's, a ring's, an app icon's, rolling digits'), and a
+  sparkline's line and an app icon's gradient, which Guido gives no motion,
+  are eased by the component itself. Only what Guido gives no motion and
+  the component doesn't draw changes at once: a ring's track, and a text
+  field's placeholder, cursor and selection.
 
 A colour copied while building (`ui().colors.text`) stays as it was: an app
 that no longer builds its tree again on a new palette reads its own colours

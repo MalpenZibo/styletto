@@ -19,7 +19,6 @@ use styletto::components::progress::ring;
 use styletto::components::slider::slider_row;
 use styletto::components::tile::small_tile;
 use styletto::components::toggle::toggle;
-use styletto::foundations::motion;
 use styletto::foundations::tokens::{icon as icon_box, radius, size as space};
 use styletto::foundations::typography as ty;
 use styletto::primitives::text::typed;
@@ -317,16 +316,15 @@ fn texts() -> Container {
 fn fills() -> Container {
     let t = look();
     let swatch = |hue: Hue| {
-        let colors = move || t.colors().hue(hue);
         container()
             .width(fill())
             .padding([space::S1.px(), space::S2.px()])
             .corners(radius::SMALL.corners())
-            .background((move || colors().fill).transition(motion::color()))
+            .background(t.eased(move |c| c.hue(hue).fill))
             .layout(Flex::row().main_alignment(MainAlignment::Center))
             .child(
                 typed(format!("{hue:?}"), ty::LABEL_SMALL.em())
-                    .color((move || colors().on).transition(motion::color()))
+                    .color(t.eased(move |c| c.hue(hue).on))
                     .nowrap(),
             )
     };
@@ -364,7 +362,7 @@ fn levels() -> Container {
                 ]
                 .map(|(value, hue)| {
                     ring(value)
-                        .color(move || t.colors().hue(hue).fill)
+                        .color(t.color(move |c| c.hue(hue).fill))
                         .size(icon_box::SMALL)
                 }),
             ),
@@ -462,18 +460,15 @@ mod tests {
         for id in [changed, built] {
             h.configure(id, 400, 900, 1.0);
         }
-        let settle = |h: &mut Headless| {
-            for _ in 0..30 {
-                h.step();
-            }
-        };
-        settle(&mut h);
+        // On a clock of its own: the field's dot eases into a new colour.
+        let mut at = std::time::Instant::now();
+        settle(&mut h, &mut at);
         assert_ne!(h.read_frame(changed), h.read_frame(built));
         let config: RwSignal<UiConfig> = probe.take().unwrap();
         config.update(|c| {
             c.dark.insert("accent".to_string(), "#00ff00".to_string());
         });
-        settle(&mut h);
+        settle(&mut h, &mut at);
         assert!(
             h.read_frame(changed) == h.read_frame(built),
             "the field did not show the colour set elsewhere"

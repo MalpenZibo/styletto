@@ -58,10 +58,11 @@ pub fn field(ctx: &Ctx) -> Container {
             .child(icon(Icon::Search, icon_box::SMALL.px(), t.color(|c| c.dim)))
             .child(
                 container().width(fill()).child(
-                    // A field's text takes no motion: it changes at once.
+                    // Guido gives a placeholder and a cursor no motion: they
+                    // change palette at once.
                     text_input(typed)
                         .typeset(ty::TITLE_XSMALL)
-                        .color(t.color(|c| c.text))
+                        .color(t.eased(|c| c.text))
                         .placeholder("Search apps".to_string())
                         .placeholder_color(t.color(|c| c.sub))
                         .cursor_color(t.color(|c| c.accent.text))
@@ -101,7 +102,7 @@ pub fn password_field(ctx: &Ctx) -> Container {
                 container().width(fill()).child(
                     password_input(password)
                         .typeset(ty::LABEL_MEDIUM)
-                        .color(t.color(|c| c.text))
+                        .color(t.eased(|c| c.text))
                         .placeholder("Password".to_string())
                         .placeholder_color(t.color(|c| c.sub))
                         .cursor_color(t.color(|c| c.accent.text))
@@ -308,8 +309,8 @@ mod tests {
                 .width(200.0)
                 .layout(Flex::row())
                 .child(field().refused(refused))
-                .child(field().ring(move || Some(t.colors().accent.fill.with_alpha(opacity::RING))))
-                .child(field().ring(move || Some(t.colors().danger.fill)))
+                .child(field().ring(t.color(|c| c.accent.fill.with_alpha(opacity::RING))))
+                .child(field().ring(t.color(|c| c.danger.fill)))
                 .child(field().refused(refused).ring(own));
             (row, (refused, own))
         }) else {

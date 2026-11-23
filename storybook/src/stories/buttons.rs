@@ -210,8 +210,7 @@ mod tests {
             // at a hover's speed.
             let eased = |transition: Transition| {
                 container().width(side()).height(side()).background(
-                    (move || {
-                        let c = t.colors();
+                    t.color(move |c| {
                         if active.get() {
                             c.accent.fill
                         } else {

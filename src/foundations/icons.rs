@@ -157,7 +157,7 @@ pub fn icon<M1, M2>(
     container()
         .width(size)
         .height(size)
-        .child(image(move || kind.get().source()).tint(color.transition(motion::color())))
+        .child(image(move || kind.get().source()).tint(motion::eased_color(color)))
 }
 
 /// An icon that turns while something runs.

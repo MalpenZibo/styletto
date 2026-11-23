@@ -80,6 +80,16 @@ pub fn color() -> Transition {
     easing(COLOR_MS)
 }
 
+/// `color` (a colour, a signal or a closure) easing into each new value at
+/// [`color()`]. Under [`Motion::None`] it changes at once, with no motion
+/// kept for it: a panel paints many.
+pub(crate) fn eased_color<M>(color: impl IntoSignal<Color, M>) -> Animated<Color> {
+    match with_ui(|u| u.motion) {
+        Motion::None => color.into_animated(),
+        Motion::Full | Motion::Reduced => color.transition(self::color()),
+    }
+}
+
 /// How a fill that turns on and off moves, as a toggling button's or a
 /// tile's: a hover at [`hover`], a change of state at [`color`].
 ///

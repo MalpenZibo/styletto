@@ -57,7 +57,7 @@ pub fn row(
         .layout(Flex::column())
         .child(
             label(title)
-                .color((move || hue().unwrap_or(t.colors().text)).transition(motion::color()))
+                .color(t.eased(move |c| tone.get().hue().map_or(c.text, |hue| c.hue(hue).text)))
                 .overflow(TextOverflow::Ellipsis),
         )
         .child(subtitle_line(subtitle));
@@ -269,13 +269,7 @@ pub fn page_indicator(
                     )
                     .height(indicator::DOT)
                     .corners(radius::pill(indicator::DOT))
-                    .background(
-                        (move || {
-                            let c = t.colors();
-                            if on() { c.accent.text } else { c.dim }
-                        })
-                        .transition(motion::color()),
-                    )
+                    .background(t.eased(move |c| if on() { c.accent.text } else { c.dim }))
             })
         })
 }

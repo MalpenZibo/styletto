@@ -55,6 +55,6 @@ pub(crate) fn figure_text<M>(
     text(content)
         .typeset(kind.em().tabular())
         .text_box(TextEdge::Cap, TextEdge::Alphabetic)
-        .color(ink.transition(motion::color()))
+        .color(motion::eased_color(ink))
         .nowrap()
 }

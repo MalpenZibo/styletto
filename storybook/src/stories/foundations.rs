@@ -7,7 +7,6 @@ use styletto::components::tag::tag;
 use styletto::components::tile::small_tile;
 use styletto::components::toggle::toggle;
 use styletto::foundations::control::Size;
-use styletto::foundations::motion;
 use styletto::foundations::tokens::{radius, size, stroke};
 use styletto::foundations::typography as ty;
 use styletto::primitives::island;
@@ -38,9 +37,7 @@ pub fn colors(_: &Ctx) -> Container {
                             .width(size::S15.px())
                             .height(size::S10.px())
                             .corners(radius::SMALL.corners())
-                            .background(
-                                (move || t.colors().named()[index].1).transition(motion::color()),
-                            )
+                            .background(t.eased(move |c| c.named()[index].1))
                             .border(stroke::HAIRLINE, t.eased(|c| c.line)),
                     )
                 })
@@ -53,11 +50,10 @@ pub fn colors(_: &Ctx) -> Container {
                     container()
                         .padding([size::S2.px(), size::S4.px()])
                         .corners(radius::SMALL.corners())
-                        .background((move || t.colors().hue(hue).fill).transition(motion::color()))
+                        .background(t.eased(move |c| c.hue(hue).fill))
                         .child(
-                            typed(format!("{hue:?}"), ty::LABEL_MEDIUM.em()).color(
-                                (move || t.colors().hue(hue).on).transition(motion::color()),
-                            ),
+                            typed(format!("{hue:?}"), ty::LABEL_MEDIUM.em())
+                                .color(t.eased(move |c| c.hue(hue).on)),
                         )
                 })),
         )
@@ -67,7 +63,7 @@ pub fn colors(_: &Ctx) -> Container {
                 .children(Hue::ALL.map(|hue| {
                     container().padding([size::S2.px(), size::S4.px()]).child(
                         typed(format!("{hue:?}"), ty::LABEL_MEDIUM.em())
-                            .color((move || t.colors().hue(hue).text).transition(motion::color())),
+                            .color(t.eased(move |c| c.hue(hue).text)),
                     )
                 })),
         )
@@ -139,16 +135,13 @@ pub fn typography(ctx: &Ctx) -> Container {
                             })))
                             .child(
                                 container()
-                                    .background(
-                                        (move || {
-                                            if lines.get() {
-                                                t.colors().surface
-                                            } else {
-                                                Color::TRANSPARENT
-                                            }
-                                        })
-                                        .transition(motion::color()),
-                                    )
+                                    .background(t.eased(move |c| {
+                                        if lines.get() {
+                                            c.surface
+                                        } else {
+                                            Color::TRANSPARENT
+                                        }
+                                    }))
                                     .child(typed(sample, kind).color(t.eased(|c| c.text)).nowrap()),
                             )
                     }))
@@ -276,13 +269,7 @@ pub fn icons(ctx: &Ctx) -> Container {
     let side = ctx.choice("Size", ICON_STEPS, 1);
     let colored = ctx.bool("Accent", false);
     let t = look();
-    let color = move || {
-        if colored.get() {
-            t.colors().accent.text
-        } else {
-            t.colors().text
-        }
-    };
+    let color = t.color(move |c| if colored.get() { c.accent.text } else { c.text });
     container().child(move || {
         let side = ICON_SIZES[side.get()].px();
         grid(
@@ -331,23 +318,17 @@ fn grid(cells: Vec<Container>) -> Container {
 /// The same piece of a panel in every density and shape, side by side, so
 /// a change to a token shows wherever it lands.
 pub fn matrix(_: &Ctx) -> Container {
-    let (base, t) = (ui(), look());
+    let t = look();
     container()
         .layout(Flex::column().spacing(size::S4.px()))
         .children(DENSITIES.iter().map(move |&(density_name, density)| {
             container()
                 .layout(Flex::row().spacing(size::S4.px()))
                 .children(SHAPES.iter().map(move |&(shape_name, shape)| {
-                    let sized = base.with_density(density).with_shape(shape);
                     container().child(move || {
-                        // Its own sizes, and the story's colours and material
-                        // as they change, so a new palette repaints it too.
-                        provide_ui(move || {
-                            let mut drawn = sized;
-                            drawn.colors = t.colors();
-                            drawn.material = t.material();
-                            drawn
-                        });
+                        // The story's Ui as it changes, in its own density
+                        // and shape: a new palette repaints it too.
+                        provide_ui(move || t.ui().with_density(density).with_shape(shape));
                         named(format!("{density_name} · {shape_name}"), sample())
                     })
                 }))

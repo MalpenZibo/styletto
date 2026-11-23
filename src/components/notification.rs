@@ -4,6 +4,7 @@ use guido::prelude::*;
 
 use crate::components::button::{Fill, button};
 use crate::foundations::control::Size;
+use crate::foundations::ease::eased_signal;
 use crate::foundations::icons::{self, Icon, icon};
 use crate::foundations::motion;
 use crate::foundations::tokens::{
@@ -193,14 +194,15 @@ pub fn app_icon(
 ) -> impl Widget {
     let tile = size.get_untracked();
     let size = tile.px();
-    // Read as it paints, so a colour that follows the palette repaints the
-    // tile in place.
+    // Guido gives a gradient no motion: the colour it is made from eases
+    // instead, moved by `easer`, which takes no room.
+    let (eased, easer) = eased_signal(move || color.get());
     container()
         .width(size)
         .height(size)
         .corners(tile.radius().corners())
         .gradient(move || {
-            let color = color.get();
+            let color = eased.get();
             LinearGradient::new(
                 color.lighter(lift::SHEEN),
                 color.darker(lift::SHEEN),
@@ -208,6 +210,7 @@ pub fn app_icon(
             )
         })
         .layout(Flex::column().center())
+        .child(easer)
         .child(icons::icon(icon, tile.icon(), move || {
             palette::black_or_white(color.get())
         }))
