@@ -11,7 +11,7 @@ use crate::foundations::tokens::{radius, shade, size};
 use crate::foundations::typography::{LABEL_MEDIUM, LABEL_SMALL, Typeset};
 use crate::primitives::layout::centered_row;
 use crate::theme::palette;
-use crate::ui::{active_fill, active_ink, flip, ui};
+use crate::ui::{active_fill, active_ink, flip, look};
 
 fn icon_box() -> f32 {
     Size::Lg.height()
@@ -62,8 +62,8 @@ pub fn tile(
     #[prop(callback)]
     on_open: (),
 ) -> impl Widget {
-    let t = ui();
-    let ink = active_ink(active, t.colors.text);
+    let t = look();
+    let ink = active_ink(active, t.color(|c| c.text));
     let toggle = flip(active, on_toggle);
     let label_click = move || match on_open {
         Some(open) => open.run(),
@@ -74,14 +74,14 @@ pub fn tile(
         if active.get() {
             palette::SHADE.with_alpha(shade::REST)
         } else {
-            t.colors.surface2
+            t.colors().surface2
         }
     };
     let lifted = move || {
         if active.get() {
             palette::SHADE.with_alpha(shade::HOVER)
         } else {
-            hovered(t.colors.surface2)
+            hovered(t.colors().surface2)
         }
     };
     // Where the pointer is on the icon box, a press toggles: the box lights
@@ -101,7 +101,11 @@ pub fn tile(
     .layout(Flex::column().center())
     .on_hover(move |inside| over_box.set(inside))
     .on_click(toggle)
-    .child(icons::icon(icon, Size::Md.icon(), ink));
+    .child(icons::icon(
+        icon,
+        Size::Md.icon(),
+        ink.transition(motion::color()),
+    ));
 
     // An empty subtitle takes no line, so the title sits in the middle. A
     // memo, so that the line is rebuilt only when it comes or goes. As tall
@@ -115,7 +119,7 @@ pub fn tile(
         .child(
             text(title)
                 .typeset(LABEL_MEDIUM.em())
-                .color(ink)
+                .color(ink.transition(motion::color()))
                 .nowrap()
                 .overflow(TextOverflow::Ellipsis),
         )
@@ -125,7 +129,7 @@ pub fn tile(
                     .typeset(LABEL_SMALL)
                     // On a fill the on-colour is the only one that reads; off
                     // it, the secondary text.
-                    .color(active_ink(active, t.colors.sub))
+                    .color(active_ink(active, t.color(|c| c.sub)).transition(motion::color()))
                     // A long one, as a German one often is, takes a second
                     // line before it is cut.
                     .max_lines(Some(2))
@@ -140,7 +144,7 @@ pub fn tile(
     //
     // Under the pointer the body lights up as a small tile does, unless the
     // pointer is on the icon box.
-    let body = active_fill(active, t.colors.surface);
+    let body = active_fill(active, t.color(|c| c.surface));
     let body_lifted = move || {
         if over_box.get() {
             body()
@@ -174,8 +178,8 @@ pub fn small_tile(
     active: bool,
     #[prop(callback)] on_toggle: fn(bool),
 ) -> impl Widget {
-    let t = ui();
-    let rest = active_fill(active, t.colors.surface);
+    let t = look();
+    let rest = active_fill(active, t.color(|c| c.surface));
     pressable(
         toggled(
             container()
@@ -194,6 +198,6 @@ pub fn small_tile(
     .child(icons::icon(
         icon,
         Size::Md.icon(),
-        active_ink(active, t.colors.text),
+        active_ink(active, t.color(|c| c.text)).transition(motion::color()),
     ))
 }

@@ -9,7 +9,7 @@ use crate::foundations::motion;
 use crate::foundations::tokens::{glow as spread, tint};
 use crate::primitives::layout::centered_row;
 use crate::theme::palette::{Hue, Palette};
-use crate::ui::ui;
+use crate::ui::look;
 
 /// The hue a tag is tinted with.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -36,9 +36,10 @@ impl Tone {
     }
 
     /// What a tag in this tone is filled with: `surface` while neutral,
-    /// else the hue's fill at [`tint::STRONG`].
+    /// else the hue's fill at [`tint::STRONG`]. Read in a property's
+    /// closure, it follows a new palette.
     pub fn tint(self) -> Color {
-        self.tint_in(&ui().colors)
+        self.tint_in(&look().colors())
     }
 
     fn tint_in(self, c: &Palette) -> Color {
@@ -48,8 +49,9 @@ impl Tone {
 
     /// The colour for what a tag in this tone holds, its icons and its text:
     /// `text` while neutral, else the hue as text, which reads on the tint.
+    /// Read in a property's closure, it follows a new palette.
     pub fn ink(self) -> Color {
-        ui().colors.ink(self.hue())
+        look().colors().ink(self.hue())
     }
 }
 
@@ -67,14 +69,14 @@ pub fn tag(
     glow: bool,
     #[prop(children)] children: (),
 ) -> impl Widget {
-    let c = ui().colors;
+    let t = look();
     let size = size.get_untracked();
     let lit = move || {
         let hue = tone.get().hue().filter(|_| glow.get());
-        hue.map(|hue| c.hue(hue).fill)
+        hue.map(|hue| t.colors().hue(hue).fill)
     };
     pill_box(size)
-        .background((move || tone.get().tint_in(&c)).transition(motion::color()))
+        .background((move || tone.get().tint_in(&t.colors())).transition(motion::color()))
         .shadow((move || spread::halo(lit(), spread::SMALL)).transition(motion::color()))
         .layout(centered_row(size.gap()))
         .children(children)

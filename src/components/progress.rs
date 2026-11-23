@@ -5,7 +5,7 @@ use guido::prelude::*;
 use crate::foundations::motion;
 use crate::foundations::tokens::radius;
 use crate::foundations::tokens::{IconSize, icon, size as space};
-use crate::ui::ui;
+use crate::ui::look;
 
 /// A thin bar.
 #[component]
@@ -15,12 +15,11 @@ pub fn progress_bar(
     value: f32,
     color: Color,
 ) -> impl Widget {
-    let t = ui();
     container()
         .width(fill())
         .height(space::S1.px())
         .corners(radius::pill(space::S1.px()))
-        .background(t.colors.surface2)
+        .background(look().eased(|c| c.surface2))
         .overflow(Overflow::Hidden)
         .child(
             container()
@@ -40,13 +39,13 @@ pub fn ring(
     color: Color,
     #[prop(default = icon::MEDIUM)] size: IconSize,
 ) -> impl Widget {
-    let t = ui();
     let size = size.get_untracked();
     arc()
         .size(size.px())
         .stroke(size.stroke())
         .caps(Cap::Round)
-        .track(t.colors.surface2)
+        // A track takes no motion: it changes palette at once.
+        .track(look().color(|c| c.surface2))
         .color(move || color.get())
         .progress((move || value.get().clamp(0.0, 1.0)).transition(motion::spring()))
 }

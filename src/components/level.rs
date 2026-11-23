@@ -6,10 +6,11 @@ use guido::prelude::*;
 
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
+use crate::foundations::motion;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::figure_text;
 use crate::theme::palette::Hue;
-use crate::ui::ui;
+use crate::ui::look;
 
 /// How a value stands: as it should, well, worrying, or alarming.
 #[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
@@ -59,10 +60,10 @@ impl Level {
 }
 
 /// The ink of `level`, for an icon or a figure: the text's while normal,
-/// else its hue as text.
+/// else its hue as text. Read in a property's closure, it follows a new
+/// palette.
 pub fn level_ink(level: Level) -> Color {
-    let c = ui().colors;
-    c.ink(level.hue())
+    look().colors().ink(level.hue())
 }
 
 /// The icons of a value's levels, each with the value it starts from, in
@@ -140,13 +141,17 @@ pub fn level_indicator(
     size: Size,
 ) -> impl Widget {
     let size = size.get_untracked();
-    let ink = move || level_ink(level.get());
+    let t = look();
+    let ink = move || t.colors().ink(level.get().hue());
     // A memo, so the icon is built again only when it changes, not with
     // every value.
     let kind = create_memo(move || icon.get().or_else(|| levels.get().icon(value.get())));
     container()
         .layout(centered_row(size.gap()))
-        .child(move || kind.get().map(|kind| icons::icon(kind, size.icon(), ink)))
+        .child(move || {
+            kind.get()
+                .map(|kind| icons::icon(kind, size.icon(), ink.transition(motion::color())))
+        })
         .child(move || {
             percent.get().then(|| {
                 figure_text(

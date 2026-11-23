@@ -145,10 +145,12 @@ impl Icon {
     }
 }
 
+/// `kind` drawn `size` square in `color`: a value, a signal or a closure,
+/// eased (`.transition(..)`) or not.
 pub fn icon<M1, M2>(
     kind: impl IntoSignal<Icon, M1>,
     size: f32,
-    color: impl IntoSignal<Color, M2>,
+    color: impl IntoAnimated<Color, M2>,
 ) -> Container {
     let kind = kind.into_signal();
     container()
@@ -180,7 +182,7 @@ pub fn initial(
     #[prop(required)] name: String,
     #[prop(default = tile::MEDIUM)] size: TileSize,
 ) -> impl Widget {
-    let t = crate::ui();
+    let t = crate::look();
     let tile = size.get_untracked();
     let size = tile.px();
     let letter = move || {
@@ -195,12 +197,12 @@ pub fn initial(
         .width(size)
         .height(size)
         .corners(tile.radius().corners())
-        .background(t.colors.surface2)
+        .background(t.eased(|c| c.surface2))
         .layout(Flex::column().center())
         .child(
             text(letter)
                 .typeset(tile.letter())
-                .color(t.colors.sub)
+                .color(t.eased(|c| c.sub))
                 .nowrap(),
         )
 }

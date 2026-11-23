@@ -19,7 +19,7 @@ use crate::foundations::control::Size;
 use crate::foundations::motion::{self, arriving};
 use crate::foundations::tokens::{self, stroke};
 use crate::theme::palette;
-use crate::ui::ui;
+use crate::ui::look;
 
 const BORDER: f32 = stroke::HAIRLINE;
 
@@ -73,21 +73,23 @@ where
 /// shape is there: a compositor rule that blurs a surface declaring no blur
 /// (niri's `layer-rule` `blur`) blurs all of it, empty space included.
 pub fn paint(shape: Container) -> Container {
-    let t = ui();
-    let radius = t.material.blur();
-    let sources = if radius > 0.0 {
-        BackdropSources::all()
-    } else {
-        BackdropSources::COMPOSITOR
-    };
+    let t = look();
     shape
-        .background(t.colors.island)
-        .backdrop_blur(BackdropBlur::new(radius).sources(sources))
+        .background(t.eased(|c| c.island))
+        .backdrop_blur(move || {
+            let radius = t.material().blur();
+            let sources = if radius > 0.0 {
+                BackdropSources::all()
+            } else {
+                BackdropSources::COMPOSITOR
+            };
+            BackdropBlur::new(radius).sources(sources)
+        })
 }
 
 /// `shape` rimmed like the island.
 pub fn border(shape: Container) -> Container {
-    shape.border(BORDER, ui().colors.line)
+    shape.border(BORDER, look().eased(|c| c.line))
 }
 
 /// `shape` with the island's [`border`] and its [`shadow`], without a glow:

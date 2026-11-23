@@ -31,8 +31,8 @@ themes and components. Every piece of it is on show in the
 | `primitives` | `text`, `layout`, `island`, `satellite`: plain functions an app can add to |
 | `components` | the components, below |
 
-`Icon`, `icon`, `centered_row`, `Ui`, `provide_ui` and `ui` are also at the
-root. Below, a path such as `tokens::size` is short for
+`Icon`, `icon`, `centered_row`, `Ui`, `provide_ui`, `ui`, `look` and `Look`
+are also at the root. Below, a path such as `tokens::size` is short for
 `foundations::tokens::size`.
 
 ## Use
@@ -43,18 +43,24 @@ styletto = { git = "https://github.com/MalpenZibo/styletto", features = ["serde"
 ```
 
 ```rust
-use styletto::{Icon, provide_ui, ui};
+use styletto::{Icon, Ui, provide_ui};
 use styletto::components::list::row;
 use styletto::components::toggle::toggle;
 
-// In a reactive closure that builds the tree, so it follows the config,
-// and a wallpaper once it is read.
-provide_ui(config.appearance.ui(system_dark)); // or Ui::default()
+// The Ui as the config asks, and a wallpaper once it is read: worked out
+// once per change.
+let drawn = create_memo(move || config.with(|c| c.appearance.ui(system_dark.get())));
+// What sizes the tree, apart: only a change of it builds the tree again.
+let sizes = create_memo(move || drawn.with(Ui::sizes));
 
-row("Wi-Fi")
-    .icon(Icon::Wifi)
-    .subtitle("Home 5G")
-    .trailing(toggle(true))
+container().child(move || {
+    sizes.get();
+    provide_ui(drawn); // or a fixed Ui, as Ui::default()
+    row("Wi-Fi")
+        .icon(Icon::Wifi)
+        .subtitle("Home 5G")
+        .trailing(toggle(true))
+})
 ```
 
 | Feature | Adds |
@@ -65,8 +71,9 @@ row("Wi-Fi")
 
 ## The Ui
 
-`provide_ui(Ui)` declares it for a subtree and `ui()` reads it. Each choice
-moves the scales rather than setting numbers:
+`provide_ui` declares it for a subtree: a `Ui`, or a signal or a closure of
+one, worked out once per change. Each choice moves the scales rather than
+setting numbers:
 
 | Choice | Values | What it does |
 |---|---|---|
@@ -75,6 +82,29 @@ moves the scales rather than setting numbers:
 | `Material` | `Solid`, `Translucent`, `Glass` | the island's opacity (1, 0.86, 0.75) and blur (0, 24, 48); the text on it darkens or lightens as far as it must to read with the island's opposite behind |
 | `Motion` | `Full`, `Reduced`, `None` | springs, fades only, or instant changes |
 | `Fonts` | `sans`, `mono` | the families, the system's by default |
+
+A component reads it two ways, both while it is built:
+
+- `ui()` is the `Ui` as it is now, for what sizes and times what is built:
+  density, shape, fonts and motion (`Ui::sizes()`). A change of these
+  builds the tree again; the app's closure that provides the `Ui` reads
+  `Ui::sizes()` and nothing else of it.
+- `look()` is a `Copy` handle on the `Ui` as it changes, for its colours
+  and material. Read inside the closures a widget's properties take
+  (`t.colors()`, `t.color(|c| c.text)`, `t.material()`), they follow a new
+  palette in place: a wallpaper that changes, or the system turning dark,
+  repaints the tree without building it again, and whatever is open,
+  typed or scrolled stays so. `t.eased(|c| c.surface)` is a colour that
+  eases at `motion::color()`, into a new palette as into a new state, for
+  a property with no motion of its own; one with a motion (a hover at
+  `motion::hover()`, a toggling fill) moves with that. The components'
+  colours ease so, at once under `Motion::None`, but for those Guido gives
+  no motion, which change at once: a ring's track, a text field's text,
+  placeholder and cursor, and a sparkline's line.
+
+A colour copied while building (`ui().colors.text`) stays as it was: an app
+that no longer builds its tree again on a new palette reads its own colours
+through `look()` too.
 
 ## Tokens
 
@@ -229,8 +259,9 @@ same way, in lightness only, to 3:1 too: with white behind dark glass, a
 hue that reads at 4.5:1 is so light it is all but white, as light as the
 text, and a warning no longer looks like one. Where not even black or white
 would read, the island is drawn denser. A colour set below its floor keeps
-the contrast it was set with. Paint text with `ui().colors`, not with a
-`Scheme`'s or a theme's own colours, or it won't follow.
+the contrast it was set with. Paint text with the `Ui`'s colours
+(`look().colors()`), not with a `Scheme`'s or a theme's own colours, or it
+won't follow.
 
 The preset themes, in `presets::THEMES`, each with dark and light flavours
 and its own accents: Tokyo Night, Catppuccin, Nord, Gruvbox, Dracula, Rosé
@@ -384,7 +415,8 @@ workspace shown) and a press calls `on_click`, as a list row's `selected`.
 
 A tag shows and takes no press. Its `Tone` tints it at `tint::STRONG`
 (`surface` while neutral), and `Tone::ink()` is the colour for what it
-holds: `text` while neutral, else the hue as text. `Tone::hue()` is its
+holds: `text` while neutral, else the hue as text. Both read the palette as
+it is now: in a property's closure, they follow a new one. `Tone::hue()` is its
 `Hue`, none while neutral; a list row takes the same `Tone`. With `glow` a toned tag
 lights around it, as the island's privacy tag does.
 
@@ -417,8 +449,9 @@ The app decides a level, with its own thresholds, and styletto draws it:
 `Level::of(value, warn, alert)` when high is bad, `Level::below(value, warn,
 alert)` when low is, and `Level::Good` for better than normal, a battery
 charging. `Level::hue()` is its `Hue`: success, warning or danger, none
-while normal. `level_ink` is `text` while normal, else that hue's `text`; a
-card's tint and glow take its `fill`.
+while normal. `level_ink` is `text` while normal, else that hue's `text`
+(in a property's closure, it follows a new palette); a card's tint and glow
+take its `fill`.
 
 The indicator's sets of icons are data, each icon from the value it starts
 at: `Levels::BATTERY` rounds its bars up, a bar staying while there is

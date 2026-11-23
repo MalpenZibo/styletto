@@ -6,7 +6,7 @@ use crate::foundations::motion;
 use crate::foundations::typography::{
     LABEL_MEDIUM, LABEL_SMALL, MICRO_XSMALL, TITLE_SMALL, Type, Typeset,
 };
-use crate::ui::ui;
+use crate::ui::look;
 
 /// `content` set in `kind`, in its case.
 pub fn typed<M>(content: impl IntoSignal<String, M>, kind: Type) -> Text {
@@ -16,29 +16,31 @@ pub fn typed<M>(content: impl IntoSignal<String, M>, kind: Type) -> Text {
 
 pub fn label<M>(content: impl IntoSignal<String, M>) -> Text {
     typed(content, LABEL_MEDIUM)
-        .color(ui().colors.text)
+        .color(look().eased(|c| c.text))
         .nowrap()
 }
 
 pub fn caption<M>(content: impl IntoSignal<String, M>) -> Text {
-    typed(content, LABEL_SMALL).color(ui().colors.sub).nowrap()
+    typed(content, LABEL_SMALL)
+        .color(look().eased(|c| c.sub))
+        .nowrap()
 }
 
 pub fn heading<M>(content: impl IntoSignal<String, M>) -> Text {
     typed(content, TITLE_SMALL.em())
-        .color(ui().colors.text)
+        .color(look().eased(|c| c.text))
         .nowrap()
 }
 
 /// A small uppercase label over a group.
 pub fn overline<M>(content: impl IntoSignal<String, M>) -> Text {
-    typed(content, MICRO_XSMALL.em()).color(ui().colors.sub)
+    typed(content, MICRO_XSMALL.em()).color(look().eased(|c| c.sub))
 }
 
 /// A number that keeps its width while its digits change.
 pub fn figure<M>(content: impl IntoSignal<String, M>) -> Text {
     typed(content, LABEL_MEDIUM.tabular())
-        .color(ui().colors.text)
+        .color(look().eased(|c| c.text))
         .nowrap()
 }
 

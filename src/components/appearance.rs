@@ -34,7 +34,7 @@ use crate::theme::palette::{Palette, Scheme, parse_hex, to_hex};
 use crate::theme::presets::{Mode, THEMES, ThemeChoice};
 #[cfg(feature = "wallpaper")]
 use crate::theme::wallpaper::{self, Picture};
-use crate::ui::{Density, Material, Motion, Shape, ui};
+use crate::ui::{Density, Material, Motion, Shape, look};
 
 /// The choices of each kind, by the name a control shows.
 pub const MODES: &[(&str, Mode)] = &[
@@ -468,19 +468,23 @@ fn side_card(
     showing: impl Fn(bool) -> bool + Copy + 'static,
     body: impl Widget + 'static,
 ) -> Container {
-    let t = ui();
+    let t = look();
     container()
         .width(fill())
         .padding(size::S3.px())
         .corners(radius::MEDIUM.corners())
-        .background(t.colors.surface)
-        .border(stroke::RING, move || {
-            if showing(light) {
-                t.colors.accent.fill
-            } else {
-                Color::TRANSPARENT
-            }
-        })
+        .background(t.eased(|c| c.surface))
+        .border(
+            stroke::RING,
+            (move || {
+                if showing(light) {
+                    t.colors().accent.fill
+                } else {
+                    Color::TRANSPARENT
+                }
+            })
+            .transition(motion::color()),
+        )
         .layout(Flex::column().spacing(size::S4.px()))
         .child(
             container()
@@ -492,12 +496,12 @@ fn side_card(
                         .child(icon(
                             if light { Icon::Sun } else { Icon::Moon },
                             icon_box::SMALL.px(),
-                            t.colors.sub,
+                            t.eased(|c| c.sub),
                         ))
                         .child(
                             text(if light { "Light" } else { "Dark" })
                                 .typeset(TITLE_XSMALL.em())
-                                .color(t.colors.text),
+                                .color(t.eased(|c| c.text)),
                         ),
                 )
                 .child(caption(move || {
@@ -545,7 +549,7 @@ fn flavor_and_accent(
     choice: Memo<ThemeChoice>,
     light: bool,
 ) -> Container {
-    let t = ui();
+    let t = look();
     let theme = config.with_untracked(|c| c.choice().theme);
     let flavors = theme.flavors(light);
     let flavor = create_memo(move || choice.get().flavor_of(light));
@@ -560,7 +564,7 @@ fn flavor_and_accent(
                 if light { "dark" } else { "light" }
             ))
             .typeset(BODY_SMALL)
-            .color(t.colors.sub),
+            .color(t.eased(|c| c.sub)),
         )
     });
     let flavors = (!flavors.is_empty()).then(|| {
@@ -769,7 +773,7 @@ fn wallpaper_field(
 /// itself, and a list to search when it is opened. Monospaced families
 /// only for `mono`; the system's first.
 fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Family>>) -> Setting {
-    let t = ui();
+    let t = look();
     let chosen = create_memo(move || {
         config.with(|c| if mono { &c.fonts.mono } else { &c.fonts.sans }.clone())
     });
@@ -809,15 +813,15 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
         .width(fill())
         .padding([size::S2.px(), size::S3.px()])
         .corners(radius::SMALL.corners())
-        .background(t.colors.surface)
-        .when_hovered(move |s| s.background(t.colors.surface2))
+        .background(t.color(|c| c.surface).transition(motion::hover()))
+        .when_hovered(move |s| s.background(t.color(|c| c.surface2)))
         .on_click(move || open.set(!open.get_untracked()))
         .layout(centered_row(0.0).main_alignment(MainAlignment::SpaceBetween))
         .child(
             text(move || chosen.get().unwrap_or_else(|| "System".to_string()))
                 .typeset(LABEL_MEDIUM)
                 .font_family(move || chosen.with(drawn_in))
-                .color(t.colors.text),
+                .color(t.eased(|c| c.text)),
         )
         .child(icon(
             move || {
@@ -828,7 +832,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                 }
             },
             icon_box::SMALL.px(),
-            t.colors.sub,
+            t.eased(|c| c.sub),
         ));
     let list = move || {
         open.get().then(|| {
@@ -839,14 +843,17 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                     .width(fill())
                     .padding([size::S1.px(), size::S2.px()])
                     .corners(radius::SMALL.corners())
-                    .background(move || {
-                        if chosen.with(|c| *c == family) {
-                            t.colors.surface2
-                        } else {
-                            Color::TRANSPARENT
-                        }
-                    })
-                    .when_hovered(move |s| s.background(t.colors.surface))
+                    .background(
+                        (move || {
+                            if chosen.with(|c| *c == family) {
+                                t.colors().surface2
+                            } else {
+                                Color::TRANSPARENT
+                            }
+                        })
+                        .transition(motion::hover()),
+                    )
+                    .when_hovered(move |s| s.background(t.color(|c| c.surface)))
                     .on_click(move || {
                         choose(picked.clone());
                         open.set(false);
@@ -855,7 +862,7 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
                         text(label)
                             .typeset(LABEL_MEDIUM)
                             .font_family(face)
-                            .color(t.colors.text)
+                            .color(t.eased(|c| c.text))
                             .nowrap(),
                     )
             };
@@ -904,12 +911,12 @@ fn font_field(config: RwSignal<UiConfig>, mono: bool, families: Signal<Vec<Famil
 /// What is typed in a field, in the text's colours, filling the field up
 /// to its trailing button.
 fn typing(input: TextInput) -> Container {
-    let t = ui();
+    let t = look();
     container().width(fill()).child(
         input
-            .color(t.colors.text)
-            .placeholder_color(t.colors.sub)
-            .cursor_color(t.colors.accent.text),
+            .color(t.color(|c| c.text))
+            .placeholder_color(t.color(|c| c.sub))
+            .cursor_color(t.color(|c| c.accent.text)),
     )
 }
 
@@ -919,13 +926,13 @@ fn dot(color: impl Fn() -> Color + 'static) -> Container {
         .width(size::S4.px())
         .height(size::S4.px())
         .corners(radius::pill(size::S4.px()))
-        .border(stroke::HAIRLINE, ui().colors.line)
+        .border(stroke::HAIRLINE, look().eased(|c| c.line))
         .background(color)
 }
 
 /// A dot of `color` to press, ringed in the text's colour while `on`.
 fn swatch(color: Color, on: impl Fn() -> bool + 'static) -> Container {
-    let t = ui();
+    let t = look();
     pressable(
         container()
             .width(size::S4.px())
@@ -936,7 +943,7 @@ fn swatch(color: Color, on: impl Fn() -> bool + 'static) -> Container {
                 stroke::BOLD,
                 (move || {
                     if on() {
-                        t.colors.text
+                        t.colors().text
                     } else {
                         Color::TRANSPARENT
                     }

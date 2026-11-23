@@ -15,7 +15,7 @@ use crate::foundations::tokens::{icon as icon_box, indicator, opacity, radius, s
 use crate::foundations::typography::{LABEL_MEDIUM, TITLE_XSMALL, Typeset};
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::{caption, label, overline};
-use crate::ui::ui;
+use crate::ui::look;
 
 /// A list row: icon, title, subtitle and a trailing widget, each optional.
 #[component]
@@ -37,9 +37,9 @@ pub fn row(
     #[prop(slot)] trailing: (),
     #[prop(callback)] on_click: (),
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     let selected = move || selected.get() || checked.get();
-    let hue = move || tone.get().hue().map(|hue| t.colors.hue(hue).text);
+    let hue = move || tone.get().hue().map(|hue| t.colors().hue(hue).text);
     // With a tone, the hover and the ripple are `surface` and `ripple` with
     // the hue in place of their white or black, as faint: a hue is never
     // brighter than white nor darker than black, so the hovered title reads
@@ -47,7 +47,7 @@ pub fn row(
     let tinted = move |neutral: Color| hue().map_or(neutral, |hue| hue.with_alpha(neutral.a));
     let rest = move || {
         if selected() {
-            t.colors.surface2
+            t.colors().surface2
         } else {
             Color::TRANSPARENT
         }
@@ -57,7 +57,7 @@ pub fn row(
         .layout(Flex::column())
         .child(
             label(title)
-                .color(move || hue().unwrap_or(t.colors.text))
+                .color((move || hue().unwrap_or(t.colors().text)).transition(motion::color()))
                 .overflow(TextOverflow::Ellipsis),
         )
         .child(subtitle_line(subtitle));
@@ -68,14 +68,15 @@ pub fn row(
         .background(rest.transition(motion::hover()))
         .when_hovered(move |s| {
             s.background(move || {
+                let c = t.colors();
                 if selected() {
-                    t.colors.surface2
+                    c.surface2
                 } else {
-                    tinted(t.colors.surface)
+                    tinted(c.surface)
                 }
             })
         })
-        .when_pressed(move |s| s.ripple_with_color(move || tinted(t.colors.ripple)))
+        .when_pressed(move |s| s.ripple_with_color(move || tinted(t.colors().ripple)))
         .opacity(1.0.transition(motion::hover()))
         .when_disabled(|s| s.opacity(opacity::DISABLED).background(Color::TRANSPARENT))
         .enabled(enabled)
@@ -83,17 +84,23 @@ pub fn row(
         .layout(centered_row(size::S3.px()))
         .child(move || {
             icon.get().map(|kind| {
-                icons::icon(kind, icon_box::SMALL.px(), move || {
-                    hue().unwrap_or(t.colors.sub)
-                })
+                icons::icon(
+                    kind,
+                    icon_box::SMALL.px(),
+                    (move || hue().unwrap_or(t.colors().sub)).transition(motion::color()),
+                )
             })
         })
         .child(words)
         .children(trailing)
         .child(move || {
-            checked
-                .get()
-                .then(|| icons::icon(Icon::Check, icon_box::SMALL.px(), t.colors.accent.text))
+            checked.get().then(|| {
+                icons::icon(
+                    Icon::Check,
+                    icon_box::SMALL.px(),
+                    t.eased(|c| c.accent.text),
+                )
+            })
         })
 }
 
@@ -107,7 +114,7 @@ pub fn section(#[prop(required)] title: String) -> impl Widget {
 
 #[component]
 pub fn separator() -> impl Widget {
-    let t = ui();
+    let t = look();
     container()
         .width(fill())
         .padding([size::S1.px(), size::S2.px()])
@@ -115,14 +122,14 @@ pub fn separator() -> impl Widget {
             container()
                 .width(fill())
                 .height(stroke::HAIRLINE)
-                .background(t.colors.line),
+                .background(t.eased(|c| c.line)),
         )
 }
 
 /// What an empty list shows.
 #[component]
 pub fn empty(#[prop(required)] icon: Icon, #[prop(required)] message: String) -> impl Widget {
-    let t = ui();
+    let t = look();
     container()
         .width(fill())
         .padding([size::S6.px(), 0.0])
@@ -131,11 +138,11 @@ pub fn empty(#[prop(required)] icon: Icon, #[prop(required)] message: String) ->
                 .spacing(size::S2.px())
                 .cross_alignment(CrossAlignment::Center),
         )
-        .child(icons::icon(icon, icon_box::LARGE.px(), t.colors.dim))
+        .child(icons::icon(icon, icon_box::LARGE.px(), t.eased(|c| c.dim)))
         .child(
             text(message)
                 .typeset(LABEL_MEDIUM)
-                .color(t.colors.sub)
+                .color(t.eased(|c| c.sub))
                 .nowrap(),
         )
 }
@@ -152,7 +159,7 @@ pub fn page_header(
     on_back: (),
     #[prop(slot)] trailing: (),
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     container()
         .width(fill())
         .height(at_least(Size::Sm.height()))
@@ -171,7 +178,7 @@ pub fn page_header(
                 .child(
                     text(title)
                         .typeset(TITLE_XSMALL.em())
-                        .color(t.colors.text)
+                        .color(t.eased(|c| c.text))
                         .nowrap()
                         .overflow(TextOverflow::Ellipsis),
                 )
@@ -236,7 +243,7 @@ pub fn page_indicator(
     #[prop(required)]
     current: usize,
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     // Stretching is a movement: reduced motion swaps the pill over at once
     // and only fades the colours.
     let moves = motion::moves();
@@ -266,11 +273,8 @@ pub fn page_indicator(
                     .corners(radius::pill(indicator::DOT))
                     .background(
                         (move || {
-                            if on() {
-                                t.colors.accent.text
-                            } else {
-                                t.colors.dim
-                            }
+                            let c = t.colors();
+                            if on() { c.accent.text } else { c.dim }
                         })
                         .transition(motion::color()),
                     )
@@ -294,7 +298,7 @@ pub fn scroll_list(
 ) -> impl Widget {
     use crate::foundations::tokens::scrollbar;
 
-    let t = ui();
+    let t = look();
     // The growth under the pointer is a movement: reduced motion keeps the
     // bar as it is and only brightens it.
     let grown = if motion::moves() {
@@ -314,12 +318,12 @@ pub fn scroll_list(
                 .margin(scrollbar::MARGIN)
                 .min_handle_size(scrollbar::MIN_HANDLE)
                 .reserve_gutter(reserve_gutter)
-                .track(move |_| bar().background(t.colors.surface))
+                .track(move |_| bar().background(t.eased(|c| c.surface)))
                 .handle(move |_| {
                     bar()
-                        .background(t.colors.dim.transition(motion::hover()))
-                        .when_hovered(move |s| s.background(t.colors.sub))
-                        .when_pressed(move |s| s.background(t.colors.text))
+                        .background(t.color(|c| c.dim).transition(motion::hover()))
+                        .when_hovered(move |s| s.background(t.color(|c| c.sub)))
+                        .when_pressed(move |s| s.background(t.color(|c| c.text)))
                 }),
         )
         .children(children)

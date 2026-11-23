@@ -13,7 +13,7 @@ use crate::foundations::tokens::{radius, stroke};
 use crate::foundations::typography::LABEL_SMALL;
 use crate::primitives::layout::centered_row;
 use crate::primitives::text::figure_text;
-use crate::ui::ui;
+use crate::ui::look;
 
 fn height() -> f32 {
     Size::Sm.height()
@@ -59,7 +59,7 @@ pub fn slider(
     #[prop(callback)]
     on_change: fn(f32),
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     let on_change = move |v: f32| {
         if let Some(on_change) = on_change {
             on_change.run(v);
@@ -124,7 +124,7 @@ pub fn slider(
     let filled = container()
         .width(reach.transition(motion::tactile()))
         .height(fill())
-        .background(t.colors.accent.fill);
+        .background(t.eased(|c| c.accent.fill));
     // A cut through the track in the island's colour: it reads on the empty
     // part as much as the track reads on the island, and on the fill as much
     // as the fill does, in any theme, and stays as quiet as the track.
@@ -134,7 +134,7 @@ pub fn slider(
             container()
                 .width(stroke::HAIRLINE)
                 .height(fill())
-                .background(t.colors.island)
+                .background(t.eased(|c| c.island))
                 .translate(move || {
                     let x = FULL / max.get() * width.get() - stroke::HAIRLINE / 2.0;
                     Translate::new(x, 0.0)
@@ -174,11 +174,8 @@ pub fn slider(
                     move || format!("{}%", shown.get().round()),
                     LABEL_SMALL,
                     move || {
-                        if inside.get() {
-                            t.colors.accent.on
-                        } else {
-                            t.colors.sub
-                        }
+                        let c = t.colors();
+                        if inside.get() { c.accent.on } else { c.sub }
                     },
                 )),
         );
@@ -188,7 +185,7 @@ pub fn slider(
         .height(track_height.transition(motion::spring()))
         .corners((move || radius::pill(track_height())).transition(motion::spring()))
         .overflow(Overflow::Hidden)
-        .background(t.colors.surface2)
+        .background(t.eased(|c| c.surface2))
         .layout(ZStack::new())
         .child(filled)
         .child(mark)
@@ -259,14 +256,14 @@ pub fn slider_row(
     #[prop(callback)]
     on_more: (),
 ) -> impl Widget {
-    let t = ui();
+    let t = look();
     let lead = match on_icon {
         Some(pressed) => container().child(button().icon(icon).size(Size::Sm).on_click(pressed)),
         None => container()
             .width(Size::Sm.height())
             .height(Size::Sm.height())
             .layout(Flex::column().center())
-            .child(icons::icon(icon, Size::Sm.icon(), t.colors.text)),
+            .child(icons::icon(icon, Size::Sm.icon(), t.eased(|c| c.text))),
     };
     let tail = match on_more {
         Some(pressed) => container().child(
