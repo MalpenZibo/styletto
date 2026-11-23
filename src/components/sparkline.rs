@@ -2,8 +2,9 @@
 
 use guido::prelude::*;
 use guido::widget_prelude::*;
+use guido::widgets::container::AnimationState;
 
-use crate::foundations::ease::ColorEase;
+use crate::foundations::motion;
 use crate::foundations::tokens::{Space, size, stroke};
 use crate::ui::{Look, look};
 
@@ -16,9 +17,12 @@ pub struct Sparkline {
     height: f32,
     /// Its colour is the accent's, read as it is laid out.
     look: Look,
-    /// The colour it is drawn in, easing into a new accent: it draws its
-    /// line itself, where Guido moves only a property it declares.
-    ink: ColorEase,
+    /// The colour it is drawn in, easing into a new accent at
+    /// [`motion::color`]: it draws its line itself, so it moves the colour
+    /// itself.
+    ink: AnimationState<Color>,
+    /// False under `Motion::None`: a new accent is taken at once.
+    eases: bool,
     stroke: f32,
 }
 
@@ -37,17 +41,27 @@ impl Sparkline {
 
 impl Widget for Sparkline {
     fn advance_animations(&mut self, tree: &mut Tree, id: WidgetId) -> bool {
-        if self.ink.advance(tree.frame_instant(), id) {
+        if self.ink.advance(tree.frame_instant()).is_changed() {
             tree.mark_needs_paint(id);
         }
-        self.ink.moving()
+        self.ink.is_animating()
     }
 
     fn layout(&mut self, ctx: &mut LayoutCtx, constraints: Constraints) -> Size {
-        // Read while laying out, so a new accent lays it out again and
-        // sets off the change.
+        // Read while laying out, so a new accent lays it out again and sets
+        // off the change. A measure pass leaves it alone, as Guido's own
+        // properties do: a colour sizes nothing.
         let accent = self.look.color(|c| c.accent.fill)();
-        self.ink.retarget(ctx, accent);
+        if !ctx.measuring() {
+            if self.ink.is_initial() || !self.eases {
+                self.ink.set_immediate(ctx, accent);
+            } else {
+                self.ink.animate_to(accent, ctx.tree_ref().frame_instant());
+                if self.ink.is_animating() {
+                    ctx.request_animation_frame();
+                }
+            }
+        }
         let width = if constraints.max_width.is_finite() {
             constraints.max_width
         } else {
@@ -80,7 +94,7 @@ impl Widget for Sparkline {
                     }
                 })
         });
-        let stroke = Stroke::new(self.stroke, self.ink.color())
+        let stroke = Stroke::new(self.stroke, self.ink.displayed())
             .joins(Join::Round)
             .caps(Cap::Round);
         ctx.draw_path(&line, None, stroke);
@@ -97,7 +111,8 @@ pub fn sparkline(samples: Signal<Vec<f32>>, slots: usize) -> Sparkline {
         top: None,
         height: size::S8.px(),
         look: look(),
-        ink: ColorEase::new(),
+        ink: AnimationState::new(Color::TRANSPARENT, motion::color()),
+        eases: motion::colors_ease(),
         stroke: stroke::RING,
     }
 }

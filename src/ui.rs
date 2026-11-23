@@ -606,8 +606,7 @@ mod tests {
     fn a_components_colour_prop_eases() {
         use crate::components::notification::app_icon;
         use crate::foundations::icons::Icon;
-        // The tile's gradient, above its icon: Guido gives a gradient no
-        // motion, so its colour is eased here.
+        // The tile's gradient, above its icon.
         eases_in_place(
             || container().child(app_icon(Icon::Bell, look().color(|c| c.accent.fill))),
             (36, 19),

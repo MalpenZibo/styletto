@@ -3,7 +3,6 @@
 //! current [`Ui`](crate::Ui).
 
 pub mod control;
-pub(crate) mod ease;
 pub mod icons;
 pub mod motion;
 pub mod tokens;
