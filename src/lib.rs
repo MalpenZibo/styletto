@@ -21,4 +21,4 @@ pub mod ui;
 
 pub use foundations::icons::{Icon, icon};
 pub use primitives::layout::centered_row;
-pub use ui::{Look, Ui, look, provide_ui, ui};
+pub use ui::{Look, Ui, look, provide_ui, themed, ui};

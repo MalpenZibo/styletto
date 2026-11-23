@@ -43,19 +43,17 @@ styletto = { git = "https://github.com/MalpenZibo/styletto", features = ["serde"
 ```
 
 ```rust
-use styletto::{Icon, Ui, provide_ui};
+use styletto::{Icon, themed};
 use styletto::components::list::row;
 use styletto::components::toggle::toggle;
 
 // The Ui as the config asks, and a wallpaper once it is read: worked out
 // once per change.
 let drawn = create_memo(move || config.with(|c| c.appearance.ui(system_dark.get())));
-// What sizes the tree, apart: only a change of it builds the tree again.
-let sizes = create_memo(move || drawn.with(Ui::sizes));
 
-container().child(move || {
-    sizes.get();
-    provide_ui(drawn); // or a fixed Ui, as Ui::default()
+// Built again only when what sizes it changes; repainted in place on a new
+// palette. Or a fixed Ui, as Ui::default().
+themed(drawn, || {
     row("Wi-Fi")
         .icon(Icon::Wifi)
         .subtitle("Home 5G")
@@ -72,8 +70,10 @@ container().child(move || {
 ## The Ui
 
 `provide_ui` declares it for a subtree: a `Ui`, or a signal or a closure of
-one, worked out once per change. Each choice moves the scales rather than
-setting numbers:
+one, worked out once per change. `themed(ui, build)` is what an app usually
+wants: it provides `ui` to what `build` makes and builds it again only when
+`Ui::sizes()` changes, so a new palette or material repaints it in place.
+Each choice moves the scales rather than setting numbers:
 
 | Choice | Values | What it does |
 |---|---|---|

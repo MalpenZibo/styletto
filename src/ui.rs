@@ -220,6 +220,23 @@ pub fn provide_ui<M>(ui: impl IntoSignal<Ui, M>) {
     provide_context(Provided(ui));
 }
 
+/// What `build` makes, given `ui` (a value, or a signal or a closure that
+/// changes) as [`provide_ui`] gives it, and built again only when what
+/// sizes it changes ([`Ui::sizes`]): a new palette or material repaints it
+/// in place, and whatever is open, typed or scrolled in it stays so.
+pub fn themed<M, W: Widget + 'static>(
+    ui: impl IntoSignal<Ui, M>,
+    build: impl Fn() -> W + 'static,
+) -> Container {
+    let ui = ui.into_signal();
+    let sizes = create_memo(move || ui.with(Ui::sizes));
+    container().child(move || {
+        sizes.get();
+        provide_ui(ui);
+        build()
+    })
+}
+
 /// The `Ui` provided, as a signal: a fixed one is a signal that never
 /// changes.
 #[derive(Clone, Copy)]

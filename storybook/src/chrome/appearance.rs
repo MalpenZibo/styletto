@@ -25,7 +25,7 @@ use styletto::primitives::text::typed;
 use styletto::theme::config::UiConfig;
 use styletto::theme::palette::Hue;
 use styletto::theme::wallpaper::{Picture, picture};
-use styletto::{Icon, Ui, centered_row, icon, look, provide_ui};
+use styletto::{Icon, Ui, centered_row, icon, look, themed};
 
 use crate::chrome::widgets::{island, wallpaper};
 use crate::system::picker;
@@ -139,8 +139,9 @@ fn system_dark() -> Signal<Option<bool>> {
     dark.read_only()
 }
 
-/// The settings on the left, what they make on the right.
-pub fn page(a: Appearance) -> Container {
+/// The settings on the left, what they make on the right, drawn with
+/// `drawn`, the `Ui` the settings make.
+pub fn page(a: Appearance, drawn: Memo<Ui>) -> Container {
     container()
         .width(fill())
         .height(fill())
@@ -158,7 +159,7 @@ pub fn page(a: Appearance) -> Container {
                         .chooser_note(a.chooser_note),
                 ),
         )
-        .child(preview(a))
+        .child(preview(a, drawn))
 }
 
 /// What the controls in the preview were left at, kept across a redraw so a
@@ -176,7 +177,7 @@ struct Controls {
 /// The colours at work, drawn with what is chosen: controls that answer a
 /// press, text at its three levels on the island and on a surface, and
 /// every fill with the colour that reads on it.
-fn preview(a: Appearance) -> Container {
+fn preview(a: Appearance, drawn: Memo<Ui>) -> Container {
     let controls = Controls {
         wifi: create_signal(true),
         volume: create_signal(60.0),
@@ -185,25 +186,22 @@ fn preview(a: Appearance) -> Container {
         night: create_signal(true),
         silent: create_signal(false),
     };
-    let drawn = create_memo(move || a.ui());
-    // Built again only for what sizes it; a new palette or material
-    // repaints it in place.
-    let sizes = create_memo(move || drawn.with(Ui::sizes));
     container()
         .width(fill())
         .height(fill())
         .padding(space::S3.px())
-        .child(wallpaper(a.backdrop, move || {
-            sizes.get();
-            provide_ui(drawn);
-            styletto::primitives::island::border(island(space::S4.px()))
-                .width(space::S80.px())
-                .layout(Flex::column().spacing(space::S4.px()))
-                .child(panel(controls))
-                .child(texts())
-                .child(fills())
-                .child(levels())
-        }))
+        .child(wallpaper(
+            a.backdrop,
+            themed(drawn, move || {
+                styletto::primitives::island::border(island(space::S4.px()))
+                    .width(space::S80.px())
+                    .layout(Flex::column().spacing(space::S4.px()))
+                    .child(panel(controls))
+                    .child(texts())
+                    .child(fills())
+                    .child(levels())
+            }),
+        ))
 }
 
 /// A piece of a panel whose controls answer: the row's switch, the slider
@@ -395,7 +393,7 @@ mod tests {
         let id = h.surface(SurfaceConfig::new(), move || {
             let a = Appearance::new();
             seen.set(Some(a));
-            super::page(a)
+            super::page(a, create_memo(move || a.ui()))
         });
         h.configure(id, 1200, 3000, 1.0);
         h.step();
@@ -528,7 +526,7 @@ mod tests {
                 ..Appearance::new()
             };
             seen.set(Some(a));
-            super::preview(a)
+            super::preview(a, create_memo(move || a.ui()))
         });
         let given = light.clone();
         let built = h.surface(SurfaceConfig::new(), move || {
@@ -537,7 +535,7 @@ mod tests {
                 ..Appearance::new()
             };
             a.config.set(given.clone());
-            super::preview(a)
+            super::preview(a, create_memo(move || a.ui()))
         });
         for id in [changed, built] {
             h.configure(id, 400, 800, 1.0);
@@ -566,7 +564,7 @@ mod tests {
             seen.set(Some(a));
             container().child(move || {
                 count.set(count.get() + 1);
-                super::page(a)
+                super::page(a, create_memo(move || a.ui()))
             })
         });
         h.configure(id, 1200, 900, 1.0);
@@ -595,7 +593,7 @@ mod tests {
         let id = h.surface(SurfaceConfig::new(), move || {
             let a = Appearance::new();
             seen.set(Some(a));
-            super::page(a)
+            super::page(a, create_memo(move || a.ui()))
         });
         let (width, height) = (1200, 700);
         h.configure(id, width, height, 1.0);

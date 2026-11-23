@@ -15,7 +15,7 @@ use styletto::foundations::typography as ty;
 use styletto::foundations::typography::Typeset;
 use styletto::foundations::{motion, tokens};
 use styletto::primitives::text::{PaletteColors, caption, heading, label, typed};
-use styletto::{Icon, Ui, centered_row, icon, look, provide_ui};
+use styletto::{Icon, Ui, centered_row, icon, look, provide_ui, themed};
 
 use crate::chrome::appearance::{self, Appearance};
 use crate::chrome::widgets::{choices, field, island, section, wallpaper};
@@ -145,7 +145,7 @@ fn full(
                 .child(toolbar(selected, theming, window))
                 .child(container().width(fill()).height(fill()).child(move || {
                     if theming.get() {
-                        return appearance::page(appearance);
+                        return appearance::page(appearance, drawn);
                     }
                     stage(&STORIES[selected.get()], drawn, appearance.backdrop(), log)
                 })),
@@ -162,27 +162,23 @@ fn stage(
     backdrop: Memo<Option<PathBuf>>,
     log: RwSignal<Vec<String>>,
 ) -> Container {
-    let sizes = create_memo(move || drawn.with(Ui::sizes));
-    container().width(fill()).height(fill()).child(move || {
-        sizes.get();
-        let ctx = Rc::new(Ctx::new(log));
-        // The story and its canvas get the chosen look in a scope of their
-        // own; the panel beside them keeps the chrome's.
-        let canvas = container().width(fill()).height(fill()).child({
-            let ctx = ctx.clone();
-            move || {
-                ctx.reset();
-                provide_ui(drawn);
-                canvas(backdrop, (story.render)(&ctx))
-            }
-        });
-        container()
-            .width(fill())
-            .height(fill())
-            .layout(Flex::row())
-            .child(canvas)
-            .child(panel(ctx, log))
-    })
+    let ctx = Rc::new(Ctx::new(log));
+    // The story and its canvas get the chosen look, built again only for
+    // what sizes them; the panel beside them keeps the chrome's, and lists
+    // the controls the story declares each time it is built.
+    let canvas = themed(drawn, {
+        let ctx = ctx.clone();
+        move || {
+            ctx.reset();
+            canvas(backdrop, (story.render)(&ctx))
+        }
+    });
+    container()
+        .width(fill())
+        .height(fill())
+        .layout(Flex::row())
+        .child(canvas.width(fill()).height(fill()))
+        .child(panel(ctx, log))
 }
 
 fn sidebar(
