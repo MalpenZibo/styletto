@@ -561,13 +561,13 @@ mod tests {
         assert_eq!(after, light, "not as a light Ui draws it");
         assert_eq!(builds, 1, "built again");
         // Both on their way: neither the old colour nor the new.
-        for (point, [before, midway, after]) in ["the island", "the content"]
-            .into_iter()
-            .zip([0, 1].map(|i| [before[i], midway[i], after[i]]))
-        {
+        for (i, point) in ["the island", "the content"].into_iter().enumerate() {
             assert!(
-                midway != before && midway != after,
-                "{point} didn't ease: {before:?} {midway:?} {after:?}"
+                midway[i] != before[i] && midway[i] != after[i],
+                "{point} didn't ease: {:?} {:?} {:?}",
+                before[i],
+                midway[i],
+                after[i]
             );
         }
     }

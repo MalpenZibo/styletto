@@ -5,20 +5,18 @@
 
 use guido::prelude::*;
 use guido::widget_prelude::*;
+use guido::widgets::container::AnimationState;
 
-use crate::foundations::motion::COLOR_MS;
+use crate::foundations::motion;
 use crate::ui::{Motion, with_ui};
 
-/// Where a colour stands on its way to the last value it was given, at
-/// [`motion::color`](crate::foundations::motion::color)'s pace and curve.
+/// A colour on its way to the last value it was given, at
+/// [`motion::color`]'s pace and curve: Guido's own state for a property,
+/// held by a widget that paints it.
 pub(crate) struct ColorEase {
-    from: Color,
-    /// Where it goes; none until it is first given a value, which it takes
-    /// at once.
-    to: Option<Color>,
-    since: Option<FrameInstant>,
-    /// How long a change takes; none under [`Motion::None`].
-    ms: Option<f32>,
+    state: AnimationState<Color>,
+    /// False under [`Motion::None`]: a new value is taken at once.
+    moves: bool,
     /// Tracked for the widget's animation job and notified to ask for the
     /// next frame.
     frame: Trigger,
@@ -28,65 +26,45 @@ impl ColorEase {
     /// At the pace of the nearest [`Ui`](crate::Ui)'s motion, as it is now.
     pub(crate) fn new() -> Self {
         Self {
-            from: Color::TRANSPARENT,
-            to: None,
-            since: None,
-            ms: (with_ui(|u| u.motion) != Motion::None).then_some(COLOR_MS),
+            state: AnimationState::new(Color::TRANSPARENT, motion::color()),
+            moves: with_ui(|u| u.motion) != Motion::None,
             frame: create_trigger(),
         }
     }
 
-    /// The colour at `now`.
-    pub(crate) fn at(&self, now: FrameInstant) -> Color {
-        let Some(to) = self.to else {
-            return self.from;
-        };
-        match (self.ms, self.since) {
-            (Some(ms), Some(since)) => {
-                let t = (now.duration_since(since).as_secs_f32() * 1000.0 / ms).min(1.0);
-                self.from.mix(to, TimingFunction::EaseOut.evaluate(t))
-            }
-            _ => to,
-        }
+    /// The colour as the last frame left it.
+    pub(crate) fn color(&self) -> Color {
+        self.state.displayed()
     }
 
-    /// Heads for `target` from where it is at `now`, and asks the frame
-    /// that moves it, for widget `id`. The first value is taken at once.
-    pub(crate) fn retarget(&mut self, target: Color, now: FrameInstant, id: WidgetId) {
-        if self.to == Some(target) {
+    /// Heads for `target`, as the widget laid out in `ctx` reads it, and asks
+    /// the frame that moves it. The first value is taken at once.
+    pub(crate) fn retarget(&mut self, ctx: &mut LayoutCtx, target: Color) {
+        if self.state.is_initial() || !self.moves {
+            self.state.set_immediate(ctx, target);
             return;
         }
-        if self.to.is_some() && self.ms.is_some() {
-            self.from = self.at(now);
-            self.since = Some(now);
-            self.ask_frame(id);
-        } else {
-            self.from = target;
-            self.since = None;
+        self.state
+            .animate_to(target, ctx.tree_ref().frame_instant());
+        if self.state.is_animating() {
+            self.ask_frame(ctx.id());
         }
-        self.to = Some(target);
     }
 
-    /// Settles a change that has played out by `now`, or asks the next
-    /// frame for widget `id`; true while it moves.
+    /// Moves it on to `now`, and asks the next frame for widget `id` while it
+    /// is still on its way; true while it is.
     pub(crate) fn advance(&mut self, now: FrameInstant, id: WidgetId) -> bool {
-        let moving = match (self.to, self.ms, self.since) {
-            (Some(_), Some(ms), Some(since)) => {
-                now.duration_since(since).as_secs_f32() * 1000.0 < ms
-            }
-            _ => false,
-        };
+        self.state.advance(now);
+        let moving = self.state.is_animating();
         if moving {
             self.ask_frame(id);
-        } else if let Some(to) = self.to {
-            self.from = to;
-            self.since = None;
         }
         moving
     }
 
     /// Queues the widget's animation job: Guido runs a widget's job when
-    /// something it tracked for that job changes.
+    /// something it tracked for that job changes, and a widget outside Guido
+    /// has no other way to ask.
     fn ask_frame(&self, id: WidgetId) {
         with_signal_tracking(id, JobType::Animation, || self.frame.track());
         self.frame.notify();
@@ -115,19 +93,26 @@ pub(crate) struct Easer {
 }
 
 impl Widget for Easer {
+    /// Out of flow: laid out, but its parent's layout never sees it, so it
+    /// adds no gap and moves nothing.
+    fn layout_hints(&self) -> LayoutHints {
+        LayoutHints {
+            out_of_flow: true,
+            ..LayoutHints::default()
+        }
+    }
+
     fn advance_animations(&mut self, tree: &mut Tree, id: WidgetId) -> bool {
-        let now = tree.frame_instant();
-        let moving = self.ease.advance(now, id);
-        self.shown.set(self.ease.at(now));
+        let moving = self.ease.advance(tree.frame_instant(), id);
+        self.shown.set(self.ease.color());
         moving
     }
 
     fn layout(&mut self, ctx: &mut LayoutCtx, constraints: Constraints) -> Size {
         // Read while laying out, so a new target lays it out again.
         let target = (self.target)();
-        let (now, id) = (ctx.tree_ref().frame_instant(), ctx.id());
-        self.ease.retarget(target, now, id);
-        self.shown.set(self.ease.at(now));
+        self.ease.retarget(ctx, target);
+        self.shown.set(self.ease.color());
         constraints.constrain(Size::new(0.0, 0.0))
     }
 

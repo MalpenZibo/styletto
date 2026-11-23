@@ -57,7 +57,7 @@ pub fn row(
         .layout(Flex::column())
         .child(
             label(title)
-                .color(t.eased(move |c| tone.get().hue().map_or(c.text, |hue| c.hue(hue).text)))
+                .color(t.eased(move |c| c.ink(tone.get().hue())))
                 .overflow(TextOverflow::Ellipsis),
         )
         .child(subtitle_line(subtitle));

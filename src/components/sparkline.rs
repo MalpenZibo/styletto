@@ -45,9 +45,8 @@ impl Widget for Sparkline {
     fn layout(&mut self, ctx: &mut LayoutCtx, constraints: Constraints) -> Size {
         // Read while laying out, so a new accent lays it out again and
         // sets off the change.
-        let accent = self.look.colors().accent.fill;
-        let (now, id) = (ctx.tree_ref().frame_instant(), ctx.id());
-        self.ink.retarget(accent, now, id);
+        let accent = self.look.color(|c| c.accent.fill)();
+        self.ink.retarget(ctx, accent);
         let width = if constraints.max_width.is_finite() {
             constraints.max_width
         } else {
@@ -80,7 +79,7 @@ impl Widget for Sparkline {
                     }
                 })
         });
-        let stroke = Stroke::new(self.stroke, self.ink.at(ctx.tree().frame_instant()))
+        let stroke = Stroke::new(self.stroke, self.ink.color())
             .joins(Join::Round)
             .caps(Cap::Round);
         ctx.draw_path(&line, None, stroke);
