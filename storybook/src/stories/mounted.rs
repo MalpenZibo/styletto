@@ -14,62 +14,100 @@ pub type Asked<T> = Rc<RefCell<Vec<T>>>;
 /// come to rest.
 const SECOND: Duration = Duration::from_secs(1);
 
-/// Two surfaces drawing what `build` makes of a value: one given `from`
-/// and then `to`, one given `to` from the start. Stepped together, at the
-/// same moments, so what moves on its own moves alike in both.
-pub struct Pair<T: 'static> {
+/// One headless app, one GPU context, in which pairs of surfaces are
+/// compared one after another, on one clock that only moves forward.
+pub struct Bench {
     h: Headless,
-    given: RwSignal<T>,
-    to: T,
-    changed: SurfaceId,
-    built: SurfaceId,
-    width: u32,
     at: Instant,
 }
 
-impl<T: Clone + PartialEq + Send + 'static> Pair<T> {
-    /// Both surfaces `size` and drawn once; none without a GPU, or a panic
-    /// where `GUIDO_GPU_REQUIRED` is set (`Headless::new_or_skip`).
-    pub fn new(
+impl Bench {
+    /// None without a GPU, or a panic where `GUIDO_GPU_REQUIRED` is set
+    /// (`Headless::new_or_skip`).
+    pub fn new() -> Option<Self> {
+        Some(Self {
+            h: Headless::new_or_skip()?,
+            at: Instant::now(),
+        })
+    }
+
+    /// Two surfaces `size` drawing what `build` makes of a value: one given
+    /// `from` and then `to`, one given `to` from the start. Both are built
+    /// in the same first frame and stepped at the same moments after it, so
+    /// what moves on its own, a spring or a timer a story sets, moves alike
+    /// in both: a timer is armed by the frame that builds it, and ticks on
+    /// the simulated clock. They close when the pair is dropped.
+    pub fn pair<T: Clone + PartialEq + Send + 'static>(
+        &mut self,
         (width, height): (u32, u32),
         from: T,
         to: T,
         build: impl Fn(RwSignal<T>) -> Container + Clone + 'static,
-    ) -> Option<Self> {
-        let mut h = Headless::new_or_skip()?;
+    ) -> Pair<'_, T> {
+        let handles = Rc::new(RefCell::new(Vec::new()));
         let mut mount = |value: RwSignal<T>| {
-            let build = build.clone();
-            let id = h.surface(SurfaceConfig::new(), move || build(value));
-            h.configure(id, width, height, 1.0);
+            let (build, handles) = (build.clone(), handles.clone());
+            let id = self.h.surface(SurfaceConfig::new(), move || {
+                handles.borrow_mut().push(expect_context::<SurfaceHandle>());
+                build(value)
+            });
+            self.h.configure(id, width, height, 1.0);
             id
         };
         let given = create_signal(from);
         let changed = mount(given);
         let built = mount(create_signal(to.clone()));
-        let at = Instant::now();
-        h.step_at(at);
-        Some(Self {
-            h,
+        self.at += FRAME;
+        self.h.step_at(self.at);
+        Pair {
+            bench: self,
             given,
             to,
-            changed,
-            built,
+            surfaces: [changed, built],
+            handles,
             width,
-            at,
-        })
+        }
     }
+}
 
+/// A frame of the bench's clock, a vsync's.
+const FRAME: Duration = Duration::from_millis(16);
+
+/// Two surfaces of a [`Bench`], to compare.
+pub struct Pair<'a, T: 'static> {
+    bench: &'a mut Bench,
+    given: RwSignal<T>,
+    to: T,
+    /// The one given `from` then `to`, and the one built with `to`.
+    surfaces: [SurfaceId; 2],
+    handles: Rc<RefCell<Vec<SurfaceHandle>>>,
+    width: u32,
+}
+
+impl<T: Clone + PartialEq + Send + 'static> Pair<'_, T> {
     /// Gives the first surface `to`, and lets both settle.
     pub fn change(&mut self) {
         self.given.set(self.to.clone());
-        self.at = crate::shot::settle(&mut self.h, self.at, SECOND);
+        let bench = &mut *self.bench;
+        bench.at = crate::shot::settle(&mut bench.h, bench.at, SECOND);
     }
 
     /// Where the two frames differ (see [`unlike`]); none where they draw
     /// the same.
     pub fn unlike(&self) -> Option<String> {
-        let [a, b] = [self.changed, self.built].map(|id| self.h.read_frame(id));
+        let [a, b] = self.surfaces.map(|id| self.bench.h.read_frame(id));
         unlike(&a, &b, self.width as usize)
+    }
+}
+
+impl<T: 'static> Drop for Pair<'_, T> {
+    /// Closes both surfaces, so the next pair is drawn alone.
+    fn drop(&mut self) {
+        for handle in self.handles.borrow_mut().drain(..) {
+            handle.close();
+        }
+        self.bench.at += FRAME;
+        self.bench.h.step_at(self.bench.at);
     }
 }
 

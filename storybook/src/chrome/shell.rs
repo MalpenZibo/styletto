@@ -478,7 +478,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use crate::stories::STORIES;
-    use crate::stories::mounted::{Pair, still_backdrop};
+    use crate::stories::mounted::{Bench, still_backdrop};
     use crate::stories::story::{Ctx, Story};
 
     thread_local! {
@@ -553,12 +553,14 @@ mod tests {
     #[test]
     fn a_new_palette_repaints_every_story_in_place() {
         let (dark, glass) = looks();
+        // One GPU context for every story, each pair closed before the next.
+        let Some(mut bench) = Bench::new() else {
+            return;
+        };
         for (index, story) in STORIES.iter().enumerate() {
             SHOWN.set(index);
             // From dark to light glass, beside one built light on glass.
-            let Some(mut pair) = Pair::new((800, 400), dark, glass, |ui| stage(&ANY, ui)) else {
-                return;
-            };
+            let mut pair = bench.pair((800, 400), dark, glass, |ui| stage(&ANY, ui));
             let builds = BUILT.get();
             pair.change();
             let name = format!("{}/{}", story.group, story.name);

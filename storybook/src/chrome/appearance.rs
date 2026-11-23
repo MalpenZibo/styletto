@@ -381,7 +381,7 @@ mod tests {
     use styletto::ui::{Density, Material};
 
     use super::Appearance;
-    use crate::stories::mounted::{Pair, still_backdrop};
+    use crate::stories::mounted::{Bench, still_backdrop};
 
     #[test]
     fn the_page_keeps_the_sides_apart() {
@@ -442,10 +442,10 @@ mod tests {
         // One editor whose config changes from outside, one built with the
         // config it changes to: once it has, they draw the same.
         let editor = |config| container().width(fill()).child(color_editor(config, false));
-        let Some(mut pair) = Pair::new((400, 900), custom(None), custom(Some("#00ff00")), editor)
-        else {
+        let Some(mut bench) = Bench::new() else {
             return;
         };
+        let mut pair = bench.pair((400, 900), custom(None), custom(Some("#00ff00")), editor);
         assert!(pair.unlike().is_some());
         pair.change();
         if let Some(unlike) = pair.unlike() {
@@ -503,9 +503,10 @@ mod tests {
             };
             super::preview(a, create_memo(move || a.ui()))
         };
-        let Some(mut pair) = Pair::new((400, 800), UiConfig::default(), light, preview) else {
+        let Some(mut bench) = Bench::new() else {
             return;
         };
+        let mut pair = bench.pair((400, 800), UiConfig::default(), light, preview);
         assert!(pair.unlike().is_some());
         pair.change();
         if let Some(unlike) = pair.unlike() {
