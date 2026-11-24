@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use guido::prelude::*;
 use styletto::components::badge::{dot, icon_tile};
-use styletto::components::level::{Level, Levels, level_indicator};
+use styletto::components::level::{Glyph, Level, Levels, level_indicator};
 use styletto::components::notification::app_icon;
 use styletto::components::progress::{progress_bar, ring};
 use styletto::components::roll;
@@ -151,9 +151,10 @@ fn state_icon(preset: usize, charging: bool, muted: bool) -> Option<Icon> {
     }
 }
 
-/// A value as the icon of its level, picked from a preset's set, inked by a
-/// level the app decides. Charging applies to the battery, muted to the
-/// volume. Below, every preset at a few values and in its states.
+/// A value as the icon of its level, picked from a preset's set, or as a
+/// ring, inked by a level the app decides. Charging applies to the battery,
+/// muted to the volume. Below, every preset at a few values and in its
+/// states.
 pub fn level_indicators(ctx: &Ctx) -> Container {
     let preset = ctx.choice("Preset", PRESETS, 0);
     let value = ctx.number("Value", 0.0..=100.0, 12.0);
@@ -161,6 +162,8 @@ pub fn level_indicators(ctx: &Ctx) -> Container {
     let muted = ctx.bool("Muted", false);
     let percent = ctx.bool("Show percentage", true);
     let level = ctx.choice("Level", LEVELS, 0);
+    let ring = ctx.bool("Ring", false);
+    let glyph = move || if ring.get() { Glyph::Ring } else { Glyph::Icon };
     let chosen = level_indicator(move || PRESET_LEVELS[preset.get()], value)
         .icon(move || state_icon(preset.get(), charging.get(), muted.get()))
         .level(move || {
@@ -168,6 +171,7 @@ pub fn level_indicators(ctx: &Ctx) -> Container {
                 .unwrap_or_else(|| decided(preset.get(), value.get(), charging.get()))
         })
         .percent(percent)
+        .glyph(glyph)
         .size(Size::Md);
     let gallery = |preset: usize, name: &'static str| {
         let at = move |value: f32, charging: bool, muted: bool| {
@@ -175,6 +179,7 @@ pub fn level_indicators(ctx: &Ctx) -> Container {
                 .icon(state_icon(preset, charging, muted))
                 .level(decided(preset, value, charging))
                 .percent(percent)
+                .glyph(glyph)
         };
         let state = match preset {
             0 => Some(at(50.0, true, false)),

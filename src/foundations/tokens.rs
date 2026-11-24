@@ -137,19 +137,29 @@ impl IconSize {
 
     /// The stroke of a ring or spinner in this box.
     pub fn stroke(self) -> f32 {
-        if self.drawn() < 3 {
-            stroke::BOLD
-        } else {
-            stroke::HEAVY
-        }
+        self.drawn_step().base_stroke()
     }
 
     fn drawn(self) -> usize {
         step(self.0, with_ui(|u| u.density.shift()), 0, ICON.len())
     }
 
+    /// The step after the density shift, to read its `base` values.
+    pub(crate) fn drawn_step(self) -> IconSize {
+        IconSize(self.drawn() as u8)
+    }
+
     pub(crate) fn base(self) -> f32 {
         ICON[self.0 as usize]
+    }
+
+    /// [`stroke`](Self::stroke) of the step itself, not shifted for density.
+    pub(crate) fn base_stroke(self) -> f32 {
+        if self.0 < 3 {
+            stroke::BOLD
+        } else {
+            stroke::HEAVY
+        }
     }
 }
 

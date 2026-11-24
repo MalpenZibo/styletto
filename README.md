@@ -411,7 +411,7 @@ The modules of `components`:
 | `tile` | quick-settings tiles, wide and small; a wide one's subtitle takes a second line when it needs one, and tiles side by side in a `Flex::row()` are as tall as the tallest |
 | `tag` | read-only pills for a state, tinted by a `Tone` (neutral, accent, success, warning, danger), glowing if asked |
 | `badge` | dots, icon tiles |
-| `level` | `Level`, how a value stands, and its ink; the level indicator: the icon a value picks from a set, its percentage beside it if asked |
+| `level` | `Level`, how a value stands, and its ink; the level indicator: the icon a value picks from a set, or a ring filled to it, its percentage beside it if asked |
 | `card` | level figures and stat cards coloured by their `Level` |
 | `progress`, `sparkline`, `roll` | bars, rings, recent samples, rolling digits |
 | `notification` | notifications, alone and grouped |
@@ -489,14 +489,17 @@ at: `Levels::BATTERY` rounds its bars up, a bar staying while there is
 charge in its third: empty below 15%, one bar from 15%, two past a third,
 three past two thirds, so one bar and the empty one fall where a battery is
 a warning and an alert; `Levels::WIFI` takes the nearest number of arcs,
-none below 17%, then one, two and three from 17, 50 and 83%; `Levels::VOLUME` has no waves below 1%, one from 1% and two from 50%. A
-state off the scale takes its own icon in place of the set's:
+none below 17%, then one, two and three from 17, 50 and 83%; `Levels::VOLUME` has no waves below 1%, one from 1% and two from 50%. With
+`glyph(Glyph::Ring)` a ring filled to the value, full from 100%, stands in
+the icon's place, in its box and ink, beside the same figure. A state off
+the scale takes its own icon in place of the set's, or of the ring:
 
 ```rust
 use styletto::Icon;
-use styletto::components::level::{Level, Levels, level_indicator};
+use styletto::components::level::{Glyph, Level, Levels, level_indicator};
 
 level_indicator(Levels::BATTERY, 12.0).level(Level::below(12.0, 30.0, 15.0)).percent(true);
+level_indicator(Levels::BATTERY, 12.0).glyph(Glyph::Ring).percent(true);
 level_indicator(Levels::BATTERY, 50.0).icon(Icon::BatteryCharging).level(Level::Good);
 level_indicator(Levels::VOLUME, 0.0).icon(Icon::VolumeOff);
 level_indicator(Levels::WIFI, 70.0);
