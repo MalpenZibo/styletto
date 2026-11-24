@@ -39,13 +39,18 @@ impl Size {
     }
 
     pub fn icon(self) -> f32 {
-        let step: IconSize = match self.drawn() {
+        self.icon_step().base()
+    }
+
+    /// The icon box of this size, already shifted for density: read its
+    /// `base`, not its `px`.
+    pub(crate) fn icon_step(self) -> IconSize {
+        match self.drawn() {
             Size::Xxs | Size::Xs => icon::XSMALL,
             Size::Sm => icon::SMALL,
             Size::Md => icon::MEDIUM,
             Size::Lg | Size::Xl => icon::LARGE,
-        };
-        step.base()
+        }
     }
 
     /// Padding from a pill's ends to its content.

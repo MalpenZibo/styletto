@@ -1,9 +1,11 @@
-//! Levels: how worrying a value is, and an icon showing how full it is.
+//! Levels: how worrying a value is, and an icon or a ring showing how full
+//! it is.
 //!
 //! The app decides the level, with its own thresholds; styletto draws it.
 
 use guido::prelude::*;
 
+use crate::components::progress::ring_arc;
 use crate::foundations::control::Size;
 use crate::foundations::icons::{self, Icon};
 use crate::primitives::layout::centered_row;
@@ -115,15 +117,28 @@ impl Levels {
     }
 }
 
-/// A value as an icon from its set, chosen by the value, and optionally
-/// its percentage beside it, both in the ink of its level.
+/// What stands for a [`level_indicator`]'s value.
+#[derive(Clone, Copy, Debug, Default, PartialEq, Eq)]
+pub enum Glyph {
+    /// The icon its set picks for the value.
+    #[default]
+    Icon,
+    /// A ring filled to the value, full from 100%.
+    Ring,
+}
+
+/// A value as an icon from its set, chosen by the value, or as a ring
+/// filled to it (`glyph`), and optionally its percentage beside it, all in
+/// the ink of its level. The ring takes the icon's box, so the two glyphs
+/// differ only in the glyph.
 ///
-/// A state off the scale takes its own icon in place of the set's: a
-/// battery charging (`Icon::BatteryCharging`, with `Level::Good`), a volume
-/// muted (`Icon::VolumeOff`), a Wi-Fi off (`Icon::WifiOff`).
+/// A state off the scale takes its own icon in place of the set's, or of
+/// the ring: a battery charging (`Icon::BatteryCharging`, with
+/// `Level::Good`), a volume muted (`Icon::VolumeOff`), a Wi-Fi off
+/// (`Icon::WifiOff`).
 ///
-/// With an empty set and no icon given it draws no icon: the percentage
-/// alone if asked, else nothing.
+/// With an empty set, no ring and no icon given it draws no glyph: the
+/// percentage alone if asked, else nothing.
 #[component]
 pub fn level_indicator(
     #[prop(required)] levels: Levels,
@@ -131,22 +146,34 @@ pub fn level_indicator(
     #[prop(required)]
     value: f32,
     level: Level,
+    /// The set's icon, or a ring; `levels` is not used with the ring.
+    glyph: Glyph,
     /// In place of the one `levels` picks.
     icon: Option<Icon>,
-    /// Shows the value beside the icon.
+    /// Shows the value beside the glyph.
     percent: bool,
-    /// The icon, the type and the gap of a control this size.
+    /// The glyph's box, the type and the gap of a control this size.
     #[prop(default = Size::Sm)]
     size: Size,
 ) -> impl Widget {
     let size = size.get_untracked();
     let ink = move || level_ink(level.get());
-    // A memo, so the icon is built again only when it changes, not with
-    // every value.
+    // Memos, so a glyph is built again only when it changes, not with every
+    // value or every signal the app's closures read: the icon when another
+    // one is picked, the ring (which follows the value itself, with its
+    // spring) only when it gives way to a state icon or back.
     let kind = create_memo(move || icon.get().or_else(|| levels.get().icon(value.get())));
+    let ring = create_memo(move || glyph.get() == Glyph::Ring && icon.get().is_none());
     container()
         .layout(centered_row(size.gap()))
-        .child(move || kind.get().map(|kind| icons::icon(kind, size.icon(), ink)))
+        .child(move || {
+            if ring.get() {
+                let fill = move || value.get() / 100.0;
+                Some(container().child(ring_arc(fill, ink, size.icon_step())))
+            } else {
+                kind.get().map(|kind| icons::icon(kind, size.icon(), ink))
+            }
+        })
         .child(move || {
             percent.get().then(|| {
                 figure_text(
