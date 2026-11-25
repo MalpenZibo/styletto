@@ -314,7 +314,7 @@ pub fn tags(ctx: &Ctx) -> Container {
                         }))
                         .child(
                             text(move || count.get().round().to_string())
-                                .typeset(ty::LABEL_SMALL.em())
+                                .typeset(ty::LABEL_SMALL)
                                 .text_box(TextEdge::Cap, TextEdge::Alphabetic)
                                 .color(move || tone().ink())
                                 .nowrap(),
@@ -359,7 +359,7 @@ pub fn tags(ctx: &Ctx) -> Container {
                 ))
                 .child(
                     text("84%")
-                        .typeset(ty::LABEL_MEDIUM.em())
+                        .typeset(ty::LABEL_MEDIUM)
                         .color(t.eased(|c| c.text))
                         .nowrap(),
                 )

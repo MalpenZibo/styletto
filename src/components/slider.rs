@@ -172,7 +172,7 @@ pub fn slider(
                 )
                 .child(figure_text(
                     move || format!("{}%", shown.get().round()),
-                    LABEL_SMALL,
+                    LABEL_SMALL.em(),
                     move || {
                         let c = t.colors();
                         if inside.get() { c.accent.on } else { c.sub }
