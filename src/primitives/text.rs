@@ -70,16 +70,17 @@ macro_rules! palette_colors {
 
 palette_colors!(TextInput, PasswordInput);
 
-/// A figure beside its icon (a level's, a slider's): set in `kind`,
-/// emphasised, its digits tabular, its box trimmed to the capitals, in
-/// `ink`.
+/// A figure beside its icon (a level's) or set apart (a slider's): set in
+/// `kind`, its digits tabular, its box trimmed to the capitals, in `ink`.
+/// In a line of icons and labels `kind` keeps its regular weight, which
+/// matches the icons' stroke; a readout set apart passes it `em`.
 pub(crate) fn figure_text<M>(
     content: impl IntoSignal<String, M>,
     kind: Type,
     ink: impl Fn() -> Color + 'static,
 ) -> Text {
     text(content)
-        .typeset(kind.em().tabular())
+        .typeset(kind.tabular())
         .text_box(TextEdge::Cap, TextEdge::Alphabetic)
         .color(motion::eased_color(ink))
         .nowrap()

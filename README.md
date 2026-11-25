@@ -194,7 +194,11 @@ move a size within its category.
 | `MICRO` | uppercase, tracked: section names | as `LABEL` |
 | `MONO` | code, logs | as `LABEL` |
 
-`.em()` is the semibold weight, `.tabular()` keeps figures one width.
+`.em()` is the semibold weight, `.tabular()` keeps figures one width. A
+figure in a line of icons and labels (a level indicator's percentage, a
+level figure, a count in a tag) stays in the regular weight, which matches
+the icons' stroke and the labels around it; a readout set apart from them,
+as a slider's on its track or a stat card's value, is `em`.
 `.typeset(kind)` applies a type to a text or an input; a `Resolved` style
 off the scale works too. `text::{label, caption, heading, overline, figure}`
 are the common ones, already coloured.

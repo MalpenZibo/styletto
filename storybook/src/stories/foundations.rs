@@ -252,7 +252,7 @@ pub fn controls(_: &Ctx) -> Container {
                             t.color(|c| c.accent.text),
                         ))
                         .child(
-                            typed("12", control.label().em())
+                            typed("12", control.label())
                                 .text_box(TextEdge::Cap, TextEdge::Alphabetic)
                                 .color(t.eased(|c| c.accent.text))
                                 .nowrap(),
