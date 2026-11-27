@@ -66,7 +66,7 @@ pub fn tile(
     // What reads on the tile: the accent's on-colour while on.
     let ink = t.color(switch(active, |c| c.accent.on, |c| c.text));
     let toggle = flip(active, on_toggle);
-    let label_click = move || match on_open {
+    let label_click = move || match on_open.get_untracked() {
         Some(open) => open.run(),
         None => toggle(),
     };

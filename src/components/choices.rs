@@ -77,7 +77,7 @@ fn buttons<T: Copy + PartialEq + 'static>(
     options: Signal<Vec<(String, T)>>,
     chosen: Signal<T>,
     enabled: Signal<bool>,
-    on_choose: Option<Callback<(T,)>>,
+    on_choose: Signal<Option<Callback<(T,)>>>,
 ) -> Container {
     // Built again only for a new number of options: each button reads its
     // label and value by its place, so labels in a new language, or new
@@ -96,7 +96,7 @@ fn buttons<T: Copy + PartialEq + 'static>(
                 .active(move || value().is_some_and(|value| chosen.get() == value))
                 .enabled(enabled)
                 .on_click(move || {
-                    if let (Some(on_choose), Some(value)) = (on_choose, value()) {
+                    if let (Some(on_choose), Some(value)) = (on_choose.get_untracked(), value()) {
                         on_choose.run(value);
                     }
                 })
