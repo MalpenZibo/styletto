@@ -381,10 +381,10 @@ pub(crate) fn switch(
 /// Asks `on_toggle` for the opposite of `active`.
 pub(crate) fn flip(
     active: Signal<bool>,
-    on_toggle: Option<Callback<(bool,)>>,
+    on_toggle: Signal<Option<Callback<(bool,)>>>,
 ) -> impl Fn() + Copy + 'static {
     move || {
-        if let Some(on_toggle) = on_toggle {
+        if let Some(on_toggle) = on_toggle.get_untracked() {
             on_toggle.run(!active.get_untracked());
         }
     }

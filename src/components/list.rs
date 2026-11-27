@@ -152,23 +152,28 @@ pub fn page_header(
     #[prop(required)] title: String,
     /// Where the page's feature stands. Empty means none.
     subtitle: String,
-    /// Shows the back button, which calls it.
+    /// Shows the back button, which calls it. One that comes and goes with
+    /// state takes the button with it, and the title moves to its place.
     #[prop(callback)]
     on_back: (),
     #[prop(slot)] trailing: (),
 ) -> impl Widget {
     let t = look();
+    // Built again only when it comes or goes.
+    let back = create_memo(move || on_back.with(Option::is_some));
     container()
         .width(fill())
         .height(at_least(Size::Sm.height()))
         .layout(centered_row(size::S2.px()))
-        .children(on_back.map(|back| {
-            button()
-                .icon(Icon::ChevronLeft)
-                .size(Size::Sm)
-                .fill(Fill::Ghost)
-                .on_click(back)
-        }))
+        .child(move || {
+            back.get().then(|| {
+                button()
+                    .icon(Icon::ChevronLeft)
+                    .size(Size::Sm)
+                    .fill(Fill::Ghost)
+                    .on_click(on_back)
+            })
+        })
         .child(
             container()
                 .width(fill())

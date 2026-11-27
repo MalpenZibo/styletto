@@ -20,9 +20,11 @@ themes and components. Every piece of it is on show in the
 - A word a component shows is asked for by its key, in the app's language,
   and is English where the app has none.
 - Components are `#[component]`s: closed, set through their props, slots
-  and callbacks. Primitives stay plain functions returning a container, so
-  an app can add to them: `icon`, the text styles, `centered_row`,
-  `pressable`, `island`.
+  and callbacks. A callback can follow the app's state, given as a closure
+  that returns an `Option<Callback>`, and what it shows (a back button, a
+  row's chevron) comes and goes with it. Primitives stay plain functions
+  returning a container, so an app can add to them: `icon`, the text
+  styles, `centered_row`, `pressable`, `island`.
 
 ## Layout
 
@@ -410,7 +412,7 @@ The modules of `components`:
 | Module | What |
 |---|---|
 | `button` | buttons, with a label, an icon or both, an action or a toggle as a tile is; the bar's pills; `pressable` |
-| `toggle`, `slider`, `input` | a switch, a slider and a slider row (to 100%, or past it to a max; a wheel notch moves it by a step, 5% unless set), text and password fields |
+| `toggle`, `slider`, `input` | a switch, a slider and a slider row (to 100%, or past it to a max; a wheel notch moves it by a step, 5% unless set; the row's chevron to more can come and go with the app's state), text and password fields |
 | `list` | rows (a checked one marks the choice in use; one in a tag's `Tone`, as warning or danger, has its title, icon, hover and press in that hue), sections, empty states, page headers with a subtitle, pages that slide and a page indicator for where a flow of them stands, a list that scrolls past a height with the theme's scrollbar |
 | `tile` | quick-settings tiles, wide and small; a wide one's subtitle takes a second line when it needs one, and tiles side by side in a `Flex::row()` are as tall as the tallest |
 | `tag` | read-only pills for a state, tinted by a `Tone` (neutral, accent, success, warning, danger), glowing if asked |

@@ -798,7 +798,7 @@ fn wallpaper_colors(config: &UiConfig) -> Vec<Color> {
 #[cfg(feature = "wallpaper")]
 fn wallpaper_field(
     config: RwSignal<UiConfig>,
-    pick: Option<Callback>,
+    pick: Signal<Option<Callback>>,
     chooser_note: Signal<String>,
 ) -> Setting {
     let w = words();
@@ -817,35 +817,43 @@ fn wallpaper_field(
             typed.set(path);
         }
     });
-    let input = text_input(typed)
-        .typeset(MONO_SMALL)
-        .placeholder(w.of("styletto-wallpaper-placeholder"))
-        .on_submit(move |path: &str| {
-            let path = path.trim().to_string();
-            let typed = UiConfig {
-                wallpaper: Some(path.clone()),
-                ..UiConfig::default()
-            }
-            .wallpaper_path();
-            // The same file again, however it is written, is read again:
-            // it may have changed, or come to be since it failed.
-            let same = typed.is_some() && config.with_untracked(|c| c.wallpaper_path() == typed);
-            if same {
-                config.update(UiConfig::reread_wallpaper);
-            } else {
-                config.update(|c| c.set_wallpaper(path));
-            }
-        });
-    let field = input_field().size(Size::Sm).child(typing(input));
-    let field = match pick {
-        Some(pick) => field.trailing(
-            button()
-                .icon(Icon::Folder)
-                .size(Size::Xs)
-                .fill(crate::components::button::Fill::Ghost)
-                .on_click(pick),
-        ),
-        None => field,
+    // The field is built again, with what was typed but not its focus, only
+    // when the chooser's button comes or goes: the field's end hugs a button
+    // it holds. An app's chooser seldom does.
+    let picks = create_memo(move || pick.with(Option::is_some));
+    let field = move || {
+        let input = text_input(typed)
+            .typeset(MONO_SMALL)
+            .placeholder(w.of("styletto-wallpaper-placeholder"))
+            .on_submit(move |path: &str| {
+                let path = path.trim().to_string();
+                let typed = UiConfig {
+                    wallpaper: Some(path.clone()),
+                    ..UiConfig::default()
+                }
+                .wallpaper_path();
+                // The same file again, however it is written, is read again:
+                // it may have changed, or come to be since it failed.
+                let same =
+                    typed.is_some() && config.with_untracked(|c| c.wallpaper_path() == typed);
+                if same {
+                    config.update(UiConfig::reread_wallpaper);
+                } else {
+                    config.update(|c| c.set_wallpaper(path));
+                }
+            });
+        let field = input_field().size(Size::Sm).child(typing(input));
+        if picks.get() {
+            field.trailing(
+                button()
+                    .icon(Icon::Folder)
+                    .size(Size::Xs)
+                    .fill(crate::components::button::Fill::Ghost)
+                    .on_click(pick),
+            )
+        } else {
+            field
+        }
     };
     // What the chooser said, or what reading the picture came to, or until
     // a path is set, how to set one.

@@ -51,7 +51,7 @@ pub fn satellite(
         )
         .takes_input(out)
         .on_hover(move |inside| {
-            if let Some(on_hover) = on_hover {
+            if let Some(on_hover) = on_hover.get_untracked() {
                 on_hover.run(inside);
             }
         })

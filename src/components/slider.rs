@@ -2,6 +2,8 @@
 //! its value while hovered or dragged. Press, drag or scroll to set it. It
 //! may go past 100, an amplified volume, say: a mark then shows where 100 is.
 
+use std::cell::Cell;
+
 use guido::prelude::*;
 
 use crate::components::button::{Fill, button};
@@ -61,7 +63,7 @@ pub fn slider(
 ) -> impl Widget {
     let t = look();
     let on_change = move |v: f32| {
-        if let Some(on_change) = on_change {
+        if let Some(on_change) = on_change.get_untracked() {
             on_change.run(v);
         }
     };
@@ -252,29 +254,55 @@ pub fn slider_row(
     /// Makes the icon a button (mute, say).
     #[prop(callback)]
     on_icon: (),
-    /// Shows the chevron, which calls it.
+    /// Shows the chevron, which calls it. One that comes and goes with
+    /// state, there only while there is more to choose from (several
+    /// outputs, say), fades in and out of a room kept for it, so the slider
+    /// never moves and is never built again.
     #[prop(callback)]
     on_more: (),
 ) -> impl Widget {
     let t = look();
-    let lead = match on_icon {
-        Some(pressed) => container().child(button().icon(icon).size(Size::Sm).on_click(pressed)),
-        None => container()
-            .width(Size::Sm.height())
-            .height(Size::Sm.height())
-            .layout(Flex::column().center())
-            .child(icons::icon(icon, Size::Sm.icon(), t.color(|c| c.text))),
+    // Built again only when it turns into a button or back.
+    let icon_button = create_memo(move || on_icon.with(Option::is_some));
+    let lead = move || {
+        if icon_button.get() {
+            container().child(button().icon(icon).size(Size::Sm).on_click(on_icon))
+        } else {
+            container()
+                .width(Size::Sm.height())
+                .height(Size::Sm.height())
+                .layout(Flex::column().center())
+                .child(icons::icon(icon, Size::Sm.icon(), t.color(|c| c.text)))
+        }
     };
-    let tail = match on_more {
-        Some(pressed) => container().child(
-            button()
-                .icon(Icon::ChevronRight)
-                .size(Size::Sm)
-                .fill(Fill::Ghost)
-                .on_click(pressed),
-        ),
-        None => container().width(Size::Sm.height()),
-    };
+    // The room is always kept; the chevron is built only when it comes, and
+    // fades in and out of it. One there from the start is drawn at once, as
+    // the rest of the row is. Stacked, so one coming back while it still
+    // fades out takes its place, not the room beside it.
+    let more = create_memo(move || on_more.with(Option::is_some));
+    let first = Cell::new(true);
+    let tail = container()
+        .width(Size::Sm.height())
+        .layout(ZStack::new())
+        .child(move || {
+            let fades = !first.replace(false);
+            more.get().then(|| {
+                let shown = 1.0.transition(motion::hover()).exiting_to(0.0);
+                container()
+                    .opacity(if fades {
+                        shown.entering_from(0.0)
+                    } else {
+                        shown
+                    })
+                    .child(
+                        button()
+                            .icon(Icon::ChevronRight)
+                            .size(Size::Sm)
+                            .fill(Fill::Ghost)
+                            .on_click(on_more),
+                    )
+            })
+        });
     container()
         .width(fill())
         .layout(centered_row(space::S2.px()))

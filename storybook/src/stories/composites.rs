@@ -127,14 +127,15 @@ pub fn tiles(ctx: &Ctx) -> Container {
 }
 
 /// The settings rows the panel starts with: a slider per level, the icon
-/// mutes, the chevron opens the device list. The volume may be amplified up
-/// to its max.
+/// mutes, the chevron opens the device list, there while there is more than
+/// one device (`More`). The volume may be amplified up to its max.
 pub fn slider_rows(ctx: &Ctx) -> Container {
     let volume = ctx.number("Volume", 0.0..=150.0, 64.0);
     let max = ctx.number("Max", 100.0..=150.0, 100.0);
     let step = ctx.number("Step", 1.0..=20.0, 5.0);
     let brightness = ctx.number("Brightness", 0.0..=100.0, 80.0);
     let muted = ctx.bool("Muted", false);
+    let more = ctx.bool("More", true);
     let opened = ctx.action_with::<&'static str>("open");
     container()
         .width(panel())
@@ -154,7 +155,10 @@ pub fn slider_rows(ctx: &Ctx) -> Container {
             .step(step)
             .on_change(move |v| volume.set(v))
             .on_icon(move || muted.set(!muted.get_untracked()))
-            .on_more(move || opened("audio")),
+            .on_more({
+                let open = Callback::new(move || opened("audio"));
+                move || more.get().then_some(open)
+            }),
         )
         .child(slider_row(Icon::Sun, brightness).on_change(move |v| brightness.set(v)))
 }

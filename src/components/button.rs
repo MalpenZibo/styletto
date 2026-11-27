@@ -112,17 +112,19 @@ pub fn button(
     // As GTK's toggle button sends `clicked` before `toggled`. The state
     // asked for is the opposite of the one pressed, read before `on_click`
     // can change it or close the view it is in.
-    let press = (on_click.is_some() || on_toggle.is_some()).then(|| {
-        Callback::new(move || {
-            let asked = !active.get_untracked();
-            if let Some(on_click) = on_click {
-                on_click.run();
-            }
-            if let Some(on_toggle) = on_toggle {
-                on_toggle.run(asked);
-            }
-        })
+    let press = Callback::new(move || {
+        let asked = !active.get_untracked();
+        if let Some(on_click) = on_click.get_untracked() {
+            on_click.run();
+        }
+        if let Some(on_toggle) = on_toggle.get_untracked() {
+            on_toggle.run(asked);
+        }
     });
+    // Takes a press while given either, as they come and go.
+    let press = move || {
+        (on_click.with(Option::is_some) || on_toggle.with(Option::is_some)).then_some(press)
+    };
     pressable(
         toggled(sized(label, size), rest, lifted),
         motion::PRESS_SCALE,
