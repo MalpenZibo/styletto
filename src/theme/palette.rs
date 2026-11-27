@@ -236,7 +236,7 @@ impl Palette {
     /// most of `opacity::SELECTION` that keeps `text` at 3:1 on it, on a
     /// field (`surface`) with the worst behind the island, and no less than
     /// `opacity::SELECTION_MIN` where nothing does.
-    fn with_selection(self) -> Palette {
+    pub(crate) fn with_selection(self) -> Palette {
         use crate::foundations::tokens::opacity::{SELECTION, SELECTION_MIN};
 
         let field = self.grounds(self.worst_backdrop())[1];

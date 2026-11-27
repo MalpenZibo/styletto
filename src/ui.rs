@@ -185,6 +185,9 @@ impl Ui {
     }
 
     pub fn with_material(self, material: Material) -> Self {
+        if self.material == material {
+            return self;
+        }
         Self { material, ..self }.settled()
     }
 
@@ -196,7 +199,13 @@ impl Ui {
     /// lighter as keeps it reading whatever shows through.
     fn settled(mut self) -> Self {
         let opacity = self.material.opacity();
-        self.colors = self.palette.see_through(opacity);
+        // An opaque island at full opacity is already settled: see_through
+        // would only work its selection out again.
+        self.colors = if opacity >= 1.0 && self.palette.island.a >= 1.0 {
+            self.palette.with_selection()
+        } else {
+            self.palette.see_through(opacity)
+        };
         self
     }
 }
