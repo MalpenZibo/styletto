@@ -116,6 +116,7 @@ mod tests {
     use std::time::{Duration, Instant};
 
     use guido::prelude::*;
+    use guido::widgets::SCROLL_PIXELS_PER_LINE;
     use styletto::components::input::field;
     use styletto::components::slider::{Slider, slider};
     use styletto::foundations::tokens::opacity;
@@ -305,37 +306,45 @@ mod tests {
                 .collect::<Vec<_>>()
         };
 
-        // A touchpad's small deltas step once for each notch's worth, 40
-        // pixels: 100 pixels down are two steps, and 20 wait.
-        assert_eq!(swipe(&mut m, 4.0, 25, ScrollSource::Finger), [45.0, 40.0]);
-        // The 20 left and 20 more make a third.
-        assert_eq!(swipe(&mut m, 4.0, 5, ScrollSource::Finger), [35.0]);
-        // Turning back answers at once, from nothing left.
-        assert_eq!(swipe(&mut m, -8.0, 5, ScrollSource::Finger), [40.0]);
-        // A high-resolution wheel's eighths make one step per notch.
-        assert_eq!(swipe(&mut m, -5.0, 8, ScrollSource::Wheel), [45.0]);
-        // A continuous source gathers as a finger does.
-        assert_eq!(swipe(&mut m, -20.0, 2, ScrollSource::Continuous), [50.0]);
-        // Leaving drops what is short of a notch.
+        let line = SCROLL_PIXELS_PER_LINE;
+        // A touchpad's small deltas step once for each notch's worth, a
+        // line: two and a half lines down are two steps, and half waits.
         assert_eq!(
-            swipe(&mut m, 30.0, 1, ScrollSource::Finger),
+            swipe(&mut m, line / 10.0, 25, ScrollSource::Finger),
+            [45.0, 40.0]
+        );
+        // The half left and half more make a third.
+        assert_eq!(swipe(&mut m, line / 10.0, 5, ScrollSource::Finger), [35.0]);
+        // Turning back answers at once, from nothing left.
+        assert_eq!(swipe(&mut m, -line / 5.0, 5, ScrollSource::Finger), [40.0]);
+        // A high-resolution wheel's eighths make one step per notch.
+        assert_eq!(swipe(&mut m, -line / 8.0, 8, ScrollSource::Wheel), [45.0]);
+        // A continuous source gathers as a finger does.
+        assert_eq!(
+            swipe(&mut m, -line / 2.0, 2, ScrollSource::Continuous),
+            [50.0]
+        );
+        // Leaving drops what is short of a notch.
+        let most = 0.75 * line;
+        assert_eq!(
+            swipe(&mut m, most, 1, ScrollSource::Finger),
             Vec::<f32>::new()
         );
         m.send(Event::mouse_move(100.0, 90.0));
         m.send(Event::mouse_move(100.0, 8.0));
         assert_eq!(
-            swipe(&mut m, 30.0, 1, ScrollSource::Finger),
+            swipe(&mut m, most, 1, ScrollSource::Finger),
             Vec::<f32>::new()
         );
-        assert_eq!(swipe(&mut m, 10.0, 1, ScrollSource::Finger), [45.0]);
+        assert_eq!(swipe(&mut m, line / 4.0, 1, ScrollSource::Finger), [45.0]);
         // So does a press.
         assert_eq!(
-            swipe(&mut m, 30.0, 1, ScrollSource::Finger),
+            swipe(&mut m, most, 1, ScrollSource::Finger),
             Vec::<f32>::new()
         );
         assert_eq!(m.press(100.0), [50.0]);
         assert_eq!(
-            swipe(&mut m, 30.0, 1, ScrollSource::Finger),
+            swipe(&mut m, most, 1, ScrollSource::Finger),
             Vec::<f32>::new()
         );
     }
