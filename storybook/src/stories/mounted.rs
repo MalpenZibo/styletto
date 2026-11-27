@@ -6,6 +6,7 @@ use std::time::{Duration, Instant};
 
 use guido::prelude::*;
 use guido::testing::Headless;
+use guido::widgets::SCROLL_PIXELS_PER_LINE;
 
 /// What a tree asks its owner, in order.
 pub type Asked<T> = Rc<RefCell<Vec<T>>>;
@@ -143,10 +144,6 @@ fn unlike(a: &[u8], b: &[u8], width: usize) -> Option<String> {
     ))
 }
 
-/// The pixels Guido gives a classic wheel's notch (its
-/// `SCROLL_PIXELS_PER_LINE`, not public), as the slider gathers them.
-pub const NOTCH: f32 = 40.0;
-
 /// A tree mounted headless, 200 by 100, with what it asked.
 pub struct Mounted<T> {
     h: Headless,
@@ -191,7 +188,8 @@ impl<T: 'static> Mounted<T> {
 
     /// A classic wheel's notch, up or down.
     pub fn notch(&mut self, up: bool) -> Vec<T> {
-        self.scroll(if up { -NOTCH } else { NOTCH }, ScrollSource::Wheel)
+        let line = SCROLL_PIXELS_PER_LINE;
+        self.scroll(if up { -line } else { line }, ScrollSource::Wheel)
     }
 
     /// A scroll of `dy` pixels from `source`.

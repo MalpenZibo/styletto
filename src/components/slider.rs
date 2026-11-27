@@ -5,6 +5,7 @@
 use std::cell::Cell;
 
 use guido::prelude::*;
+use guido::widgets::SCROLL_PIXELS_PER_LINE;
 
 use crate::components::button::{Fill, button};
 use crate::foundations::control::Size;
@@ -30,25 +31,23 @@ fn inset() -> f32 {
 /// Percent per wheel notch unless the app sets its own; whatever the
 /// maximum, a notch changes a level by the same amount past 100 as below it.
 const STEP: f32 = 5.0;
-/// The pixels Guido gives a classic wheel's notch (its
-/// `SCROLL_PIXELS_PER_LINE`, not public). A scroll moves the slider
-/// a step for each notch's worth of it, whatever sent it: a touchpad's swipe
-/// as far as the same distance on a wheel, a high-resolution wheel's eighths
-/// of a notch once a whole notch is gathered.
-const NOTCH: f32 = 40.0;
 /// Where the mark goes, and the maximum past which it shows.
 const FULL: f32 = 100.0;
 
 /// Adds `dy` to `left`, the pixels a scroll was short of a notch, and gives
-/// the whole notches in them and the pixels short of the next. A scroll
-/// turning the other way drops what was left, so it answers at once.
+/// the whole notches in them and the pixels short of the next. A notch is
+/// Guido's `SCROLL_PIXELS_PER_LINE`, what a classic wheel's notch scrolls,
+/// whatever sent the scroll: a touchpad's swipe steps as far as the same
+/// distance on a wheel, a high-resolution wheel's eighths once a whole notch
+/// is gathered. A scroll turning the other way drops what was left, so it
+/// answers at once.
 fn gather(left: f32, dy: f32) -> (f32, f32) {
     let left = if left * dy < 0.0 { 0.0 } else { left };
     let total = left + dy;
-    let notches = (total / NOTCH).trunc();
+    let notches = (total / SCROLL_PIXELS_PER_LINE).trunc();
     // `%` is exact: what is left stays short of a notch, however large
     // the delta.
-    (notches, total % NOTCH)
+    (notches, total % SCROLL_PIXELS_PER_LINE)
 }
 
 /// `value` if it is a positive finite number, else `default`.
@@ -349,28 +348,31 @@ pub fn slider_row(
 
 #[cfg(test)]
 mod tests {
-    use super::{NOTCH, gather};
+    use guido::widgets::SCROLL_PIXELS_PER_LINE;
+
+    use super::gather;
 
     #[test]
     fn a_scroll_steps_once_for_each_notch_it_gathers() {
+        let line = SCROLL_PIXELS_PER_LINE;
         // A classic wheel: a notch at a time.
-        assert_eq!(gather(0.0, NOTCH), (1.0, 0.0));
-        assert_eq!(gather(0.0, -NOTCH), (-1.0, 0.0));
+        assert_eq!(gather(0.0, line), (1.0, 0.0));
+        assert_eq!(gather(0.0, -line), (-1.0, 0.0));
         // A swipe's small deltas add up, and what is short of a notch waits.
         let mut left = 0.0;
         let mut notches = 0.0;
         for _ in 0..25 {
-            let (n, l) = gather(left, 4.0);
+            let (n, l) = gather(left, line / 10.0);
             notches += n;
             left = l;
         }
-        assert_eq!((notches, left), (2.0, 20.0));
+        assert_eq!((notches, left), (2.0, line / 2.0));
         // A fast one moves several at once.
-        assert_eq!(gather(0.0, 3.5 * NOTCH), (3.0, 0.5 * NOTCH));
+        assert_eq!(gather(0.0, 3.5 * line), (3.0, 0.5 * line));
         // However large, what is left stays short of a notch.
-        assert!(gather(0.0, 1e10).1.abs() < NOTCH);
+        assert!(gather(0.0, 1e10).1.abs() < line);
         // Turning back drops what was left the other way.
-        assert_eq!(gather(30.0, -10.0), (0.0, -10.0));
-        assert_eq!(gather(-30.0, NOTCH), (1.0, 0.0));
+        assert_eq!(gather(0.75 * line, -0.25 * line), (0.0, -0.25 * line));
+        assert_eq!(gather(-0.75 * line, line), (1.0, 0.0));
     }
 }
