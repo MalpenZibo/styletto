@@ -30,8 +30,26 @@ fn inset() -> f32 {
 /// Percent per wheel notch unless the app sets its own; whatever the
 /// maximum, a notch changes a level by the same amount past 100 as below it.
 const STEP: f32 = 5.0;
+/// The pixels Guido gives a classic wheel's notch (its
+/// `SCROLL_PIXELS_PER_LINE`, not public). A scroll moves the slider
+/// a step for each notch's worth of it, whatever sent it: a touchpad's swipe
+/// as far as the same distance on a wheel, a high-resolution wheel's eighths
+/// of a notch once a whole notch is gathered.
+const NOTCH: f32 = 40.0;
 /// Where the mark goes, and the maximum past which it shows.
 const FULL: f32 = 100.0;
+
+/// Adds `dy` to `left`, the pixels a scroll was short of a notch, and gives
+/// the whole notches in them and the pixels short of the next. A scroll
+/// turning the other way drops what was left, so it answers at once.
+fn gather(left: f32, dy: f32) -> (f32, f32) {
+    let left = if left * dy < 0.0 { 0.0 } else { left };
+    let total = left + dy;
+    let notches = (total / NOTCH).trunc();
+    // `%` is exact: what is left stays short of a notch, however large
+    // the delta.
+    (notches, total % NOTCH)
+}
 
 /// `value` if it is a positive finite number, else `default`.
 fn positive_or(value: f32, default: f32) -> f32 {
@@ -52,8 +70,8 @@ pub fn slider(
     /// counts as 100.
     #[prop(default = FULL)]
     max: f32,
-    /// The percentage a wheel notch adds or takes, 5 unless set; the same
-    /// past 100. A whole percentage: a fraction is rounded, to 1 at least.
+    /// The percentage a wheel notch, or a swipe as long, adds or takes, 5
+    /// unless set; the same past 100. A whole percentage: a fraction is rounded, to 1 at least.
     /// One that is not a positive finite number counts as 5.
     #[prop(default = STEP)]
     step: f32,
@@ -80,6 +98,8 @@ pub fn slider(
     // last one is shown, and the next notch steps from it, not from an answer
     // on its way.
     let wheeled = create_signal(Vec::<f32>::new());
+    // The pixels scrolled short of a notch, kept for the next event.
+    let scrolled = create_signal(0.0_f32);
     create_effect(move || {
         // Rounded, as the steps are, for an owner that keeps finer levels (a
         // backlight's) than whole percentages.
@@ -107,7 +127,10 @@ pub fn slider(
 
     let set = move |v: f32| {
         let v = v.clamp(0.0, max.get_untracked()).round();
+        // A press or a drag ends the wheel's run and drops a scroll short
+        // of a notch.
         wheeled.set(Vec::new());
+        scrolled.set(0.0);
         if dragging.get_untracked() != Some(v) {
             dragging.set(Some(v));
             on_change(v);
@@ -201,9 +224,11 @@ pub fn slider(
         .on_hover(move |h| {
             hovered.set(h);
             // Leaving ends the wheel's run: an owner that refused a step, or
-            // never answered, is believed again.
+            // never answered, is believed again, and a scroll short of a
+            // notch is dropped.
             if !h {
                 wheeled.set(Vec::new());
+                scrolled.set(0.0);
             }
         })
         .on_mouse_down(move |x, _| set(locate(x)))
@@ -214,8 +239,15 @@ pub fn slider(
         })
         .on_mouse_up(move |_, _| dragging.set(None))
         .on_scroll(move |_, dy, _| {
-            // A sideways scroll moves nothing: `signum` would call it down.
-            if dy == 0.0 {
+            // A delta that is not a number moves nothing.
+            if !dy.is_finite() {
+                return;
+            }
+            let (notches, left) = gather(scrolled.get_untracked(), dy);
+            scrolled.set(left);
+            // Short of a notch (or sideways) nothing is asked: stepping by
+            // none would still round an owner's 50.4 to 50.
+            if notches == 0.0 {
                 return;
             }
             // From what is shown: a value past a maximum lowered under it
@@ -225,7 +257,7 @@ pub fn slider(
                 .with_untracked(|asks| asks.last().copied())
                 .unwrap_or_else(|| value.get_untracked())
                 .clamp(0.0, max);
-            let next = (from - dy.signum() * step.get_untracked())
+            let next = (from - notches * step.get_untracked())
                 .clamp(0.0, max)
                 .round();
             if next != from {
@@ -313,4 +345,32 @@ pub fn slider_row(
                 .child(slider(value).max(max).step(step).on_change(on_change)),
         )
         .child(tail)
+}
+
+#[cfg(test)]
+mod tests {
+    use super::{NOTCH, gather};
+
+    #[test]
+    fn a_scroll_steps_once_for_each_notch_it_gathers() {
+        // A classic wheel: a notch at a time.
+        assert_eq!(gather(0.0, NOTCH), (1.0, 0.0));
+        assert_eq!(gather(0.0, -NOTCH), (-1.0, 0.0));
+        // A swipe's small deltas add up, and what is short of a notch waits.
+        let mut left = 0.0;
+        let mut notches = 0.0;
+        for _ in 0..25 {
+            let (n, l) = gather(left, 4.0);
+            notches += n;
+            left = l;
+        }
+        assert_eq!((notches, left), (2.0, 20.0));
+        // A fast one moves several at once.
+        assert_eq!(gather(0.0, 3.5 * NOTCH), (3.0, 0.5 * NOTCH));
+        // However large, what is left stays short of a notch.
+        assert!(gather(0.0, 1e10).1.abs() < NOTCH);
+        // Turning back drops what was left the other way.
+        assert_eq!(gather(30.0, -10.0), (0.0, -10.0));
+        assert_eq!(gather(-30.0, NOTCH), (1.0, 0.0));
+    }
 }

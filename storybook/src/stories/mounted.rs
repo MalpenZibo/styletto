@@ -143,6 +143,10 @@ fn unlike(a: &[u8], b: &[u8], width: usize) -> Option<String> {
     ))
 }
 
+/// The pixels Guido gives a classic wheel's notch (its
+/// `SCROLL_PIXELS_PER_LINE`, not public), as the slider gathers them.
+pub const NOTCH: f32 = 40.0;
+
 /// A tree mounted headless, 200 by 100, with what it asked.
 pub struct Mounted<T> {
     h: Headless,
@@ -185,10 +189,14 @@ impl<T: 'static> Mounted<T> {
         self.send_at(event, Instant::now())
     }
 
-    /// A wheel notch, up or down.
+    /// A classic wheel's notch, up or down.
     pub fn notch(&mut self, up: bool) -> Vec<T> {
-        let dy = if up { -1.0 } else { 1.0 };
-        self.send(Event::scroll(100.0, 8.0, 0.0, dy, ScrollSource::Wheel))
+        self.scroll(if up { -NOTCH } else { NOTCH }, ScrollSource::Wheel)
+    }
+
+    /// A scroll of `dy` pixels from `source`.
+    pub fn scroll(&mut self, dy: f32, source: ScrollSource) -> Vec<T> {
+        self.send(Event::scroll(100.0, 8.0, 0.0, dy, source))
     }
 
     /// A press and a release at `x`, giving what the press asked.

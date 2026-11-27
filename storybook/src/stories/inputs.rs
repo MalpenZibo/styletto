@@ -26,8 +26,8 @@ pub fn toggle(ctx: &Ctx) -> Container {
         }))
 }
 
-/// A slider; a max past 100 shows where 100 is, and a wheel notch moves it
-/// by its step.
+/// A slider; a max past 100 shows where 100 is, and a wheel notch, or a
+/// touchpad swipe as long, moves it by its step.
 pub fn slider(ctx: &Ctx) -> Container {
     let value = ctx.number("Value", 0.0..=150.0, 60.0);
     let max = ctx.number("Max", 100.0..=150.0, 100.0);
@@ -288,6 +288,55 @@ mod tests {
         assert_eq!(
             [m.notch(true), m.notch(true), m.notch(true)].concat(),
             [74.0, 94.0, 114.0]
+        );
+    }
+
+    #[test]
+    fn a_swipe_steps_as_far_as_a_wheel_would() {
+        let Some((mut m, ())) = Mounted::<f32>::new(|log| {
+            let slider = taking(create_signal(50.0), log);
+            (container().width(200.0).child(slider), ())
+        }) else {
+            return;
+        };
+        let swipe = |m: &mut Mounted<f32>, dy: f32, times: usize, source: ScrollSource| {
+            (0..times)
+                .flat_map(|_| m.scroll(dy, source))
+                .collect::<Vec<_>>()
+        };
+
+        // A touchpad's small deltas step once for each notch's worth, 40
+        // pixels: 100 pixels down are two steps, and 20 wait.
+        assert_eq!(swipe(&mut m, 4.0, 25, ScrollSource::Finger), [45.0, 40.0]);
+        // The 20 left and 20 more make a third.
+        assert_eq!(swipe(&mut m, 4.0, 5, ScrollSource::Finger), [35.0]);
+        // Turning back answers at once, from nothing left.
+        assert_eq!(swipe(&mut m, -8.0, 5, ScrollSource::Finger), [40.0]);
+        // A high-resolution wheel's eighths make one step per notch.
+        assert_eq!(swipe(&mut m, -5.0, 8, ScrollSource::Wheel), [45.0]);
+        // A continuous source gathers as a finger does.
+        assert_eq!(swipe(&mut m, -20.0, 2, ScrollSource::Continuous), [50.0]);
+        // Leaving drops what is short of a notch.
+        assert_eq!(
+            swipe(&mut m, 30.0, 1, ScrollSource::Finger),
+            Vec::<f32>::new()
+        );
+        m.send(Event::mouse_move(100.0, 90.0));
+        m.send(Event::mouse_move(100.0, 8.0));
+        assert_eq!(
+            swipe(&mut m, 30.0, 1, ScrollSource::Finger),
+            Vec::<f32>::new()
+        );
+        assert_eq!(swipe(&mut m, 10.0, 1, ScrollSource::Finger), [45.0]);
+        // So does a press.
+        assert_eq!(
+            swipe(&mut m, 30.0, 1, ScrollSource::Finger),
+            Vec::<f32>::new()
+        );
+        assert_eq!(m.press(100.0), [50.0]);
+        assert_eq!(
+            swipe(&mut m, 30.0, 1, ScrollSource::Finger),
+            Vec::<f32>::new()
         );
     }
 
